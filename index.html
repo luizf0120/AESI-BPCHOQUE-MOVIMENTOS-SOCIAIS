@@ -28,7 +28,7 @@
   }
 
   /* =========================================
-     TELA PRETA DE BLOQUEIO 100% CAMUFLADA
+     NOVO: TELA PRETA COM TEXTO FALSO (MOBILE FRIENDLY)
      ========================================= */
   #tela-bloqueio {
     position: fixed;
@@ -36,9 +36,40 @@
     left: 0;
     width: 100vw;
     height: 100vh;
-    background-color: #000000;
-    z-index: 9999999; /* Fica por cima de absolutamente tudo */
-    transition: opacity 0.8s ease; /* Efeito suave ao sumir se acertar a senha */
+    background-color: #0d0d0d; /* Fundo quase preto, parece tela de erro de servidor */
+    z-index: 9999999; 
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    transition: opacity 0.8s ease; 
+    user-select: none; /* Impede que a pessoa selecione o texto ao tentar clicar */
+    -webkit-user-select: none;
+  }
+
+  #mensagem-falsa {
+    color: #555555; /* Texto cinza escuro para não chamar atenção */
+    font-size: 16px;
+    font-family: monospace;
+    letter-spacing: 1px;
+  }
+
+  /* O segredo da área de clique expandida para o celular */
+  .alvo {
+    position: relative;
+    display: inline-block;
+    cursor: default;
+  }
+
+  /* Cria um botão invisível de 30x30 pixels em cima da letra para não errar o toque */
+  .alvo::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 30px;
+    height: 30px;
+    background: transparent;
   }
 
   /* --- CABEÇALHO E TRACKING DIÁRIO --- */
@@ -409,7 +440,50 @@
 </head>
 <body>
 
-<div id="tela-bloqueio"></div>
+<div id="tela-bloqueio">
+  <div id="mensagem-falsa">
+    <span class="alvo" data-chave="primeira">A</span>cesso expirad<span class="alvo" data-chave="ultima">o</span>
+  </div>
+</div>
+
+<script>
+  let siteDesbloqueado = false;
+  let travadoPermanente = false;
+  let sequenciaToques = [];
+
+  // Ouve qualquer clique na tela de bloqueio
+  document.getElementById('tela-bloqueio').addEventListener('click', function(event) {
+    if (siteDesbloqueado || travadoPermanente) return;
+
+    // Se o lugar tocado for uma das nossas letras "alvo"
+    if (event.target.classList.contains('alvo')) {
+      sequenciaToques.push(event.target.getAttribute('data-chave'));
+    } else {
+      // Se tocou em qualquer outro lugar (fundo preto ou no meio do texto)
+      sequenciaToques.push('erro');
+    }
+
+    // Só permite 2 toques no total
+    if (sequenciaToques.length === 2) {
+      // Regra de segurança: O primeiro toque tem que ser na "ultima", o segundo na "primeira"
+      if (sequenciaToques[0] === 'ultima' && sequenciaToques[1] === 'primeira') {
+        siteDesbloqueado = true;
+        this.style.opacity = '0'; // Dissolve a tela preta
+        setTimeout(() => {
+          this.style.display = 'none'; // Some de vez da frente do site
+        }, 800);
+      } else {
+        // Errou! Trava o sistema silenciosamente.
+        travadoPermanente = true;
+        
+        // Remove a "área de clique" das letras para que fiquem inúteis.
+        document.querySelectorAll('.alvo').forEach(el => {
+          el.classList.remove('alvo');
+        });
+      }
+    }
+  });
+</script>
 
 <div class="header-container">
   <div class="header-title">
@@ -447,40 +521,6 @@
 </div>
 
 <div id="tooltip-preview"></div>
-
-<script>
-  let siteDesbloqueado = false;
-  let travadoPermanente = false;
-  
-  // SENHA CEGA DE 3 LETRAS:
-  const SENHA_SECRETA = 'mov'; 
-  let sequenciaDigitada = '';
-
-  document.addEventListener('keydown', function(event) {
-    if (siteDesbloqueado || travadoPermanente) return;
-
-    // Ignora teclas especiais soltas
-    if (event.key.length > 1) return;
-
-    // Registra a tecla digitada
-    sequenciaDigitada += event.key.toLowerCase();
-
-    // Se acertou a senha exata, abre o site
-    if (sequenciaDigitada === SENHA_SECRETA) {
-      siteDesbloqueado = true;
-      const tela = document.getElementById('tela-bloqueio');
-      tela.style.opacity = '0'; 
-      setTimeout(() => {
-        tela.style.display = 'none'; 
-      }, 800);
-    } 
-    // Se digitou 3 vezes e não destravou no 'if' acima, trava pra sempre (silenciosamente)
-    else if (sequenciaDigitada.length >= 3) {
-      travadoPermanente = true;
-      // A tela fica preta, sem aviso, sem mensagem, e não aceita mais teclas.
-    }
-  });
-</script>
 
 <script type="module">
   import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
@@ -878,6 +918,9 @@
     if (!e.target.closest('.search-box')) document.getElementById('caixaResultados').style.display = 'none';
   });
 
+</script>
+</body>
+</html>
 </script>
 </body>
 </html>
