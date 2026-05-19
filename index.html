@@ -50,7 +50,7 @@
 
   .login-box img {
     width: 120px;
-    margin-bottom: 30px;
+    margin-bottom: 30px; 
   }
 
   .login-box input {
@@ -172,6 +172,7 @@
   .icon-red { background: var(--accent-red); color: #fff; }
   .icon-insta { background: #E1306C; color: #fff; }
   .icon-face { background: #1877F2; color: #fff; }
+  .icon-link { background: #555; color: #fff; } 
   .toggle-icon { font-size: 16px; color: #888; margin-left: 10px; }
   .node > button .toggle-icon::before { content: '⊕'; }
   .node.active > button .toggle-icon::before { content: '⊖'; }
@@ -371,11 +372,13 @@
 
       onValue(monitoramentoRef, (snapshot) => {
         const data = snapshot.val();
-        if (!data) set(monitoramentoRef, { vistos: [] });
-        else {
-          vistosGlobais = data.vistos || [];
-          atualizarUiComVistos();
+        // BLINDAGEM CONTRA O "ARRAY-TO-OBJECT" DO FIREBASE
+        if (data && data.vistos) {
+            vistosGlobais = Object.values(data.vistos); 
+        } else {
+            vistosGlobais = [];
         }
+        atualizarUiComVistos();
       });
 
       onValue(ref(db, `estatisticas_semanal/${semanaAtualISO}`), (snapshot) => {
@@ -436,7 +439,8 @@
     if (!vistosGlobais.some(v => v.id === idUnico)) {
       const hora = obterHoraBrasilia();
       const novosVistos = [...vistosGlobais, { id: idUnico, time: hora }];
-      set(ref(db, `monitoramentoDiario/${dataHojeISO}`), { vistos: novosVistos });
+      // SALVA DIRETAMENTE NO NÓ 'VISTOS' PARA EVITAR LOOP
+      set(ref(db, `monitoramentoDiario/${dataHojeISO}/vistos`), novosVistos);
     }
     const safeKey = sanitizarId(idUnico);
     const statRef = ref(db, `estatisticas_semanal/${semanaAtualISO}/${safeKey}`);
@@ -455,7 +459,11 @@
         datas.forEach(d => {
             const dataBr = d.split('-').reverse().join('/');
             relatorio += `[ DATA: ${dataBr} ]\n`;
-            const vistos = dados[d].vistos || [];
+            
+            // BLINDAGEM DE DADOS PARA O RELATÓRIO
+            const vistos = (dados[d] && dados[d].vistos) ? Object.values(dados[d].vistos) : [];
+            relatorio += `-> Total de fontes verificadas: ${vistos.length}\n`;
+            
             vistos.forEach(v => {
                 const nomeCurto = v.id.split(' > ').slice(-2, -1)[0]; 
                 relatorio += ` - ${v.time} | ${nomeCurto}\n`;
@@ -483,7 +491,7 @@
     if (item.filhos && item.filhos.length > 0) {
       item.filhos.forEach(filho => htmlContent += `<li>● ${filho.nome}</li>`);
     } else if (item.links && item.links.length > 0) {
-      item.links.forEach(link => htmlContent += `<li>🔗 Instagram</li>`);
+      item.links.forEach(link => htmlContent += `<li>🔗 Links Internos</li>`);
     }
     htmlContent += '</ul>';
     tooltip.innerHTML = htmlContent;
@@ -556,12 +564,10 @@
       const btn = document.createElement('button');
       btn.onclick = function(e) { e.stopPropagation(); window.toggle(this); };
       
-      // MUDANÇA TÁTICA: Agora cria a barra se houver Filhos OU Links
       if (temFilhos || temLinks) {
         btn.onmouseenter = function() { window.mostrarTooltipPreview(item, this); };
         btn.onmouseleave = function() { window.esconderTooltipPreview(); };
         
-        // Esta linha foi corrigida para detectar links diretos também
         const progBar = document.createElement('div');
         progBar.className = 'node-progress-bar';
         const progFill = document.createElement('div');
@@ -578,12 +584,35 @@
         childrenDiv.className = 'children';
         if (temLinks) {
           item.links.forEach(link => {
+            const linkNode = document.createElement('div'); // Correção essencial aplicada aqui
+            linkNode.className = 'node no-children';
+            
             const a = document.createElement('a');
             a.href = link.url || '#'; a.target = '_blank'; a.className = 'link-card';
             a.setAttribute('data-id', pathString + " > " + link.url);
             a.onclick = () => window.registrarVisualizacao(pathString + " > " + link.url, novoCaminho.slice(-2).join(' > '));
-            a.innerHTML = `<div class="icon-circle icon-insta">📸</div><div class="link-text"><span>Instagram</span><span class="link-url">${link.textoUrl || ''}</span></div>`;
-            childrenDiv.appendChild(a);
+            
+            const linkIcon = document.createElement('div');
+            linkIcon.className = 'icon-circle icon-' + (link.tipo === 'link' ? 'link' : 'insta');
+            linkIcon.textContent = link.tipo === 'insta' ? '📸' : '🔗';
+            
+            const textDiv = document.createElement('div');
+            textDiv.className = 'link-text';
+            const spanNome = document.createElement('span');
+            spanNome.textContent = link.tipo === 'insta' ? 'Instagram' : 'Website';
+            textDiv.appendChild(spanNome);
+
+            if (link.textoUrl) {
+              const spanUrl = document.createElement('span');
+              spanUrl.className = 'link-url';
+              spanUrl.textContent = link.textoUrl;
+              textDiv.appendChild(spanUrl);
+            }
+
+            a.appendChild(linkIcon);
+            a.appendChild(textDiv);
+            linkNode.appendChild(a); // Conecta o link dentro do nó invisível
+            childrenDiv.appendChild(linkNode); // Conecta o nó na árvore
           });
         }
         if (temFilhos) desenharArvore(item.filhos, childrenDiv, novoCaminho);
