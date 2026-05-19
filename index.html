@@ -283,7 +283,7 @@
 
   let vistosGlobais = [];
   window.DADOS_TOTAIS = [];
-  let listaTodosAlvos = []; // A nova lista mestra para achar os zeros!
+  let listaTodosAlvos = []; 
 
   document.getElementById('btn-entrar').addEventListener('click', async () => {
     const e = document.getElementById('email').value;
@@ -318,7 +318,6 @@
           if(snap.exists()) {
               window.DADOS_TOTAIS = snap.val();
               
-              // Mapeia todos os links existentes para a lista de estatísticas
               listaTodosAlvos = [];
               extrairTodosOsAlvos(window.DADOS_TOTAIS);
 
@@ -330,9 +329,11 @@
       });
   }
 
-  // Vasculha a árvore inteira e guarda todos os links que existem
   function extrairTodosOsAlvos(lista, caminhoAtual = []) {
       lista.forEach(item => {
+          // EXCLUI "NOTÍCIAS" DO RADAR DE ESTATÍSTICAS
+          if (caminhoAtual.length === 0 && item.nome !== "MOVIMENTOS") return;
+
           const novoCaminho = [...caminhoAtual, item.nome];
           if (item.links && item.links.length > 0) {
               item.links.forEach(link => {
@@ -407,11 +408,9 @@
         atualizarUiComVistos();
       });
 
-      // Lógica de Estatística Híbrida (Firebase + Lista de Zeros)
       onValue(ref(db, `estatisticas_semanal/${semanaAtualISO}`), (snapshot) => {
         const dataFirebase = snapshot.val() || {};
         
-        // Cruza os dados do firebase com a nossa lista mestra
         let estatisticasCompletas = listaTodosAlvos.map(alvo => {
             return {
                 titulo: alvo.titulo,
@@ -421,18 +420,18 @@
 
         estatisticasCompletas.sort((a, b) => b.count - a.count);
 
-        const top5 = estatisticasCompletas.slice(0, 5);
-        // Pega os 5 últimos (que terão zeros) e inverte
-        const bottom5 = estatisticasCompletas.slice(-5).reverse();
+        // PEGA OS 15 MAIS VISTOS (Filtrando os que tem ZERO pra não sujar o topo)
+        const top15 = estatisticasCompletas.filter(s => s.count > 0).slice(0, 15);
+        // PEGA OS 15 MENOS VISTOS
+        const bottom15 = estatisticasCompletas.slice(-15).reverse();
         
-        // Se o top1 for zero, significa que a semana começou e não tem clique nenhum ainda.
-        if (top5.length > 0 && top5[0].count > 0) {
-            document.getElementById('list-top').innerHTML = top5.map(s => `<li><span>${s.titulo}</span> <span class="stat-count">${s.count} cliques</span></li>`).join('');
+        if (top15.length > 0) {
+            document.getElementById('list-top').innerHTML = top15.map(s => `<li><span>${s.titulo}</span> <span class="stat-count">${s.count} cliques</span></li>`).join('');
         } else {
             document.getElementById('list-top').innerHTML = '<li style="color: #666; justify-content: center;">Nenhum alvo acessado ainda</li>';
         }
 
-        document.getElementById('list-bottom').innerHTML = bottom5.map(s => `<li><span>${s.titulo}</span> <span class="stat-count">${s.count} cliques</span></li>`).join('');
+        document.getElementById('list-bottom').innerHTML = bottom15.map(s => `<li><span>${s.titulo}</span> <span class="stat-count">${s.count} cliques</span></li>`).join('');
       });
   }
 
@@ -485,12 +484,16 @@
       const novosVistos = [...vistosGlobais, { id: idUnico, time: hora, operador: usuarioLogado }];
       set(ref(db, `monitoramentoDiario/${dataHojeISO}/vistos`), novosVistos);
     }
-    const safeKey = sanitizarId(idUnico);
-    const statRef = ref(db, `estatisticas_semanal/${semanaAtualISO}/${safeKey}`);
-    get(statRef).then(snap => {
-        let count = snap.exists() ? snap.val().count : 0;
-        set(statRef, { titulo: tituloLink, count: count + 1 });
-    });
+    
+    // BLOQUEIO: Só escreve estatísticas se o link começar com "MOVIMENTOS"
+    if (idUnico.startsWith("MOVIMENTOS")) {
+        const safeKey = sanitizarId(idUnico);
+        const statRef = ref(db, `estatisticas_semanal/${semanaAtualISO}/${safeKey}`);
+        get(statRef).then(snap => {
+            let count = snap.exists() ? snap.val().count : 0;
+            set(statRef, { titulo: tituloLink, count: count + 1 });
+        });
+    }
   };
 
   window.baixarRelatorio = function() {
