@@ -283,6 +283,7 @@
 
   let vistosGlobais = [];
   window.DADOS_TOTAIS = [];
+  let listaTodosAlvos = []; // A nova lista mestra para achar os zeros!
 
   document.getElementById('btn-entrar').addEventListener('click', async () => {
     const e = document.getElementById('email').value;
@@ -316,10 +317,36 @@
       get(ref(db, 'estrutura_arvore')).then(snap => {
           if(snap.exists()) {
               window.DADOS_TOTAIS = snap.val();
+              
+              // Mapeia todos os links existentes para a lista de estatísticas
+              listaTodosAlvos = [];
+              extrairTodosOsAlvos(window.DADOS_TOTAIS);
+
               const raiz = document.getElementById('raiz-arvore');
               raiz.innerHTML = "";
               desenharArvore(window.DADOS_TOTAIS, raiz, []);
               iniciarMonitoramentoDiario();
+          }
+      });
+  }
+
+  // Vasculha a árvore inteira e guarda todos os links que existem
+  function extrairTodosOsAlvos(lista, caminhoAtual = []) {
+      lista.forEach(item => {
+          const novoCaminho = [...caminhoAtual, item.nome];
+          if (item.links && item.links.length > 0) {
+              item.links.forEach(link => {
+                  const pathString = novoCaminho.join(' > ');
+                  const idUnico = pathString + " > " + link.url;
+                  const tituloEstatistica = novoCaminho.slice(-2).join(' > ');
+                  listaTodosAlvos.push({
+                      id: sanitizarId(idUnico),
+                      titulo: tituloEstatistica
+                  });
+              });
+          }
+          if (item.filhos) {
+              extrairTodosOsAlvos(item.filhos, novoCaminho);
           }
       });
   }
@@ -372,7 +399,6 @@
 
       onValue(monitoramentoRef, (snapshot) => {
         const data = snapshot.val();
-        // BLINDAGEM CONTRA O "ARRAY-TO-OBJECT" DO FIREBASE
         if (data && data.vistos) {
             vistosGlobais = Object.values(data.vistos); 
         } else {
@@ -381,15 +407,31 @@
         atualizarUiComVistos();
       });
 
+      // Lógica de Estatística Híbrida (Firebase + Lista de Zeros)
       onValue(ref(db, `estatisticas_semanal/${semanaAtualISO}`), (snapshot) => {
-        const data = snapshot.val() || {};
-        const arr = Object.values(data);
-        if(arr.length === 0) return;
-        arr.sort((a,b) => b.count - a.count);
-        const top5 = arr.slice(0, 5);
-        const bottom5 = arr.slice().reverse().slice(0, 5);
+        const dataFirebase = snapshot.val() || {};
         
-        document.getElementById('list-top').innerHTML = top5.map(s => `<li><span>${s.titulo}</span> <span class="stat-count">${s.count} cliques</span></li>`).join('');
+        // Cruza os dados do firebase com a nossa lista mestra
+        let estatisticasCompletas = listaTodosAlvos.map(alvo => {
+            return {
+                titulo: alvo.titulo,
+                count: dataFirebase[alvo.id] ? dataFirebase[alvo.id].count : 0
+            };
+        });
+
+        estatisticasCompletas.sort((a, b) => b.count - a.count);
+
+        const top5 = estatisticasCompletas.slice(0, 5);
+        // Pega os 5 últimos (que terão zeros) e inverte
+        const bottom5 = estatisticasCompletas.slice(-5).reverse();
+        
+        // Se o top1 for zero, significa que a semana começou e não tem clique nenhum ainda.
+        if (top5.length > 0 && top5[0].count > 0) {
+            document.getElementById('list-top').innerHTML = top5.map(s => `<li><span>${s.titulo}</span> <span class="stat-count">${s.count} cliques</span></li>`).join('');
+        } else {
+            document.getElementById('list-top').innerHTML = '<li style="color: #666; justify-content: center;">Nenhum alvo acessado ainda</li>';
+        }
+
         document.getElementById('list-bottom').innerHTML = bottom5.map(s => `<li><span>${s.titulo}</span> <span class="stat-count">${s.count} cliques</span></li>`).join('');
       });
   }
@@ -438,8 +480,9 @@
   window.registrarVisualizacao = function(idUnico, tituloLink) {
     if (!vistosGlobais.some(v => v.id === idUnico)) {
       const hora = obterHoraBrasilia();
-      const novosVistos = [...vistosGlobais, { id: idUnico, time: hora }];
-      // SALVA DIRETAMENTE NO NÓ 'VISTOS' PARA EVITAR LOOP
+      const usuarioLogado = auth.currentUser ? auth.currentUser.email : 'Desconhecido';
+      
+      const novosVistos = [...vistosGlobais, { id: idUnico, time: hora, operador: usuarioLogado }];
       set(ref(db, `monitoramentoDiario/${dataHojeISO}/vistos`), novosVistos);
     }
     const safeKey = sanitizarId(idUnico);
@@ -460,13 +503,13 @@
             const dataBr = d.split('-').reverse().join('/');
             relatorio += `[ DATA: ${dataBr} ]\n`;
             
-            // BLINDAGEM DE DADOS PARA O RELATÓRIO
             const vistos = (dados[d] && dados[d].vistos) ? Object.values(dados[d].vistos) : [];
             relatorio += `-> Total de fontes verificadas: ${vistos.length}\n`;
             
             vistos.forEach(v => {
                 const nomeCurto = v.id.split(' > ').slice(-2, -1)[0]; 
-                relatorio += ` - ${v.time} | ${nomeCurto}\n`;
+                const operadorInfo = v.operador ? ` | Op: ${v.operador}` : '';
+                relatorio += ` - ${v.time} | ${nomeCurto}${operadorInfo}\n`;
             });
             relatorio += "\n";
         });
@@ -584,7 +627,7 @@
         childrenDiv.className = 'children';
         if (temLinks) {
           item.links.forEach(link => {
-            const linkNode = document.createElement('div'); // Correção essencial aplicada aqui
+            const linkNode = document.createElement('div'); 
             linkNode.className = 'node no-children';
             
             const a = document.createElement('a');
@@ -611,8 +654,8 @@
 
             a.appendChild(linkIcon);
             a.appendChild(textDiv);
-            linkNode.appendChild(a); // Conecta o link dentro do nó invisível
-            childrenDiv.appendChild(linkNode); // Conecta o nó na árvore
+            linkNode.appendChild(a); 
+            childrenDiv.appendChild(linkNode); 
           });
         }
         if (temFilhos) desenharArvore(item.filhos, childrenDiv, novoCaminho);
