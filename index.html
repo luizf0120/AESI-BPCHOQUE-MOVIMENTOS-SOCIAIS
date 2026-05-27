@@ -15,6 +15,7 @@
     --accent-blue: #007bff;
     --accent-red: #dc3545;
     --accent-yellow: #ffc107;
+    --accent-orange: #ff8c00;
     --accent-green: #28a745;
     --line-color: #555555;
   }
@@ -28,7 +29,7 @@
   }
 
   /* =========================================
-     TELA DE LOGIN (BARREIRA DE SEGURANÇA)
+     TELA DE LOGIN
      ========================================= */
   #login-screen {
     display: flex;
@@ -48,53 +49,24 @@
     box-shadow: 0 10px 30px rgba(0,0,0,0.8);
   }
 
-  .login-box img {
-    width: 120px;
-    margin-bottom: 30px; 
-  }
+  .login-box img { width: 120px; margin-bottom: 30px; }
 
   .login-box input {
-    width: 100%;
-    padding: 12px;
-    margin-bottom: 15px;
-    background: #111;
-    border: 1px solid #333;
-    color: white;
-    border-radius: 6px;
-    box-sizing: border-box;
-    font-size: 14px;
-    outline: none;
+    width: 100%; padding: 12px; margin-bottom: 15px; background: #111;
+    border: 1px solid #333; color: white; border-radius: 6px; box-sizing: border-box; font-size: 14px; outline: none;
   }
-
-  .login-box input:focus {
-    border-color: var(--accent-red);
-  }
+  .login-box input:focus { border-color: var(--accent-red); }
 
   .login-box button {
-    width: 100%;
-    padding: 12px;
-    background: var(--accent-red);
-    color: white;
-    border: none;
-    border-radius: 6px;
-    font-weight: bold;
-    cursor: pointer;
-    transition: 0.2s;
-    font-size: 14px;
-    letter-spacing: 1px;
+    width: 100%; padding: 12px; background: var(--accent-red); color: white;
+    border: none; border-radius: 6px; font-weight: bold; cursor: pointer; transition: 0.2s; font-size: 14px; letter-spacing: 1px;
   }
-
-  .login-box button:hover {
-    background: #b02a37;
-  }
+  .login-box button:hover { background: #b02a37; }
 
   /* =========================================
      PAINEL PRINCIPAL (C2)
      ========================================= */
-  #app-content {
-    display: none; 
-    padding: 20px;
-  }
+  #app-content { display: none; padding: 20px; }
 
   .header-container { display: flex; justify-content: space-between; align-items: center; padding: 10px 40px; margin-bottom: 10px; }
   .header-title { font-size: 24px; font-weight: bold; letter-spacing: 1px; display: flex; flex-direction: column; }
@@ -133,12 +105,42 @@
   .stat-list.bottom li { border-left-color: var(--accent-blue); }
   .stat-count { font-weight: bold; color: #888; font-size: 11px; background: #222; padding: 2px 6px; border-radius: 10px; }
 
+  /* --- BALÃO FLUTUANTE DE PRÉVIA --- */
   #tooltip-preview { position: fixed; z-index: 10000; pointer-events: none; background: rgba(20, 20, 20, 0.85); backdrop-filter: blur(4px); border: 1px solid #444; border-radius: 8px; padding: 12px; color: rgba(255, 255, 255, 0.6); font-size: 12px; box-shadow: 0 10px 20px rgba(0,0,0,0.5); opacity: 0; visibility: hidden; transition: opacity 0.2s ease, transform 0.2s ease; transform: translateX(-10px); max-height: 300px; overflow-y: hidden; }
   #tooltip-preview.show { opacity: 1; visibility: visible; transform: translateX(0); }
   .tooltip-title { font-size: 10px; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 8px; color: rgba(255, 255, 255, 0.4); border-bottom: 1px solid #444; padding-bottom: 4px; }
   .tooltip-list { list-style: none; padding: 0; margin: 0; }
   .tooltip-list li { margin-bottom: 5px; display: flex; align-items: center; gap: 6px; white-space: nowrap; }
 
+  /* --- SISTEMA DE ESTRELAS --- */
+  .star-icon {
+    font-size: 20px;
+    color: transparent;
+    -webkit-text-stroke: 1.5px #666;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    user-select: none;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    margin-right: 8px;
+    z-index: 10;
+  }
+  .star-icon:hover { -webkit-text-stroke: 1.5px #aaa; }
+  
+  .star-icon.star-yellow {
+    color: var(--accent-yellow);
+    -webkit-text-stroke: 0;
+    filter: drop-shadow(0 0 4px rgba(255, 193, 7, 0.4));
+  }
+  .star-icon.star-orange {
+    color: var(--accent-orange);
+    -webkit-text-stroke: 0;
+    filter: drop-shadow(0 0 8px rgba(255, 140, 0, 0.8));
+    transform: scale(1.15);
+  }
+
+  /* --- CSS DA ÁRVORE --- */
   .tree-container { display: flex; flex-direction: column; gap: 20px; justify-content: flex-start; align-items: flex-start; padding: 0 40px 40px 40px; min-width: max-content; }
   .node { display: flex; flex-direction: row; align-items: center; }
   .children { display: none; flex-direction: column; justify-content: center; padding-left: 50px; position: relative; }
@@ -165,7 +167,7 @@
   .node-progress-bar { position: absolute; bottom: 0; left: 0; width: 100%; height: 4px; background: rgba(255, 255, 255, 0.1); border-radius: 0 0 8px 8px; overflow: hidden; }
   .node-progress-fill { height: 100%; width: 0%; background-color: transparent; transition: width 0.6s cubic-bezier(0.4, 0, 0.2, 1), background-color 0.6s ease; }
 
-  .btn-left { display: flex; align-items: center; gap: 12px; }
+  .btn-left { display: flex; align-items: center; gap: 8px; }
   .icon-circle { width: 26px; height: 26px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: bold; flex-shrink: 0; transition: 0.3s; }
   .icon-white { background: #fff; color: #000; }
   .icon-blue { background: var(--accent-blue); color: #fff; }
@@ -178,21 +180,15 @@
   .node.active > button .toggle-icon::before { content: '⊖'; }
 
   .link-card {
-    display: flex; align-items: center; gap: 12px; background: var(--card-bg);
+    display: flex; align-items: center; gap: 8px; background: var(--card-bg);
     border: 1px solid var(--border-color); border-radius: 8px; padding: 8px 65px 8px 8px; 
     text-decoration: none; color: var(--text-main); font-size: 14px; min-width: 240px;
     transition: 0.2s; white-space: nowrap; z-index: 1; position: relative;
   }
   .link-card:hover { background: #151515; border-color: #888; }
   
-  .link-card.visto {
-    border-color: var(--accent-green) !important;
-    background: rgba(40, 167, 69, 0.05) !important;
-  }
-  .link-card.visto::after {
-    content: '✔'; position: absolute; right: 10px; top: 50%;
-    transform: translateY(-50%); color: var(--accent-green); font-size: 14px; font-weight: bold;
-  }
+  .link-card.visto { border-color: var(--accent-green) !important; background: rgba(40, 167, 69, 0.05) !important; }
+  .link-card.visto::after { content: '✔'; position: absolute; right: 10px; top: 50%; transform: translateY(-50%); color: var(--accent-green); font-size: 14px; font-weight: bold; }
 
   .stamp { position: absolute; right: 32px; top: 50%; transform: translateY(-50%); font-size: 10px; color: var(--accent-green); font-family: monospace; letter-spacing: 0.5px; }
   .link-text { display: flex; flex-direction: column; }
@@ -216,7 +212,7 @@
 <div id="app-content">
   <div class="header-container">
     <div class="header-title">
-      AESI BPCHOQUE - MOVIMENTOS SOCIAIS
+      AESI BPCHOQUE - COMANDO E CONTROLE
       <div class="date-badge" id="data-display">Conectando à nuvem...</div>
       <div class="connection-status" id="connection-status">Aguardando login...</div>
     </div>
@@ -284,6 +280,7 @@
   let vistosGlobais = [];
   window.DADOS_TOTAIS = [];
   let listaTodosAlvos = []; 
+  let estrelasOrigem = []; // Armazena as marcações táticas ativas (As Laranjas)
 
   document.getElementById('btn-entrar').addEventListener('click', async () => {
     const e = document.getElementById('email').value;
@@ -293,7 +290,7 @@
     try {
         await signInWithEmailAndPassword(auth, e, s);
     } catch (error) {
-        msg.innerText = "Acesso negado. E-mail ou senha incorretos.";
+        msg.innerText = "Acesso negado. Credenciais incorretas.";
     }
   });
 
@@ -331,7 +328,6 @@
 
   function extrairTodosOsAlvos(lista, caminhoAtual = []) {
       lista.forEach(item => {
-          // EXCLUI "NOTÍCIAS" DO RADAR DE ESTATÍSTICAS
           if (caminhoAtual.length === 0 && item.nome !== "MOVIMENTOS") return;
 
           const novoCaminho = [...caminhoAtual, item.nome];
@@ -339,35 +335,19 @@
               item.links.forEach(link => {
                   const pathString = novoCaminho.join(' > ');
                   const idUnico = pathString + " > " + link.url;
-                  const tituloEstatistica = novoCaminho.slice(-2).join(' > ');
-                  listaTodosAlvos.push({
-                      id: sanitizarId(idUnico),
-                      titulo: tituloEstatistica
-                  });
+                  listaTodosAlvos.push({ id: sanitizarId(idUnico), titulo: novoCaminho.slice(-2).join(' > ') });
               });
           }
-          if (item.filhos) {
-              extrairTodosOsAlvos(item.filhos, novoCaminho);
-          }
+          if (item.filhos) { extrairTodosOsAlvos(item.filhos, novoCaminho); }
       });
   }
 
-  function obterDataBrasiliaISO() {
-    const d = new Date(new Date().toLocaleString("en-US", {timeZone: "America/Sao_Paulo"}));
-    return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
-  }
-  function obterDataBrasiliaBr() {
-    const opçoes = { timeZone: 'America/Sao_Paulo', year: 'numeric', month: '2-digit', day: '2-digit' };
-    return new Intl.DateTimeFormat('pt-BR', opçoes).format(new Date());
-  }
-  function obterHoraBrasilia() {
-    const d = new Date(new Date().toLocaleString("en-US", {timeZone: "America/Sao_Paulo"}));
-    return `${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;
-  }
+  function obterDataBrasiliaISO() { const d = new Date(new Date().toLocaleString("en-US", {timeZone: "America/Sao_Paulo"})); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`; }
+  function obterDataBrasiliaBr() { return new Intl.DateTimeFormat('pt-BR', { timeZone: 'America/Sao_Paulo', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date()); }
+  function obterHoraBrasilia() { const d = new Date(new Date().toLocaleString("en-US", {timeZone: "America/Sao_Paulo"})); return `${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`; }
   function obterSegundaFeiraDaSemana() {
     const d = new Date(new Date().toLocaleString("en-US", {timeZone: "America/Sao_Paulo"}));
-    const day = d.getDay(); 
-    const diff = d.getDate() - day + (day === 0 ? -6 : 1); 
+    const day = d.getDay(); const diff = d.getDate() - day + (day === 0 ? -6 : 1); 
     const monday = new Date(d.setDate(diff));
     return `${monday.getFullYear()}-${String(monday.getMonth()+1).padStart(2,'0')}-${String(monday.getDate()).padStart(2,'0')}`;
   }
@@ -376,81 +356,90 @@
   function getCorTermica(pct) {
     if (pct === 0) return 'transparent';
     if (pct <= 10) return 'rgb(220, 53, 69)';
-    if (pct <= 40) { 
-      let p = (pct - 10) / 30;
-      let r = Math.round(220 + (255 - 220) * p); let g = Math.round(53 + (193 - 53) * p); let b = Math.round(69 + (7 - 69) * p);
-      return `rgb(${r}, ${g}, ${b})`;
-    }
-    if (pct <= 70) { 
-      let p = (pct - 40) / 30;
-      let r = Math.round(255 - (255 - 40) * p); let g = Math.round(193 - (193 - 167) * p); let b = Math.round(7 + (69 - 7) * p);
-      return `rgb(${r}, ${g}, ${b})`;
-    }
-    let p = (pct - 70) / 30;
-    let r = Math.round(40 - (40 - 0) * p); let g = Math.round(167 - (167 - 123) * p); let b = Math.round(69 + (255 - 69) * p);
-    return `rgb(${r}, ${g}, ${b})`;
+    if (pct <= 40) { let p = (pct - 10) / 30; return `rgb(${Math.round(220 + (255 - 220) * p)}, ${Math.round(53 + (193 - 53) * p)}, ${Math.round(69 + (7 - 69) * p)})`; }
+    if (pct <= 70) { let p = (pct - 40) / 30; return `rgb(${Math.round(255 - (255 - 40) * p)}, ${Math.round(193 - (193 - 167) * p)}, ${Math.round(7 + (69 - 7) * p)})`; }
+    let p = (pct - 70) / 30; return `rgb(${Math.round(40 - (40 - 0) * p)}, ${Math.round(167 - (167 - 123) * p)}, ${Math.round(69 + (255 - 69) * p)})`;
   }
 
   const dataHojeISO = obterDataBrasiliaISO();
   const semanaAtualISO = obterSegundaFeiraDaSemana();
 
   function iniciarMonitoramentoDiario() {
-      const monitoramentoRef = ref(db, `monitoramentoDiario/${dataHojeISO}`);
       document.getElementById('data-display').innerText = `Data de Referência (Brasília): ${obterDataBrasiliaBr()}`;
 
-      onValue(monitoramentoRef, (snapshot) => {
+      // Puxa Visitas Diárias
+      onValue(ref(db, `monitoramentoDiario/${dataHojeISO}`), (snapshot) => {
         const data = snapshot.val();
-        if (data && data.vistos) {
-            vistosGlobais = Object.values(data.vistos); 
-        } else {
-            vistosGlobais = [];
-        }
+        vistosGlobais = (data && data.vistos) ? Object.values(data.vistos) : [];
         atualizarUiComVistos();
       });
 
+      // Puxa Estatísticas Semanais
       onValue(ref(db, `estatisticas_semanal/${semanaAtualISO}`), (snapshot) => {
         const dataFirebase = snapshot.val() || {};
-        
         let estatisticasCompletas = listaTodosAlvos.map(alvo => {
-            return {
-                titulo: alvo.titulo,
-                count: dataFirebase[alvo.id] ? dataFirebase[alvo.id].count : 0
-            };
+            return { titulo: alvo.titulo, count: dataFirebase[alvo.id] ? dataFirebase[alvo.id].count : 0 };
         });
-
         estatisticasCompletas.sort((a, b) => b.count - a.count);
 
-        // PEGA OS 15 MAIS VISTOS (Filtrando os que tem ZERO pra não sujar o topo)
         const top15 = estatisticasCompletas.filter(s => s.count > 0).slice(0, 15);
-        // PEGA OS 15 MENOS VISTOS
         const bottom15 = estatisticasCompletas.slice(-15).reverse();
         
-        if (top15.length > 0) {
-            document.getElementById('list-top').innerHTML = top15.map(s => `<li><span>${s.titulo}</span> <span class="stat-count">${s.count} cliques</span></li>`).join('');
-        } else {
-            document.getElementById('list-top').innerHTML = '<li style="color: #666; justify-content: center;">Nenhum alvo acessado ainda</li>';
-        }
-
+        document.getElementById('list-top').innerHTML = top15.length > 0 
+            ? top15.map(s => `<li><span>${s.titulo}</span> <span class="stat-count">${s.count} cliques</span></li>`).join('')
+            : '<li style="color: #666; justify-content: center;">Nenhum alvo acessado ainda</li>';
         document.getElementById('list-bottom').innerHTML = bottom15.map(s => `<li><span>${s.titulo}</span> <span class="stat-count">${s.count} cliques</span></li>`).join('');
+      });
+
+      // Puxa Estrelas de Marcação Tática (Nova Feature)
+      onValue(ref(db, 'marcacoesTaticas/estrelas'), (snapshot) => {
+          estrelasOrigem = snapshot.val() || [];
+          atualizarEstrelasUI();
+      });
+  }
+
+  // --- LÓGICA DO SISTEMA DE ESTRELAS ---
+  window.clicarEstrela = function(e, idElemento) {
+      e.preventDefault();
+      e.stopPropagation();
+
+      // Se a estrela for LARANJA (Origem), ela desmarca
+      if (estrelasOrigem.includes(idElemento)) {
+          estrelasOrigem = estrelasOrigem.filter(orig => orig !== idElemento);
+          set(ref(db, 'marcacoesTaticas/estrelas'), estrelasOrigem);
+      } else {
+          // Se for vazia, marca. MAS se for Amarela (Vinculada), bloqueia clique.
+          const isAmarela = estrelasOrigem.some(orig => idElemento.startsWith(orig + " > ") || orig.startsWith(idElemento + " > "));
+          if (!isAmarela) {
+              estrelasOrigem.push(idElemento);
+              set(ref(db, 'marcacoesTaticas/estrelas'), estrelasOrigem);
+          }
+      }
+  };
+
+  function atualizarEstrelasUI() {
+      document.querySelectorAll('.star-icon').forEach(el => {
+          const id = el.getAttribute('data-star');
+          el.classList.remove('star-orange', 'star-yellow');
+
+          if (estrelasOrigem.includes(id)) {
+              el.classList.add('star-orange');
+          } else {
+              const isAmarela = estrelasOrigem.some(orig => id.startsWith(orig + " > ") || orig.startsWith(id + " > "));
+              if (isAmarela) el.classList.add('star-yellow');
+          }
       });
   }
 
   function atualizarUiComVistos() {
     document.querySelectorAll('.link-card').forEach(el => {
         el.classList.remove('visto');
-        const stamp = el.querySelector('.stamp');
-        if(stamp) stamp.remove();
+        const stamp = el.querySelector('.stamp'); if(stamp) stamp.remove();
     });
 
     vistosGlobais.forEach(v => {
       const el = document.querySelector(`.link-card[data-id="${v.id}"]`);
-      if (el) {
-        el.classList.add('visto');
-        let stamp = document.createElement('span');
-        stamp.className = 'stamp';
-        stamp.innerText = `[${v.time}]`;
-        el.appendChild(stamp);
-      }
+      if (el) { el.classList.add('visto'); let stamp = document.createElement('span'); stamp.className = 'stamp'; stamp.innerText = `[${v.time}]`; el.appendChild(stamp); }
     });
 
     document.querySelectorAll('.node').forEach(node => {
@@ -469,30 +458,20 @@
     if (totalLinks === 0) return; 
     const porcentagem = Math.round((vistosGlobais.length / totalLinks) * 100);
     fill.style.width = `${porcentagem}%`;
-    if (porcentagem >= 100) {
-      text.innerHTML = `<span style="color: var(--accent-green); font-weight: bold;">MONITORAMENTO GERAL CONCLUÍDO (100%) ✔️</span>`;
-    } else {
-      text.innerText = `${vistosGlobais.length} / ${totalLinks} verificados (${porcentagem}%)`;
-    }
+    text.innerHTML = porcentagem >= 100 ? `<span style="color: var(--accent-green); font-weight: bold;">MONITORAMENTO GERAL CONCLUÍDO (100%) ✔️</span>` : `${vistosGlobais.length} / ${totalLinks} verificados (${porcentagem}%)`;
   }
 
   window.registrarVisualizacao = function(idUnico, tituloLink) {
     if (!vistosGlobais.some(v => v.id === idUnico)) {
       const hora = obterHoraBrasilia();
       const usuarioLogado = auth.currentUser ? auth.currentUser.email : 'Desconhecido';
-      
-      const novosVistos = [...vistosGlobais, { id: idUnico, time: hora, operador: usuarioLogado }];
-      set(ref(db, `monitoramentoDiario/${dataHojeISO}/vistos`), novosVistos);
+      set(ref(db, `monitoramentoDiario/${dataHojeISO}/vistos`), [...vistosGlobais, { id: idUnico, time: hora, operador: usuarioLogado }]);
     }
     
-    // BLOQUEIO: Só escreve estatísticas se o link começar com "MOVIMENTOS"
     if (idUnico.startsWith("MOVIMENTOS")) {
         const safeKey = sanitizarId(idUnico);
         const statRef = ref(db, `estatisticas_semanal/${semanaAtualISO}/${safeKey}`);
-        get(statRef).then(snap => {
-            let count = snap.exists() ? snap.val().count : 0;
-            set(statRef, { titulo: tituloLink, count: count + 1 });
-        });
+        get(statRef).then(snap => { set(statRef, { titulo: tituloLink, count: (snap.exists() ? snap.val().count : 0) + 1 }); });
     }
   };
 
@@ -500,70 +479,45 @@
     get(ref(db, 'monitoramentoDiario')).then(snap => {
         if(!snap.exists()) return;
         const dados = snap.val();
-        const datas = Object.keys(dados).sort().slice(-7);
         let relatorio = "RELATÓRIO DE MONITORAMENTO AESI BPCHOQUE\n\n";
-        datas.forEach(d => {
-            const dataBr = d.split('-').reverse().join('/');
-            relatorio += `[ DATA: ${dataBr} ]\n`;
-            
+        Object.keys(dados).sort().slice(-7).forEach(d => {
+            relatorio += `[ DATA: ${d.split('-').reverse().join('/')} ]\n`;
             const vistos = (dados[d] && dados[d].vistos) ? Object.values(dados[d].vistos) : [];
             relatorio += `-> Total de fontes verificadas: ${vistos.length}\n`;
-            
             vistos.forEach(v => {
-                const nomeCurto = v.id.split(' > ').slice(-2, -1)[0]; 
                 const operadorInfo = v.operador ? ` | Op: ${v.operador}` : '';
-                relatorio += ` - ${v.time} | ${nomeCurto}${operadorInfo}\n`;
+                relatorio += ` - ${v.time} | ${v.id.split(' > ').slice(-2, -1)[0]}${operadorInfo}\n`;
             });
             relatorio += "\n";
         });
-        const blob = new Blob([relatorio], {type: "text/plain;charset=utf-8"});
         const a = document.createElement("a");
-        a.href = URL.createObjectURL(blob);
-        a.download = `Relatorio_AESI_7_Dias.txt`;
-        a.click();
+        a.href = URL.createObjectURL(new Blob([relatorio], {type: "text/plain;charset=utf-8"}));
+        a.download = `Relatorio_AESI_7_Dias.txt`; a.click();
     });
   }
 
-  window.toggle = function(buttonElement) {
-    const currentNode = buttonElement.parentElement;
-    currentNode.classList.toggle('active');
-  };
+  window.toggle = function(btn) { btn.parentElement.classList.toggle('active'); };
 
-  window.mostrarTooltipPreview = function(item, buttonElement) {
-    const nodePai = buttonElement.parentElement;
-    if (nodePai.classList.contains('active')) return;
+  window.mostrarTooltipPreview = function(item, btn) {
+    if (btn.parentElement.classList.contains('active')) return;
     const tooltip = document.getElementById('tooltip-preview');
     let htmlContent = '<ul class="tooltip-list">';
-    if (item.filhos && item.filhos.length > 0) {
-      item.filhos.forEach(filho => htmlContent += `<li>● ${filho.nome}</li>`);
-    } else if (item.links && item.links.length > 0) {
-      item.links.forEach(link => htmlContent += `<li>🔗 Links Internos</li>`);
-    }
-    htmlContent += '</ul>';
-    tooltip.innerHTML = htmlContent;
-    const rect = buttonElement.getBoundingClientRect();
-    tooltip.style.left = (rect.right + 15) + 'px';
-    tooltip.style.top = rect.top + 'px';
-    tooltip.classList.add('show');
+    if (item.filhos && item.filhos.length > 0) item.filhos.forEach(f => htmlContent += `<li>● ${f.nome}</li>`);
+    else if (item.links && item.links.length > 0) item.links.forEach(l => htmlContent += `<li>🔗 Links Internos</li>`);
+    tooltip.innerHTML = htmlContent + '</ul>';
+    const rect = btn.getBoundingClientRect();
+    tooltip.style.left = (rect.right + 15) + 'px'; tooltip.style.top = rect.top + 'px'; tooltip.classList.add('show');
   };
 
   window.esconderTooltipPreview = function() { document.getElementById('tooltip-preview').classList.remove('show'); };
+  window.recolherArvoreInteira = function() { document.querySelectorAll('.node').forEach(node => { const p = node.getAttribute('data-path'); if (p !== "MOVIMENTOS" && p !== "NOTÍCIAS") node.classList.remove('active'); }); };
 
-  window.recolherArvoreInteira = function() {
-    document.querySelectorAll('.node').forEach(node => {
-        const path = node.getAttribute('data-path');
-        if (path !== "MOVIMENTOS" && path !== "NOTÍCIAS") node.classList.remove('active');
-    });
-  };
-
-  function normalizarTexto(texto) { return texto.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase(); }
-
+  function normalizarTexto(t) { return t.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase(); }
   function vasculharArvore(lista, termo, caminhoAtual = [], resultados = []) {
     const termoFormatado = normalizarTexto(termo);
     lista.forEach(item => {
-      const nomeFormatado = normalizarTexto(item.nome);
       const novoCaminho = [...caminhoAtual, item.nome];
-      if (nomeFormatado.includes(termoFormatado)) resultados.push({ item: item, caminho: novoCaminho });
+      if (normalizarTexto(item.nome).includes(termoFormatado)) resultados.push({ item: item, caminho: novoCaminho });
       if (item.filhos && item.filhos.length > 0) vasculharArvore(item.filhos, termo, novoCaminho, resultados);
     });
     return resultados;
@@ -571,29 +525,22 @@
 
   window.realizarBusca = function() {
     const input = document.getElementById('campoBusca').value;
-    const caixaResultados = document.getElementById('caixaResultados');
-    if (input.length < 2) { caixaResultados.style.display = 'none'; window.recolherArvoreInteira(); return; }
-    const matches = vasculharArvore(window.DADOS_TOTAIS, input);
-    caixaResultados.innerHTML = '';
-    matches.forEach(res => {
-        const div = document.createElement('div');
-        div.className = 'search-item';
+    const caixa = document.getElementById('caixaResultados');
+    if (input.length < 2) { caixa.style.display = 'none'; window.recolherArvoreInteira(); return; }
+    caixa.innerHTML = '';
+    vasculharArvore(window.DADOS_TOTAIS, input).forEach(res => {
+        const div = document.createElement('div'); div.className = 'search-item';
         div.innerHTML = `<div class="search-item-title">${res.item.nome}</div><div class="search-item-path">${res.caminho.join(' > ')}</div>`;
         div.onclick = () => {
-          window.recolherArvoreInteira();
-          let caminhoMontado = ""; 
-          res.caminho.forEach((parte, idx) => {
-              caminhoMontado += (idx === 0 ? "" : " > ") + parte;
-              const node = document.querySelector(`.node[data-path="${caminhoMontado}"]`);
-              if(node) node.classList.add('active');
-          });
+          window.recolherArvoreInteira(); let c = ""; 
+          res.caminho.forEach((p, idx) => { c += (idx === 0 ? "" : " > ") + p; const node = document.querySelector(`.node[data-path="${c}"]`); if(node) node.classList.add('active'); });
           const target = document.querySelector(`.node[data-path="${res.caminho.join(' > ')}"]`);
           if(target) target.scrollIntoView({ behavior: 'smooth', block: 'center' });
-          caixaResultados.style.display = 'none';
+          caixa.style.display = 'none';
         };
-        caixaResultados.appendChild(div);
+        caixa.appendChild(div);
     });
-    caixaResultados.style.display = 'block';
+    caixa.style.display = 'block';
   };
 
   function desenharArvore(listaDeDados, elementoPai, caminhoAtual = []) {
@@ -601,64 +548,48 @@
       const novoCaminho = [...caminhoAtual, item.nome];
       const pathString = novoCaminho.join(' > ');
       const nodeDiv = document.createElement('div');
-      nodeDiv.className = 'node';
-      nodeDiv.setAttribute('data-path', pathString); 
+      nodeDiv.className = 'node'; nodeDiv.setAttribute('data-path', pathString); 
       if (item.isRoot) nodeDiv.classList.add('active');
       const temFilhos = item.filhos && item.filhos.length > 0;
       const temLinks = item.links && item.links.length > 0;
       if (!temFilhos && !temLinks) nodeDiv.classList.add('no-children');
+      
       const btn = document.createElement('button');
       btn.onclick = function(e) { e.stopPropagation(); window.toggle(this); };
       
       if (temFilhos || temLinks) {
         btn.onmouseenter = function() { window.mostrarTooltipPreview(item, this); };
         btn.onmouseleave = function() { window.esconderTooltipPreview(); };
-        
-        const progBar = document.createElement('div');
-        progBar.className = 'node-progress-bar';
-        const progFill = document.createElement('div');
-        progFill.className = 'node-progress-fill';
-        progBar.appendChild(progFill);
-        btn.appendChild(progBar);
+        btn.innerHTML = `<div class="node-progress-bar"><div class="node-progress-fill"></div></div>`;
       }
 
-      btn.innerHTML += `<div class="btn-left"><div class="icon-circle icon-${item.cor || 'white'}">${item.icone || '●'}</div><span>${item.nome}</span></div><span class="toggle-icon"></span>`;
+      // ESTRELA DO MENU: Injetada no botão do Menu
+      btn.innerHTML += `
+        <div class="btn-left">
+          <span class="star-icon" data-star="${pathString}" onclick="window.clicarEstrela(event, this.getAttribute('data-star'))">★</span>
+          <div class="icon-circle icon-${item.cor || 'white'}">${item.icone || '●'}</div>
+          <span>${item.nome}</span>
+        </div><span class="toggle-icon"></span>
+      `;
       nodeDiv.appendChild(btn);
 
       if (temFilhos || temLinks) {
-        const childrenDiv = document.createElement('div');
-        childrenDiv.className = 'children';
+        const childrenDiv = document.createElement('div'); childrenDiv.className = 'children';
         if (temLinks) {
           item.links.forEach(link => {
-            const linkNode = document.createElement('div'); 
-            linkNode.className = 'node no-children';
-            
+            const linkNode = document.createElement('div'); linkNode.className = 'node no-children';
             const a = document.createElement('a');
-            a.href = link.url || '#'; a.target = '_blank'; a.className = 'link-card';
-            a.setAttribute('data-id', pathString + " > " + link.url);
-            a.onclick = () => window.registrarVisualizacao(pathString + " > " + link.url, novoCaminho.slice(-2).join(' > '));
+            const idUnico = pathString + " > " + link.url;
+            a.href = link.url || '#'; a.target = '_blank'; a.className = 'link-card'; a.setAttribute('data-id', idUnico);
+            a.onclick = () => window.registrarVisualizacao(idUnico, novoCaminho.slice(-2).join(' > '));
             
-            const linkIcon = document.createElement('div');
-            linkIcon.className = 'icon-circle icon-' + (link.tipo === 'link' ? 'link' : 'insta');
-            linkIcon.textContent = link.tipo === 'insta' ? '📸' : '🔗';
-            
-            const textDiv = document.createElement('div');
-            textDiv.className = 'link-text';
-            const spanNome = document.createElement('span');
-            spanNome.textContent = link.tipo === 'insta' ? 'Instagram' : 'Website';
-            textDiv.appendChild(spanNome);
-
-            if (link.textoUrl) {
-              const spanUrl = document.createElement('span');
-              spanUrl.className = 'link-url';
-              spanUrl.textContent = link.textoUrl;
-              textDiv.appendChild(spanUrl);
-            }
-
-            a.appendChild(linkIcon);
-            a.appendChild(textDiv);
-            linkNode.appendChild(a); 
-            childrenDiv.appendChild(linkNode); 
+            // ESTRELA DO LINK: Injetada dentro do card do Link
+            a.innerHTML = `
+              <span class="star-icon" data-star="${idUnico}" onclick="window.clicarEstrela(event, this.getAttribute('data-star'))">★</span>
+              <div class="icon-circle icon-${link.tipo === 'link' ? 'link' : 'insta'}">${link.tipo === 'insta' ? '📸' : '🔗'}</div>
+              <div class="link-text"><span>${link.tipo === 'insta' ? 'Instagram' : 'Website'}</span><span class="link-url">${link.textoUrl || ''}</span></div>
+            `;
+            linkNode.appendChild(a); childrenDiv.appendChild(linkNode); 
           });
         }
         if (temFilhos) desenharArvore(item.filhos, childrenDiv, novoCaminho);
@@ -668,9 +599,7 @@
     });
   }
 
-  document.addEventListener('click', (e) => {
-    if (!e.target.closest('.search-box')) document.getElementById('caixaResultados').style.display = 'none';
-  });
+  document.addEventListener('click', (e) => { if (!e.target.closest('.search-box')) document.getElementById('caixaResultados').style.display = 'none'; });
 </script>
 </body>
 </html>
