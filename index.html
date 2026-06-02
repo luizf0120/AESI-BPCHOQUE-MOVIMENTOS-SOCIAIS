@@ -166,7 +166,7 @@
   }
   #nota-modal h4 { margin: 0 0 15px 0; color: var(--accent-yellow); font-size: 15px; border-bottom: 1px solid #333; padding-bottom: 8px; }
   #nota-textarea { width: 100%; height: 80px; background: #111; color: #fff; border: 1px solid #333; padding: 10px; border-radius: 6px; resize: none; outline: none; margin-bottom: 12px; box-sizing: border-box; font-family: inherit; font-size: 13px; }
-  #nota-textarea:focus, #nota-local:focus, #nota-movimento-select:focus { border-color: var(--accent-yellow); }
+  #nota-textarea:focus, #nota-local:focus, #nota-movimento-input:focus { border-color: var(--accent-yellow); }
   
   #nota-local {
     width: 100%; background: #111; color: #fff; border: 1px solid #333; padding: 8px;
@@ -314,7 +314,8 @@
                   </div>
                   <div id="calendar-days" style="display: grid; grid-template-columns: repeat(7, 1fr); gap: 5px; text-align: center;"></div>
                   
-                  <button class="btn-action" onclick="window.abrirModalCalendarioDireto()" style="width: 100%; margin-top: 15px; background: var(--accent-orange); color: black; font-weight: bold; border: none; padding: 10px; border-radius: 6px;">➕ Agendar Evento Direto</button>
+                  <!-- ATUALIZADO CONFORME PADRONIZAÇÃO EXIGIDA -->
+                  <button class="btn-action" onclick="window.abrirModalCalendarioDireto()" style="width: 100%; margin-top: 15px; background: var(--accent-orange); color: black; font-weight: bold; border: none; padding: 10px; border-radius: 6px;">➕ Agendar Evento</button>
 
                   <div id="calendar-event-list" style="margin-top: 15px; border-top: 1px solid #222; padding-top: 12px; display: none;">
                       <h5 style="margin: 0 0 8px 0; font-size: 11px; color: var(--accent-orange); text-transform: uppercase; letter-spacing: 0.5px;">Alertas do Dia Selecionado</h5>
@@ -352,9 +353,11 @@
         </div>
     </div>
 
-    <div id="container-atrelar-movimento" style="margin-bottom: 15px; display: none;">
+    <!-- REARQUITETADO: ENTRADA COM FILTRO DE AUTOCOMPLETAR DINÂMICO POR TRECHOS -->
+    <div id="container-atrelar-movimento" style="margin-bottom: 15px; display: none; position: relative;">
         <label style="font-size: 11px; color: #888; display: block; margin-bottom: 4px;">🔗 Atrelar a um Movimento (Opcional):</label>
-        <select id="nota-movimento-select" style="width: 100%; background: #111; color: #fff; border: 1px solid #333; padding: 8px; border-radius: 6px; outline: none; font-size: 13px; font-weight: bold;"></select>
+        <input type="text" id="nota-movimento-input" placeholder="Comece a digitar o nome do movimento..." style="width: 100%; background: #111; color: #fff; border: 1px solid #333; padding: 8px; border-radius: 6px; outline: none; font-size: 13px; font-weight: bold;" oninput="window.filtrarMovimentosDropdown()">
+        <div id="nota-movimento-sugestoes" style="max-height: 140px; overflow-y: auto; background: #0e0e0e; border: 1px solid #333; margin-top: 4px; border-radius: 6px; display: none; position: absolute; left: 0; right: 0; z-index: 30000; box-shadow: 0 5px 15px rgba(0,0,0,0.8);"></div>
     </div>
 
     <div class="nota-actions">
@@ -503,7 +506,7 @@
         });
         estatisticasCompletas.sort((a, b) => b.count - a.count);
         const top15 = estatisticasCompletas.filter(s => s.count > 0).slice(0, 15);
-        const bottom15 = templates_bottom(estatisticasCompletas);
+        const bottom15 = estatisticasCompletas.slice(-15).reverse();
         
         document.getElementById('list-top').innerHTML = top15.length > 0 
             ? top15.map(s => `<li data-caminho="${s.caminho.join(' > ')}" onclick="window.focarCaminhoDireto(this.getAttribute('data-caminho'))"><span>${s.titulo}</span> <span class="stat-count">${s.count} cliques</span></li>`).join('')
@@ -517,8 +520,6 @@
           atualizarEstrelasUI();
       });
   }
-
-  function templates_bottom(arr) { return arr.slice(-15).reverse(); }
 
   function verificarAlertasExpirados() {
       const agoraStr = obterDataBrasiliaISO() + " " + obterHoraBrasilia();
@@ -635,18 +636,53 @@
       }
   };
 
+  // --- ARQUITETURA FILTRADA DE AUTOCOMPLETAR POR TRECHOS ---
+  window.filtrarMovimentosDropdown = function() {
+      const input = document.getElementById('nota-movimento-input').value;
+      const box = document.getElementById('nota-movimento-sugestoes');
+      box.innerHTML = "";
+
+      if (input.trim().length === 0) {
+          box.style.display = 'none';
+          return;
+      }
+
+      const termoFormatado = normalizarTexto(input);
+      const filtrados = window.LISTA_MOVIMENTOS.filter(mov => 
+          normalizarTexto(mov.caminhoStr).includes(termoFormatado)
+      );
+
+      if (filtrados.length === 0) {
+          box.style.display = 'none';
+          return;
+      }
+
+      filtrados.forEach(mov => {
+          const itemDiv = document.createElement('div');
+          itemDiv.style.cssText = "padding: 8px 12px; cursor: pointer; border-bottom: 1px solid #1a1a1a; font-size: 12px; color: #ccc; transition: 0.15s; text-align: left;";
+          itemDiv.innerText = mov.caminhoStr.replace("MOVIMENTOS > ", "");
+          
+          itemDiv.onmouseenter = function() { this.style.background = "#1c1c1c"; this.style.color = "var(--accent-yellow)"; };
+          itemDiv.onmouseleave = function() { this.style.background = "transparent"; this.style.color = "#ccc"; };
+          
+          itemDiv.onclick = function() {
+              document.getElementById('nota-movimento-input').value = mov.caminhoStr;
+              box.style.display = 'none';
+          };
+          box.appendChild(itemDiv);
+      });
+
+      box.style.display = 'block';
+  };
+
   window.abrirModalCalendarioDireto = function() {
       contextoAtual = 'direto'; alvoAtualNota = "";
-      document.getElementById('nota-alvo-titulo').innerText = "Agendar Novo Evento (Direto)";
+      document.getElementById('nota-alvo-titulo').innerText = "Agendar Novo Evento";
       document.getElementById('nota-textarea').value = ""; document.getElementById('nota-local').value = "";
       document.getElementById('nota-data').value = ""; document.getElementById('nota-hora').value = "";
       
-      const select = document.getElementById('nota-movimento-select');
-      select.innerHTML = '<option value="">Nenhum (Evento Geral)</option>';
-      window.LISTA_MOVIMENTOS.forEach(mov => {
-          const opt = document.createElement('option'); opt.value = mov.caminhoStr;
-          opt.innerText = mov.caminhoStr.replace("MOVIMENTOS > ", ""); select.appendChild(opt);
-      });
+      document.getElementById('nota-movimento-input').value = "";
+      document.getElementById('nota-movimento-sugestoes').style.display = 'none';
 
       document.getElementById('container-local').style.display = 'block';
       document.getElementById('container-tempo').style.display = 'flex';
@@ -690,7 +726,6 @@
       });
   }
 
-  /* --- INTERCEPTADOR DO VISOR HOVER PREVIEW AJUSTADO --- */
   window.mostrarTooltipTatico = function(e, idUnico, tipo) {
       e.stopPropagation();
       const safeKey = sanitizarId(idUnico);
@@ -718,7 +753,6 @@
 
   window.esconderTooltipTatico = function() { document.getElementById('tooltip-preview').classList.remove('show'); };
 
-  // --- CONTROLE CENTRAL RECONFIGURÁVEL DO MODAL AJUSTADO ---
   window.abrirModalTatico = function(e, idUnico, titulo, tipo) {
       e.preventDefault(); e.stopPropagation(); window.esconderTooltipTatico();
       contextoAtual = tipo; alvoAtualNota = idUnico; tituloAtualNota = titulo;
@@ -761,7 +795,7 @@
       const user = auth.currentUser ? auth.currentUser.email : 'Desconhecido';
 
       if (contextoAtual === 'direto') {
-          const movimentoAtrelado = document.getElementById('nota-movimento-select').value;
+          const movimentoAtrelado = document.getElementById('nota-movimento-input').value.trim();
           const uniqueKey = "CAL_" + Date.now();
           if (texto !== "" || local !== "" || dataAlerta !== "" || horaAlerta !== "") {
               set(ref(db, `alertas_calendario/${uniqueKey}`), { 
@@ -945,8 +979,14 @@
       elementoPai.appendChild(nodeDiv);
     });
   }
-  document.addEventListener('click', (e) => { if (!e.target.closest('.search-box')) document.getElementById('caixaResultados').style.display = 'none'; });
+
+  // FECHAMENTO INTUITIVO DAS CAIXAS CLICANDO FORA DELAS
+  document.addEventListener('click', (e) => { 
+      if (!e.target.closest('.search-box')) document.getElementById('caixaResultados').style.display = 'none'; 
+      if (!e.target.closest('#container-atrelar-movimento')) {
+          const sug = document.getElementById('nota-movimento-sugestoes'); if (sug) sug.style.display = 'none';
+      }
+  });
 </script>
 </body>
 </html>
-  
