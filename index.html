@@ -100,7 +100,6 @@
   .stat-box { flex: 1; background: var(--card-bg); border: 1px solid var(--border-color); border-radius: 8px; padding: 15px; }
   .stat-box h4 { margin: 0 0 15px 0; font-size: 16px; border-bottom: 1px solid #333; padding-bottom: 8px; }
   
-  /* REESTRUTURAÇÃO TÁTICA DOS RANKINGS CLICÁVEIS */
   .stat-list { list-style: none; padding: 0; margin: 0; }
   .stat-list li { 
     font-size: 13px; margin-bottom: 8px; display: flex; justify-content: space-between; 
@@ -144,7 +143,7 @@
   .btn-salvar-nota:hover { background: #e0a800; }
   .btn-fechar-nota:hover { background: #333; color: #fff; }
   
-  .icon-nota { font-size: 15px; cursor: pointer; margin-left: auto; color: #444; transition: 0.2s; padding: 4px; filter: grayscale(100%); }
+  .icon-nota { font-size: 15px; cursor: pointer; margin-left: 8px; color: #444; transition: 0.2s; padding: 4px; filter: grayscale(100%); z-index: 15; }
   .icon-nota:hover { filter: grayscale(0%); transform: scale(1.1); }
   .icon-nota.tem-nota { filter: grayscale(0%); text-shadow: 0 0 10px rgba(255, 193, 7, 0.8); animation: pulsarNota 2s infinite alternate; }
   @keyframes pulsarNota { 0% { transform: scale(1); } 100% { transform: scale(1.15); } }
@@ -187,15 +186,15 @@
 
   .link-card {
     display: flex; align-items: center; gap: 8px; background: var(--card-bg);
-    border: 1px solid var(--border-color); border-radius: 8px; padding: 8px 90px 8px 8px; 
-    text-decoration: none; color: var(--text-main); font-size: 14px; min-width: 250px;
+    border: 1px solid var(--border-color); border-radius: 8px; padding: 8px 65px 8px 8px; 
+    text-decoration: none; color: var(--text-main); font-size: 14px; min-width: 240px;
     transition: 0.2s; white-space: nowrap; z-index: 1; position: relative;
   }
   .link-card:hover { background: #151515; border-color: #888; }
   .link-card.visto { border-color: var(--accent-green) !important; background: rgba(40, 167, 69, 0.05) !important; }
-  .link-card.visto::after { content: '✔'; position: absolute; right: 40px; top: 50%; transform: translateY(-50%); color: var(--accent-green); font-size: 14px; font-weight: bold; }
+  .link-card.visto::after { content: '✔'; position: absolute; right: 10px; top: 50%; transform: translateY(-50%); color: var(--accent-green); font-size: 14px; font-weight: bold; }
 
-  .stamp { position: absolute; right: 60px; top: 50%; transform: translateY(-50%); font-size: 10px; color: var(--accent-green); font-family: monospace; letter-spacing: 0.5px; }
+  .stamp { position: absolute; right: 32px; top: 50%; transform: translateY(-50%); font-size: 10px; color: var(--accent-green); font-family: monospace; letter-spacing: 0.5px; }
   .link-text { display: flex; flex-direction: column; }
   .link-url { font-size: 10px; color: #888; margin-top: 2px; }
   .no-children .toggle-icon { display: none; }
@@ -342,12 +341,11 @@
           const novoCaminho = [...caminhoAtual, item.nome];
           if (item.links && item.links.length > 0) {
               item.links.forEach(link => {
-                  const pathString = novoCaminho.join(' > ');
-                  const idUnico = pathString + " > " + link.url;
+                  const idUnico = novoCaminho.join(' > ') + " > " + link.url;
                   listaTodosAlvos.push({ 
                       id: sanitizarId(idUnico), 
                       titulo: novoCaminho.slice(-2).join(' > '),
-                      caminho: novoCaminho // Acoplado para o rastreador dos rankings
+                      caminho: novoCaminho 
                   });
               });
           }
@@ -396,7 +394,6 @@
         const top15 = estatisticasCompletas.filter(s => s.count > 0).slice(0, 15);
         const bottom15 = estatisticasCompletas.slice(-15).reverse();
         
-        // INTERCEPTADOR DE CLIQUE NOS RANKINGS (Injeção de data-caminho e onclick)
         document.getElementById('list-top').innerHTML = top15.length > 0 
             ? top15.map(s => `<li data-caminho="${s.caminho.join(' > ')}" onclick="window.focarAlvoFromStats(this)"><span>${s.titulo}</span> <span class="stat-count">${s.count} cliques</span></li>`).join('')
             : '<li style="color: #666; justify-content: center;">Nenhum alvo acessado ainda</li>';
@@ -410,16 +407,13 @@
       });
   }
 
-  // --- ARQUITETURA DE EXPANSÃO VIA RANKING ---
   window.focarAlvoFromStats = function(elemento) {
       const caminhoCompletoStr = elemento.getAttribute('data-caminho');
       if (!caminhoCompletoStr) return;
       const pastas = caminhoCompletoStr.split(' > ');
 
-      // REGRA DE OURO: Desliga absolutamente todos os menus abertos antes
       document.querySelectorAll('.node').forEach(node => node.classList.remove('active'));
 
-      // Abre sequencialmente de cima para baixo apenas as pastas necessárias
       let caminhoPassoAPasso = "";
       pastas.forEach((pasta, index) => {
           caminhoPassoAPasso += (index === 0 ? "" : " > ") + pasta;
@@ -427,11 +421,8 @@
           if (nóAlvo) nóAlvo.classList.add('active');
       });
 
-      // Encontra a pasta final na tela e faz a rolagem suave até ela
       const nóFinal = document.querySelector(`.node[data-path="${caminhoCompletoStr}"]`);
-      if (nóFinal) {
-          nóFinal.scrollIntoView({ behavior: 'smooth', block: 'center' });
-      }
+      if (nóFinal) { nóFinal.scrollIntoView({ behavior: 'smooth', block: 'center' }); }
   };
 
   window.clicarEstrela = function(e, idElemento) {
@@ -448,7 +439,7 @@
       }
   };
 
-  function atualizarEstrelasUI() {
+  function actualizarEstrelasUI() {
       document.querySelectorAll('.star-icon').forEach(el => {
           const id = el.getAttribute('data-star');
           el.classList.remove('star-orange', 'star-yellow');
@@ -604,7 +595,14 @@
         btn.onmouseenter = function() { window.mostrarTooltipPreview(item, this); }; btn.onmouseleave = function() { window.esconderTooltipPreview(); };
         btn.innerHTML = `<div class="node-progress-bar"><div class="node-progress-fill"></div></div>`;
       }
-      btn.innerHTML += `<div class="btn-left"><span class="star-icon" data-star="${pathString}" onclick="window.clicarEstrela(event, this.getAttribute('data-star'))">★</span><div class="icon-circle icon-${item.cor || 'white'}">${item.icone || '●'}</div><span>${item.nome}</span></div><span class="toggle-icon"></span>`;
+
+      // NOVO RADAR DE INJEÇÃO DO BALÃO: Filtra MOVIMENTOS + Ser Menu Expandível + Ter 3 ou mais camadas de profundidade
+      let htmlNota = "";
+      if (novoCaminho[0] === "MOVIMENTOS" && temFilhos && novoCaminho.length >= 3) {
+          htmlNota = `<span class="icon-nota" data-nota-id="${pathString}" onclick="window.abrirModalNota(event, '${pathString}', '${item.nome}')">💬</span>`;
+      }
+
+      btn.innerHTML += `<div class="btn-left"><span class="star-icon" data-star="${pathString}" onclick="window.clicarEstrela(event, this.getAttribute('data-star'))">★</span><div class="icon-circle icon-${item.cor || 'white'}">${item.icone || '●'}</div><span>${item.nome}</span>${htmlNota}</div><span class="toggle-icon"></span>`;
       nodeDiv.appendChild(btn);
 
       if (temFilhos || temLinks) {
@@ -616,11 +614,11 @@
             a.href = link.url || '#'; a.target = '_blank'; a.className = 'link-card'; a.setAttribute('data-id', idUnico);
             a.onclick = () => window.registrarVisualizacao(idUnico, novoCaminho.slice(-2).join(' > '));
             
+            // CONFORME SOLICITADO: Removido por completo o balão deste escopo de links
             a.innerHTML = `
               <span class="star-icon" data-star="${idUnico}" onclick="window.clicarEstrela(event, this.getAttribute('data-star'))">★</span>
               <div class="icon-circle icon-${link.tipo === 'link' ? 'link' : 'insta'}">${link.tipo === 'insta' ? '📸' : '🔗'}</div>
               <div class="link-text"><span>${link.tipo === 'insta' ? 'Instagram' : 'Website'}</span><span class="link-url">${link.textoUrl || ''}</span></div>
-              <span class="icon-nota" data-nota-id="${idUnico}" onclick="window.abrirModalNota(event, '${idUnico}', '${novoCaminho.slice(-2).join(' > ')}')">💬</span>
             `;
             linkNode.appendChild(a); childrenDiv.appendChild(linkNode); 
           });
