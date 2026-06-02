@@ -18,6 +18,7 @@
     --accent-orange: #ff8c00;
     --accent-green: #28a745;
     --line-color: #555555;
+    --neon-alert: #ff0055;
   }
 
   body {
@@ -96,8 +97,15 @@
   .search-item-title { font-weight: bold; font-size: 14px; color: var(--text-main); }
   .search-item-path { font-size: 11px; color: #888; margin-top: 4px; }
 
-  .stats-container { display: flex; gap: 20px; margin: 10px 40px 40px 40px; }
-  .stat-box { flex: 1; background: var(--card-bg); border: 1px solid var(--border-color); border-radius: 8px; padding: 15px; }
+  /* =========================================
+     ESTRUTURA DE DIVISÃO DO WORKSPACE
+     ========================================= */
+  .workspace-wrapper { display: flex; gap: 25px; padding: 0 40px 40px 40px; align-items: flex-start; }
+  .left-panel { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 20px; overflow-x: auto; }
+  .right-panel { width: 320px; flex-shrink: 0; display: flex; flex-direction: column; gap: 20px; }
+
+  .stats-container { display: flex; gap: 20px; margin: 0; width: 100%; }
+  .stat-box { flex: 1; background: var(--card-bg); border: 1px solid var(--border-color); border-radius: 8px; padding: 15px; margin: 0; }
   .stat-box h4 { margin: 0 0 15px 0; font-size: 16px; border-bottom: 1px solid #333; padding-bottom: 8px; }
   
   .stat-list { list-style: none; padding: 0; margin: 0; }
@@ -111,12 +119,16 @@
   .stat-list.bottom li { border-left-color: var(--accent-blue); }
   .stat-count { font-weight: bold; color: #888; font-size: 11px; background: #222; padding: 2px 6px; border-radius: 10px; }
 
-  /* --- BALÃO FLUTUANTE DE PRÉVIA --- */
-  #tooltip-preview { position: fixed; z-index: 10000; pointer-events: none; background: rgba(20, 20, 20, 0.85); backdrop-filter: blur(4px); border: 1px solid #444; border-radius: 8px; padding: 12px; color: rgba(255, 255, 255, 0.6); font-size: 12px; box-shadow: 0 10px 20px rgba(0,0,0,0.5); opacity: 0; visibility: hidden; transition: opacity 0.2s ease, transform 0.2s ease; transform: translateX(-10px); max-height: 300px; overflow-y: hidden; }
-  #tooltip-preview.show { opacity: 1; visibility: visible; transform: translateX(0); }
-  .tooltip-title { font-size: 10px; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 8px; color: rgba(255, 255, 255, 0.4); border-bottom: 1px solid #444; padding-bottom: 4px; }
-  .tooltip-list { list-style: none; padding: 0; margin: 0; }
-  .tooltip-list li { margin-bottom: 5px; display: flex; align-items: center; gap: 6px; white-space: nowrap; }
+  /* --- VISOR FLUTUANTE DE PREVIA (TOOLTIP) --- */
+  #tooltip-preview { 
+    position: fixed; z-index: 10000; pointer-events: none; background: rgba(10, 10, 10, 0.98); 
+    backdrop-filter: blur(6px); border: 1px solid #444; border-radius: 8px; padding: 14px; 
+    color: rgba(255, 255, 255, 0.8); font-size: 12px; box-shadow: 0 10px 30px rgba(0,0,0,0.8); 
+    opacity: 0; visibility: hidden; transition: opacity 0.15s ease, transform 0.15s ease; 
+    max-width: 300px; word-wrap: break-word;
+  }
+  #tooltip-preview.show { opacity: 1; visibility: visible; }
+  .tooltip-title { font-size: 10px; font-weight: bold; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 8px; color: rgba(255, 255, 255, 0.4); border-bottom: 1px solid #333; padding-bottom: 4px; }
 
   /* --- SISTEMA DE ESTRELAS --- */
   .star-icon {
@@ -127,29 +139,52 @@
   .star-icon.star-yellow { color: var(--accent-yellow); -webkit-text-stroke: 0; filter: drop-shadow(0 0 4px rgba(255, 193, 7, 0.4)); }
   .star-icon.star-orange { color: var(--accent-orange); -webkit-text-stroke: 0; filter: drop-shadow(0 0 8px rgba(255, 140, 0, 0.8)); transform: scale(1.15); }
 
-  /* --- SISTEMA DE NOTAS (POST-IT) --- */
+  /* --- REESTILIZAÇÃO DO BOTÃO DE CALENDÁRIO INTERNO NA ÁRVORE --- */
+  .icon-nota {
+    font-size: 10px; font-family: monospace; font-weight: bold; cursor: pointer; 
+    margin-left: 10px; color: #888; background: #161616; border: 1px solid #444;
+    padding: 3px 6px; border-radius: 4px; transition: all 0.2s ease; z-index: 15;
+    display: inline-flex; align-items: center; gap: 4px; user-select: none;
+  }
+  .icon-nota:hover { background: #252525; border-color: #666; color: #fff; }
+  .icon-nota.tem-nota {
+    background: var(--neon-alert) !important; border-color: var(--neon-alert) !important; color: #ffffff !important;
+    box-shadow: 0 0 10px var(--neon-alert), 0 0 20px var(--neon-alert);
+    animation: pulsarAlertaTatico 0.8s infinite alternate ease-in-out;
+  }
+  @keyframes pulsarAlertaTatico {
+    0% { transform: scale(1); box-shadow: 0 0 6px var(--neon-alert); }
+    100% { transform: scale(1.12); box-shadow: 0 0 18px var(--neon-alert), 0 0 30px var(--neon-alert); }
+  }
+
+  /* --- MODAL DE ESCRITA MULTI-CAMPO --- */
   #modal-overlay { display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.8); z-index: 19999; backdrop-filter: blur(2px); }
   #nota-modal {
     display: none; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
-    background: var(--card-bg); border: 1px solid var(--accent-red); border-radius: 8px;
-    padding: 20px; z-index: 20000; width: 320px; box-shadow: 0 15px 40px rgba(0,0,0,0.9);
+    background: var(--card-bg); border: 1px solid var(--accent-yellow); border-radius: 8px;
+    padding: 20px; z-index: 20000; width: 340px; box-shadow: 0 15px 40px rgba(0,0,0,0.9);
   }
   #nota-modal h4 { margin: 0 0 15px 0; color: var(--accent-yellow); font-size: 15px; border-bottom: 1px solid #333; padding-bottom: 8px; }
-  #nota-textarea { width: 100%; height: 100px; background: #111; color: #fff; border: 1px solid #333; padding: 10px; border-radius: 6px; resize: none; outline: none; margin-bottom: 15px; box-sizing: border-box; font-family: inherit; font-size: 13px; }
-  #nota-textarea:focus { border-color: var(--accent-yellow); }
+  #nota-textarea { width: 100%; height: 80px; background: #111; color: #fff; border: 1px solid #333; padding: 10px; border-radius: 6px; resize: none; outline: none; margin-bottom: 12px; box-sizing: border-box; font-family: inherit; font-size: 13px; }
+  #nota-textarea:focus, #nota-local:focus, #nota-movimento-select:focus { border-color: var(--accent-yellow); }
+  
+  #nota-local {
+    width: 100%; background: #111; color: #fff; border: 1px solid #333; padding: 8px;
+    border-radius: 6px; margin-bottom: 12px; box-sizing: border-box; outline: none; font-size: 13px;
+  }
+  .input-linha-dupla { display: flex; gap: 10px; margin-bottom: 12px; }
+  .input-linha-dupla div { flex: 1; }
+  .input-linha-dupla label { font-size: 11px; color: #888; display: block; margin-bottom: 4px; }
+  .input-linha-dupla input { width: 100%; background: #111; color: #fff; border: 1px solid #333; padding: 8px; border-radius: 6px; box-sizing: border-box; outline: none; font-size: 13px; color-scheme: dark; }
+
   .nota-actions { display: flex; justify-content: space-between; }
   .btn-salvar-nota { background: var(--accent-yellow); color: #000; border: none; padding: 8px 16px; border-radius: 4px; cursor: pointer; font-weight: bold; transition: 0.2s; }
   .btn-fechar-nota { background: transparent; color: #888; border: 1px solid #555; padding: 8px 16px; border-radius: 4px; cursor: pointer; transition: 0.2s; }
   .btn-salvar-nota:hover { background: #e0a800; }
   .btn-fechar-nota:hover { background: #333; color: #fff; }
-  
-  .icon-nota { font-size: 15px; cursor: pointer; margin-left: 8px; color: #444; transition: 0.2s; padding: 4px; filter: grayscale(100%); z-index: 15; }
-  .icon-nota:hover { filter: grayscale(0%); transform: scale(1.1); }
-  .icon-nota.tem-nota { filter: grayscale(0%); text-shadow: 0 0 10px rgba(255, 193, 7, 0.8); animation: pulsarNota 2s infinite alternate; }
-  @keyframes pulsarNota { 0% { transform: scale(1); } 100% { transform: scale(1.15); } }
 
   /* --- CSS DA ÁRVORE --- */
-  .tree-container { display: flex; flex-direction: column; gap: 20px; justify-content: flex-start; align-items: flex-start; padding: 0 40px 40px 40px; min-width: max-content; }
+  .tree-container { display: flex; flex-direction: column; gap: 20px; justify-content: flex-start; align-items: flex-start; padding: 0; width: 100%; }
   .node { display: flex; flex-direction: row; align-items: center; }
   .children { display: none; flex-direction: column; justify-content: center; padding-left: 50px; position: relative; }
   .node.active > .children { display: flex; }
@@ -157,7 +192,7 @@
   .node > button {
     position: relative; background: var(--card-bg); color: var(--text-main); border: 1px solid var(--border-color);
     padding: 8px 16px 14px 8px; cursor: pointer; border-radius: 8px; font-size: 14px;
-    transition: all 0.3s ease; display: inline-flex; align-items: center; min-width: 220px; justify-content: space-between; white-space: nowrap; z-index: 1;
+    transition: all 0.3s ease; display: inline-flex; align-items: center; min-width: 240px; justify-content: space-between; white-space: nowrap; z-index: 1;
   }
   .node > button:hover { background: #1a1a1a; border-color: #666; }
   .node.active > button { border-color: #888; }
@@ -216,7 +251,7 @@
 <div id="app-content">
   <div class="header-container">
     <div class="header-title">
-      AESI BPCHOQUE
+      AESI BPCHOQUE - COMANDO E CONTROLE
       <div class="date-badge" id="data-display">Conectando à nuvem...</div>
       <div class="connection-status" id="connection-status">Aguardando login...</div>
     </div>
@@ -242,21 +277,53 @@
     </div>
   </div>
 
-  <div class="tree-container" id="raiz-arvore"></div>
+  <div class="workspace-wrapper">
+      
+      <!-- PAINEL ESQUERDO -->
+      <div class="left-panel">
+          <div class="tree-container" id="raiz-arvore"></div>
+          
+          <div class="stats-container">
+            <div class="stat-box">
+              <h4>Mais Monitorados da Semana 🔥</h4>
+              <ul id="list-top" class="stat-list top">
+                <li style="color: #666; justify-content: center;">Aguardando dados...</li>
+              </ul>
+            </div>
+            <div class="stat-box">
+              <h4>Menos Monitorados da Semana ⚠️</h4>
+              <ul id="list-bottom" class="stat-list bottom">
+                <li style="color: #666; justify-content: center;">Aguardando dados...</li>
+              </ul>
+            </div>
+          </div>
+      </div>
 
-  <div class="stats-container">
-    <div class="stat-box">
-      <h4>Mais Monitorados da Semana 🔥</h4>
-      <ul id="list-top" class="stat-list top">
-        <li style="color: #666; justify-content: center;">Aguardando dados...</li>
-      </ul>
-    </div>
-    <div class="stat-box">
-      <h4>Menos Monitorados da Semana ⚠️</h4>
-      <ul id="list-bottom" class="stat-list bottom">
-        <li style="color: #666; justify-content: center;">Aguardando dados...</li>
-      </ul>
-    </div>
+      <!-- PAINEL DIREITO -->
+      <div class="right-panel">
+          <div class="stat-box" style="position: sticky; top: 20px;">
+              <h4>Calendário de Operações 📅</h4>
+              <div class="calendar-box">
+                  <div class="calendar-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; border-bottom: 1px solid #333; padding-bottom: 8px;">
+                      <button class="btn-action" onclick="window.mudarMesCalendario(-1)" style="padding: 2px 8px; font-size: 11px;">◀</button>
+                      <span id="cal-month-year" style="font-weight: bold; color: var(--accent-yellow); font-size: 13px; text-transform: uppercase; letter-spacing: 0.5px;">---</span>
+                      <button class="btn-action" onclick="window.mudarMesCalendario(1)" style="padding: 2px 8px; font-size: 11px;">▶</button>
+                  </div>
+                  <div class="calendar-weekdays" style="display: grid; grid-template-columns: repeat(7, 1fr); text-align: center; font-size: 11px; color: #666; margin-bottom: 8px; font-weight: bold;">
+                      <div>D</div><div>S</div><div>T</div><div>Q</div><div>Q</div><div>S</div><div>S</div>
+                  </div>
+                  <div id="calendar-days" style="display: grid; grid-template-columns: repeat(7, 1fr); gap: 5px; text-align: center;"></div>
+                  
+                  <button class="btn-action" onclick="window.abrirModalCalendarioDireto()" style="width: 100%; margin-top: 15px; background: var(--accent-orange); color: black; font-weight: bold; border: none; padding: 10px; border-radius: 6px;">➕ Agendar Evento Direto</button>
+
+                  <div id="calendar-event-list" style="margin-top: 15px; border-top: 1px solid #222; padding-top: 12px; display: none;">
+                      <h5 style="margin: 0 0 8px 0; font-size: 11px; color: var(--accent-orange); text-transform: uppercase; letter-spacing: 0.5px;">Alertas do Dia Selecionado</h5>
+                      <div id="cal-events-ul" style="display: flex; flex-direction: column; gap: 6px; max-height: 180px; overflow-y: auto; padding-right: 4px;"></div>
+                  </div>
+              </div>
+          </div>
+      </div>
+
   </div>
 </div>
 
@@ -265,7 +332,29 @@
 <div id="modal-overlay" onclick="window.fecharModalNota()"></div>
 <div id="nota-modal">
     <h4 id="nota-alvo-titulo">Adicionar Alerta</h4>
-    <textarea id="nota-textarea" placeholder="Digite a observação tática (ex: Protesto agendado)..."></textarea>
+    
+    <label style="font-size: 11px; color: #888; display: block; margin-bottom: 4px;">Informações / Dados do Alerta:</label>
+    <textarea id="nota-textarea" placeholder="Digite os detalhes da observação tática..."></textarea>
+    
+    <label style="font-size: 11px; color: #888; display: block; margin-bottom: 4px;">📍 Local do Evento:</label>
+    <input type="text" id="nota-local" placeholder="Ex: Praça Santos Andrade, Curitiba">
+    
+    <div class="input-linha-dupla">
+        <div>
+            <label>📅 Dia do Evento:</label>
+            <input type="date" id="nota-data">
+        </div>
+        <div>
+            <label>⏰ Hora do Evento:</label>
+            <input type="time" id="nota-hora">
+        </div>
+    </div>
+
+    <div id="container-atrelar-movimento" style="margin-bottom: 15px; display: none;">
+        <label style="font-size: 11px; color: #888; display: block; margin-bottom: 4px;">🔗 Atrelar a um Movimento (Opcional):</label>
+        <select id="nota-movimento-select" style="width: 100%; background: #111; color: #fff; border: 1px solid #333; padding: 8px; border-radius: 6px; outline: none; font-size: 13px; font-weight: bold;"></select>
+    </div>
+
     <div class="nota-actions">
         <button class="btn-fechar-nota" onclick="window.fecharModalNota()">Cancelar</button>
         <button class="btn-salvar-nota" onclick="window.salvarNotaFirebase()">Gravar Alerta</button>
@@ -293,17 +382,22 @@
 
   let vistosGlobais = [];
   let anotacoesGlobais = {}; 
+  let alertasCalendarioGlobais = {}; 
   window.DADOS_TOTAIS = [];
+  window.LISTA_MOVIMENTOS = []; 
   let listaTodosAlvos = []; 
   let estrelasOrigem = []; 
   let alvoAtualNota = ""; 
   let tituloAtualNota = "";
+  let isCalendarioDireto = false; 
+  let alertasPromptadosSessao = []; 
+
+  let currentCalYear = new Date().getFullYear();
+  let currentCalMonth = new Date().getMonth();
 
   document.getElementById('btn-entrar').addEventListener('click', async () => {
-    const e = document.getElementById('email').value;
-    const s = document.getElementById('senha').value;
-    const msg = document.getElementById('msg-erro');
-    msg.innerText = "Autenticando...";
+    const e = document.getElementById('email').value; const s = document.getElementById('senha').value;
+    const msg = document.getElementById('msg-erro'); msg.innerText = "Autenticando...";
     try { await signInWithEmailAndPassword(auth, e, s); } catch (error) { msg.innerText = "Acesso negado. Credenciais incorretas."; }
   });
 
@@ -326,7 +420,9 @@
           if(snap.exists()) {
               window.DADOS_TOTAIS = snap.val();
               listaTodosAlvos = [];
+              window.LISTA_MOVIMENTOS = [];
               extrairTodosOsAlvos(window.DADOS_TOTAIS);
+              
               const raiz = document.getElementById('raiz-arvore');
               raiz.innerHTML = "";
               desenharArvore(window.DADOS_TOTAIS, raiz, []);
@@ -339,14 +435,16 @@
       lista.forEach(item => {
           if (caminhoAtual.length === 0 && item.nome !== "MOVIMENTOS") return;
           const novoCaminho = [...caminhoAtual, item.nome];
+          const temFilhos = item.filhos && item.filhos.length > 0;
+
+          if (novoCaminho[0] === "MOVIMENTOS" && temFilhos && novoCaminho.length >= 3) {
+              window.LISTA_MOVIMENTOS.push({ caminhoStr: novoCaminho.join(' > '), nome: item.nome });
+          }
+
           if (item.links && item.links.length > 0) {
               item.links.forEach(link => {
                   const idUnico = novoCaminho.join(' > ') + " > " + link.url;
-                  listaTodosAlvos.push({ 
-                      id: sanitizarId(idUnico), 
-                      titulo: novoCaminho.slice(-2).join(' > '),
-                      caminho: novoCaminho 
-                  });
+                  listaTodosAlvos.push({ id: sanitizarId(idUnico), titulo: novoCaminho.slice(-2).join(' > '), caminho: novoCaminho });
               });
           }
           if (item.filhos) { extrairTodosOsAlvos(item.filhos, novoCaminho); }
@@ -359,8 +457,7 @@
   function obterSegundaFeiraDaSemana() {
     const d = new Date(new Date().toLocaleString("en-US", {timeZone: "America/Sao_Paulo"}));
     const day = d.getDay(); const diff = d.getDate() - day + (day === 0 ? -6 : 1); 
-    const monday = new Date(d.setDate(diff));
-    return `${monday.getFullYear()}-${String(monday.getMonth()+1).padStart(2,'0')}-${String(monday.getDate()).padStart(2,'0')}`;
+    return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(new Date(d.setDate(diff)).getDate()).padStart(2,'0')}`;
   }
   function sanitizarId(str) { return str.replace(/[.#$\[\]/]/g, "_"); }
 
@@ -383,6 +480,13 @@
         vistosGlobais = data.vistos ? Object.values(data.vistos) : [];
         anotacoesGlobais = data.anotacoes || {}; 
         atualizarUiComVistos();
+        verificarAlertasExpirados(); 
+      });
+
+      onValue(ref(db, 'alertas_calendario'), (snapshot) => {
+          alertasCalendarioGlobais = snapshot.val() || {};
+          window.renderizarCalendarioTatico();
+          verificarAlertasExpirados();
       });
 
       onValue(ref(db, `estatisticas_semanal/${semanaAtualISO}`), (snapshot) => {
@@ -397,7 +501,6 @@
         document.getElementById('list-top').innerHTML = top15.length > 0 
             ? top15.map(s => `<li data-caminho="${s.caminho.join(' > ')}" onclick="window.focarAlvoFromStats(this)"><span>${s.titulo}</span> <span class="stat-count">${s.count} cliques</span></li>`).join('')
             : '<li style="color: #666; justify-content: center;">Nenhum alvo acessado ainda</li>';
-            
         document.getElementById('list-bottom').innerHTML = bottom15.map(s => `<li data-caminho="${s.caminho.join(' > ')}" onclick="window.focarAlvoFromStats(this)"><span>${s.titulo}</span> <span class="stat-count">${s.count} cliques</span></li>`).join('');
       });
 
@@ -407,56 +510,209 @@
       });
   }
 
-  window.focarAlvoFromStats = function(elemento) {
-      const caminhoCompletoStr = elemento.getAttribute('data-caminho');
-      if (!caminhoCompletoStr) return;
-      const pastas = caminhoCompletoStr.split(' > ');
-
-      document.querySelectorAll('.node').forEach(node => node.classList.remove('active'));
-
-      let caminhoPassoAPasso = "";
-      pastas.forEach((pasta, index) => {
-          caminhoPassoAPasso += (index === 0 ? "" : " > ") + pasta;
-          const nóAlvo = document.querySelector(`.node[data-path="${caminhoPassoAPasso}"]`);
-          if (nóAlvo) nóAlvo.classList.add('active');
+  function verificarAlertasExpirados() {
+      const agoraStr = obterDataBrasiliaISO() + " " + obterHoraBrasilia();
+      
+      Object.keys(anotacoesGlobais).forEach(safeKey => {
+          const nota = anotacoesGlobais[safeKey];
+          if (nota && nota.dataAlerta && nota.horaAlerta) {
+              const alvoStr = nota.dataAlerta + " " + nota.horaAlerta;
+              if (alvoStr <= agoraStr && !alertasPromptadosSessao.includes(safeKey)) {
+                  alertasPromptadosSessao.push(safeKey); 
+                  setTimeout(() => {
+                      const dispensar = confirm(`[ALERTA AGENDA VENCIDO]\nO prazo do alerta de "${nota.tituloOrigem}" agendado no local "${nota.local || 'Não Definido'}" expirou.\n\nDeseja REMOVER este alerta do painel?`);
+                      if (dispensar) set(ref(db, `monitoramentoDiario/${dataHojeISO}/anotacoes/${safeKey}`), null);
+                  }, 600);
+              }
+          }
       });
 
-      const nóFinal = document.querySelector(`.node[data-path="${caminhoCompletoStr}"]`);
-      if (nóFinal) { nóFinal.scrollIntoView({ behavior: 'smooth', block: 'center' }); }
+      Object.keys(alertasCalendarioGlobais).forEach(keyId => {
+          const nota = alertasCalendarioGlobais[keyId];
+          if (nota && nota.dataAlerta && nota.horaAlerta) {
+              const alvoStr = nota.dataAlerta + " " + nota.horaAlerta;
+              if (alvoStr <= agoraStr && !alertasPromptadosSessao.includes(keyId)) {
+                  alertasPromptadosSessao.push(keyId);
+                  setTimeout(() => {
+                      const dispensar = confirm(`[EVENTO CALENDÁRIO VENCIDO]\nO prazo do evento direto "${nota.tituloOrigem}" expirou.\n\nDeseja DELETAR este agendamento?`);
+                      if (dispensar) set(ref(db, `alertas_calendario/${keyId}`), null);
+                  }, 600);
+              }
+          }
+      });
+  }
+
+  window.mudarMesCalendario = function(direcao) {
+      currentCalMonth += direcao;
+      if (currentCalMonth > 11) { currentCalMonth = 0; currentCalYear++; }
+      if (currentCalMonth < 0) { currentCalMonth = 11; currentCalYear--; }
+      window.renderizarCalendarioTatico();
+  };
+
+  function construirItemVisualEvento(nota, keyId, isDirect) {
+      const div = document.createElement('div');
+      let caminhoFoco = isDirect ? (nota.movimentoAtrelado || "") : (nota.pathString || "");
+      let cursorStyle = caminhoFoco ? "cursor: pointer;" : "";
+      let subSeloCaminho = caminhoFoco ? `<div style="font-size: 10px; color: var(--accent-blue); margin-top: 5px; font-weight: bold;">🔗 Focar: ${caminhoFoco.replace("MOVIMENTOS > ", "")}</div>` : "";
+
+      div.style.cssText = `background: #111; border-left: 3px solid ${isDirect ? 'var(--accent-yellow)' : 'var(--accent-orange)'}; padding: 8px; border-radius: 0 4px 4px 0; font-size: 12px; line-height: 1.4; box-sizing: border-box; ${cursorStyle}`;
+      if (caminhoFoco) {
+          div.setAttribute('onclick', `window.focarCaminhoDireto('${caminhoFoco}')`);
+          div.title = "Clique para focar e abrir este movimento na árvore automaticamente";
+      }
+
+      div.innerHTML = `
+          <div style="font-weight: bold; color: var(--accent-yellow); display: flex; justify-content: space-between; align-items: center;">
+              <span>${nota.tituloOrigem || 'Evento Geral'}</span>
+              <span style="font-size: 9px; background: #222; padding: 1px 4px; border-radius: 3px; color: #aaa; font-family: monospace;">${isDirect ? 'Direto' : 'Agenda'}</span>
+          </div>
+          <div style="color: #fff; margin: 4px 0;">"${nota.texto || 'Sem descrição'}"</div>
+          <div style="font-size: 10px; color: #888;">📍 Local: ${nota.local || 'Não informado'}</div>
+          <div style="font-size: 10px; color: #888;">⏰ Hora: ${nota.horaAlerta || '--:--'} | Op: ${nota.operador.split('@')[0]}</div>
+          ${subSeloCaminho}
+      `;
+      return div;
+  }
+
+  window.selecionarDiaCalendario = function(dataStr) {
+      const listaEvs = document.getElementById('cal-events-ul');
+      const containerEvs = document.getElementById('calendar-event-list');
+      listaEvs.innerHTML = ""; let encontrou = false;
+
+      Object.keys(anotacoesGlobais).forEach(key => {
+          const nota = anotacoesGlobais[key];
+          if (nota && nota.dataAlerta === dataStr) { encontrou = true; listaEvs.appendChild(construirItemVisualEvento(nota, key, false)); }
+      });
+
+      Object.keys(alertasCalendarioGlobais).forEach(key => {
+          const nota = alertasCalendarioGlobais[key];
+          if (nota && nota.dataAlerta === dataStr) { encontrou = true; listaEvs.appendChild(construirItemVisualEvento(nota, key, true)); }
+      });
+
+      containerEvs.style.display = encontrou ? 'block' : 'none';
+  };
+
+  window.renderizarCalendarioTatico = function() {
+      const meses = ["Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho", "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"];
+      document.getElementById('cal-month-year').innerText = `${meses[currentCalMonth]} ${currentCalYear}`;
+      const gridDays = document.getElementById('calendar-days'); gridDays.innerHTML = "";
+      
+      const primeiroDiaSemana = new Date(currentCalYear, currentCalMonth, 1).getDay();
+      const totalDiasMes = new Date(currentCalYear, currentCalMonth + 1, 0).getDate();
+      
+      for (let i = 0; i < primeiroDiaSemana; i++) {
+          const emptyDiv = document.createElement('div'); emptyDiv.className = 'calendar-day empty'; gridDays.appendChild(emptyDiv);
+      }
+      
+      const hojeLocal = new Date(new Date().toLocaleString("en-US", {timeZone: "America/Sao_Paulo"}));
+      const hojeAno = hojeLocal.getFullYear(); const hojeMes = hojeLocal.getMonth(); const hojeDia = hojeLocal.getDate();
+
+      for (let day = 1; day <= totalDiasMes; day++) {
+          const dateStr = `${currentCalYear}-${String(currentCalMonth+1).padStart(2,'0')}-${String(day).padStart(2,'0')}`;
+          const dayDiv = document.createElement('div'); dayDiv.innerText = day;
+          dayDiv.style.cssText = "background: #111; border: 1px solid #222; border-radius: 4px; padding: 6px 0; font-size: 11px; color: #ccc; transition: all 0.2s; user-select: none;";
+          
+          if (currentCalYear === hojeAno && currentCalMonth === hojeMes && day === hojeDia) {
+              dayDiv.style.borderColor = "var(--accent-blue)"; dayDiv.style.color = "var(--accent-blue)";
+          }
+
+          let temAlertaNoDia = false;
+          Object.keys(anotacoesGlobais).forEach(key => { if (anotacoesGlobais[key] && anotacoesGlobais[key].dataAlerta === dateStr) temAlertaNoDia = true; });
+          Object.keys(alertasCalendarioGlobais).forEach(key => { if (alertasCalendarioGlobais[key] && alertasCalendarioGlobais[key].dataAlerta === dateStr) temAlertaNoDia = true; });
+
+          if (temAlertaNoDia) {
+              dayDiv.style.borderColor = "var(--accent-orange)"; dayDiv.style.background = "rgba(255, 140, 0, 0.15)";
+              dayDiv.style.color = "#fff"; dayDiv.style.fontWeight = "bold"; dayDiv.style.cursor = "pointer";
+              dayDiv.onclick = () => window.selecionarDiaCalendario(dateStr);
+              dayDiv.onmouseenter = function() { this.style.background = "rgba(255, 140, 0, 0.3)"; this.style.boxShadow = "0 0 8px var(--accent-orange)"; };
+              dayDiv.onmouseleave = function() { this.style.background = "rgba(255, 140, 0, 0.15)"; this.style.boxShadow = "none"; };
+          }
+          gridDays.appendChild(dayDiv);
+      }
+  };
+
+  window.abrirModalCalendarioDireto = function() {
+      isCalendarioDireto = true; alvoAtualNota = "";
+      document.getElementById('nota-alvo-titulo').innerText = "Agendar Novo Evento (Direto)";
+      document.getElementById('nota-textarea').value = ""; document.getElementById('nota-local').value = "";
+      document.getElementById('nota-data').value = ""; document.getElementById('nota-hora').value = "";
+      
+      const select = document.getElementById('nota-movimento-select');
+      select.innerHTML = '<option value="">Nenhum (Evento Geral)</option>';
+      window.LISTA_MOVIMENTOS.forEach(mov => {
+          const opt = document.createElement('option'); opt.value = mov.caminhoStr;
+          opt.innerText = mov.caminhoStr.replace("MOVIMENTOS > ", ""); select.appendChild(opt);
+      });
+
+      document.getElementById('container-atrelar-movimento').style.display = 'block';
+      document.getElementById('modal-overlay').style.display = 'block';
+      document.getElementById('nota-modal').style.display = 'block';
+      document.getElementById('nota-textarea').focus();
+  };
+
+  window.focarAlvoFromStats = function(elemento) { window.focarCaminhoDireto(elemento.getAttribute('data-caminho')); };
+
+  window.focarCaminhoDireto = function(caminhoCompletoStr) {
+      if (!caminhoCompletoStr) return;
+      const pastas = caminhoCompletoStr.split(' > ');
+      document.querySelectorAll('.node').forEach(node => node.classList.remove('active'));
+      let c = "";
+      pastas.forEach((pasta, idx) => {
+          c += (idx === 0 ? "" : " > ") + pasta;
+          const n = document.querySelector(`.node[data-path="${c}"]`); if (n) n.classList.add('active');
+      });
+      const target = document.querySelector(`.node[data-path="${caminhoCompletoStr}"]`);
+      if (target) target.scrollIntoView({ behavior: 'smooth', block: 'center' });
   };
 
   window.clicarEstrela = function(e, idElemento) {
       e.preventDefault(); e.stopPropagation();
       if (estrelasOrigem.includes(idElemento)) {
-          estrelasOrigem = estrelasOrigem.filter(orig => orig !== idElemento);
-          set(ref(db, 'marcacoesTaticas/estrelas'), estrelasOrigem);
+          estrelasOrigem = estrelasOrigem.filter(orig => orig !== idElemento); set(ref(db, 'marcacoesTaticas/estrelas'), estrelasOrigem);
       } else {
-          const isAmarela = estrelasOrigem.some(orig => idElemento.startsWith(orig + " > ") || orig.startsWith(idElemento + " > "));
-          if (!isAmarela) {
-              estrelasOrigem.push(idElemento);
-              set(ref(db, 'marcacoesTaticas/estrelas'), estrelasOrigem);
+          if (!estrelasOrigem.some(orig => idElemento.startsWith(orig + " > ") || orig.startsWith(idElemento + " > "))) {
+              estrelasOrigem.push(idElemento); set(ref(db, 'marcacoesTaticas/estrelas'), estrelasOrigem);
           }
       }
   };
 
-  function actualizarEstrelasUI() {
+  function atualizarEstrelasUI() {
       document.querySelectorAll('.star-icon').forEach(el => {
-          const id = el.getAttribute('data-star');
-          el.classList.remove('star-orange', 'star-yellow');
-          if (estrelasOrigem.includes(id)) { el.classList.add('star-orange'); } 
-          else {
-              const isAmarela = estrelasOrigem.some(orig => id.startsWith(orig + " > ") || orig.startsWith(id + " > "));
-              if (isAmarela) el.classList.add('star-yellow');
-          }
+          const id = el.getAttribute('data-star'); el.classList.remove('star-orange', 'star-yellow');
+          if (estrelasOrigem.includes(id)) el.classList.add('star-orange');
+          else if (estrelasOrigem.some(orig => id.startsWith(orig + " > ") || orig.startsWith(id + " > "))) el.classList.add('star-yellow');
       });
   }
 
+  window.mostrarTooltipNota = function(e, idUnico) {
+      e.stopPropagation();
+      const safeKey = sanitizarId(idUnico); const nota = anotacoesGlobais[safeKey]; if (!nota) return;
+      const tooltip = document.getElementById('tooltip-preview');
+      tooltip.innerHTML = `
+          <div class="tooltip-title" style="color: var(--accent-yellow); border-bottom-color: var(--accent-yellow);">ALERTA DE INTELIGÊNCIA</div>
+          <div style="color: #ffffff; font-weight: bold; font-size: 13px; margin-bottom: 8px; white-space: normal; line-height: 1.4;">"${nota.texto || 'Sem descrição'}"</div>
+          <div style="font-size: 11px; color: var(--accent-orange); margin-bottom: 3px;">📍 Local: ${nota.local || 'Não informado'}</div>
+          <div style="font-size: 11px; color: var(--accent-blue); margin-bottom: 8px;">📅 Agendamento: ${nota.dataAlerta ? nota.dataAlerta.split('-').reverse().join('/') : '--'} às ${nota.horaAlerta || '--'}</div>
+          <div style="font-size: 10px; color: #aaa; border-top: 1px solid #222; padding-top: 5px;">🎯 Operador: ${nota.operador}</div>
+          <div style="font-size: 10px; color: #aaa;">⏰ Registro: ${nota.time}</div>
+      `;
+      tooltip.style.left = (e.clientX + 15) + 'px'; tooltip.style.top = (e.clientY + 10) + 'px'; tooltip.classList.add('show');
+  };
+
+  window.esconderTooltipNota = function() { document.getElementById('tooltip-preview').classList.remove('show'); };
+
   window.abrirModalNota = function(e, idUnico, titulo) {
-      e.preventDefault(); e.stopPropagation();
-      alvoAtualNota = idUnico; tituloAtualNota = titulo;
-      const safeKey = sanitizarId(idUnico);
+      e.preventDefault(); e.stopPropagation(); window.esconderTooltipNota();
+      isCalendarioDireto = false; alvoAtualNota = idUnico; tituloAtualNota = titulo;
+      const safeKey = sanitizarId(idUnico); const nota = anotacoesGlobais[safeKey] || {};
+      
       document.getElementById('nota-alvo-titulo').innerText = "Alerta: " + titulo;
-      document.getElementById('nota-textarea').value = anotacoesGlobais[safeKey] ? anotacoesGlobais[safeKey].texto : "";
+      document.getElementById('nota-textarea').value = nota.texto || "";
+      document.getElementById('nota-local').value = nota.local || "";
+      document.getElementById('nota-data').value = nota.dataAlerta || "";
+      document.getElementById('nota-hora').value = nota.horaAlerta || "";
+      
+      document.getElementById('container-atrelar-movimento').style.display = 'none';
       document.getElementById('modal-overlay').style.display = 'block';
       document.getElementById('nota-modal').style.display = 'block';
       document.getElementById('nota-textarea').focus();
@@ -469,10 +725,40 @@
 
   window.salvarNotaFirebase = function() {
       const texto = document.getElementById('nota-textarea').value.trim();
-      const safeKey = sanitizarId(alvoAtualNota);
-      const notaRef = ref(db, `monitoramentoDiario/${dataHojeISO}/anotacoes/${safeKey}`);
-      if (texto === "") { set(notaRef, null); } 
-      else { set(notaRef, { texto: texto, operador: auth.currentUser ? auth.currentUser.email : 'Desconhecido', time: obterHoraBrasilia(), tituloOrigem: tituloAtualNota }); }
+      const local = document.getElementById('nota-local').value.trim();
+      const dataAlerta = document.getElementById('nota-data').value;
+      const horaAlerta = document.getElementById('nota-hora').value;
+      
+      if (isCalendarioDireto) {
+          const movimentoAtrelado = document.getElementById('nota-movimento-select').value;
+          const uniqueKey = alvoAtualNota || ("CAL_" + Date.now());
+          const notaRef = ref(db, `alertas_calendario/${uniqueKey}`);
+          
+          if (texto === "" && local === "" && dataAlerta === "" && horaAlerta === "") {
+              set(notaRef, null);
+          } else {
+              set(notaRef, { 
+                  texto: texto, local: local, dataAlerta: dataAlerta, horaAlerta: horaAlerta,
+                  movimentoAtrelado: movimentoAtrelado,
+                  operador: auth.currentUser ? auth.currentUser.email : 'Desconhecido', 
+                  time: obterHoraBrasilia(), 
+                  tituloOrigem: movimentoAtrelado ? movimentoAtrelado.split(' > ').pop() : "Evento Geral",
+                  isDirectCalendar: true, keyId: uniqueKey
+              });
+          }
+      } else {
+          const safeKey = sanitizarId(alvoAtualNota);
+          const notaRef = ref(db, `monitoramentoDiario/${dataHojeISO}/anotacoes/${safeKey}`);
+          if (texto === "" && local === "" && dataAlerta === "" && horaAlerta === "") {
+              set(notaRef, null);
+          } else {
+              set(notaRef, { 
+                  texto: texto, local: local, dataAlerta: dataAlerta, horaAlerta: horaAlerta,
+                  operador: auth.currentUser ? auth.currentUser.email : 'Desconhecido', 
+                  time: obterHoraBrasilia(), tituloOrigem: tituloAtualNota, pathString: alvoAtualNota
+              });
+          }
+      }
       window.fecharModalNota();
   };
 
@@ -486,10 +772,11 @@
       if (el) { el.classList.add('visto'); let stamp = document.createElement('span'); stamp.className = 'stamp'; stamp.innerText = `[${v.time}]`; el.appendChild(stamp); }
     });
 
+    // MUTAÇÃO DE TEXTO PARA CALENDÁRIO COM PRESERVAÇÃO DE ESTADOS NEON
     document.querySelectorAll('.icon-nota').forEach(el => {
         const id = el.getAttribute('data-nota-id'); const safeKey = sanitizarId(id);
-        if (anotacoesGlobais[safeKey]) { el.classList.add('tem-nota'); el.title = `Alerta: ${anotacoesGlobais[safeKey].texto}`; } 
-        else { el.classList.remove('tem-nota'); el.title = "Adicionar Alerta"; }
+        if (anotacoesGlobais[safeKey]) { el.classList.add('tem-nota'); el.innerText = "📅 AGENDA ATIVA"; } 
+        else { el.classList.remove('tem-nota'); el.innerText = "📅 AGENDA"; }
     });
 
     document.querySelectorAll('.node').forEach(node => {
@@ -508,6 +795,8 @@
     const porcentagem = Math.round((vistosGlobais.length / totalLinks) * 100);
     fill.style.width = `${porcentagem}%`;
     text.innerHTML = porcentagem >= 100 ? `<span style="color: var(--accent-green); font-weight: bold;">MONITORAMENTO GERAL CONCLUÍDO (100%) ✔️</span>` : `${vistosGlobais.length} / ${totalLinks} verificados (${porcentagem}%)`;
+
+    window.renderizarCalendarioTatico();
   }
 
   window.registrarVisualizacao = function(idUnico, tituloLink) {
@@ -531,7 +820,10 @@
             vistos.forEach(v => { relatorio += ` - ${v.time} | ${v.id.split(' > ').slice(-2, -1)[0]}${v.operador ? ` | Op: ${v.operador}` : ''}\n`; });
             if (dados[d].anotacoes) {
                 relatorio += `\n   *** ALERTAS TÁTICOS DO DIA ***\n`;
-                Object.values(dados[d].anotacoes).forEach(n => { relatorio += `   [!] ${n.time} | ${n.tituloOrigem}: "${n.texto}" (Op: ${n.operador})\n`; });
+                Object.values(dados[d].anotacoes).forEach(n => { 
+                    const agendadoStr = n.dataAlerta ? ` | Agendado: ${n.dataAlerta.split('-').reverse().join('/')} às ${n.horaAlerta}` : '';
+                    relatorio += `   [!] ${n.time} | ${n.tituloOrigem}: "${n.texto}" | Local: ${n.local || 'Não Informado'}${agendadoStr} (Op: ${n.operador})\n`; 
+                });
             }
             relatorio += "\n------------------------------------------------\n\n";
         });
@@ -574,7 +866,7 @@
           window.recolherArvoreInteira(); let c = ""; 
           res.caminho.forEach((p, idx) => { c += (idx === 0 ? "" : " > ") + p; const node = document.querySelector(`.node[data-path="${c}"]`); if(node) node.classList.add('active'); });
           const target = document.querySelector(`.node[data-path="${res.caminho.join(' > ')}"]`);
-          if(target) target.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          if (target) target.scrollIntoView({ behavior: 'smooth', block: 'center' });
           caixa.style.display = 'none';
         };
         caixa.appendChild(div);
@@ -596,10 +888,10 @@
         btn.innerHTML = `<div class="node-progress-bar"><div class="node-progress-fill"></div></div>`;
       }
 
-      // NOVO RADAR DE INJEÇÃO DO BALÃO: Filtra MOVIMENTOS + Ser Menu Expandível + Ter 3 ou mais camadas de profundidade
+      // INJEÇÃO DA NOVA IDENTIDADE VISUAL DO BOTÃO DE CALENDÁRIO INTERNO NA ÁRVORE
       let htmlNota = "";
       if (novoCaminho[0] === "MOVIMENTOS" && temFilhos && novoCaminho.length >= 3) {
-          htmlNota = `<span class="icon-nota" data-nota-id="${pathString}" onclick="window.abrirModalNota(event, '${pathString}', '${item.nome}')">💬</span>`;
+          htmlNota = `<span class="icon-nota" data-nota-id="${pathString}" onclick="window.abrirModalNota(event, '${pathString}', '${item.nome}')" onmouseenter="window.mostrarTooltipNota(event, '${pathString}')" onmouseleave="window.esconderTooltipNota()">📅 AGENDA</span>`;
       }
 
       btn.innerHTML += `<div class="btn-left"><span class="star-icon" data-star="${pathString}" onclick="window.clicarEstrela(event, this.getAttribute('data-star'))">★</span><div class="icon-circle icon-${item.cor || 'white'}">${item.icone || '●'}</div><span>${item.nome}</span>${htmlNota}</div><span class="toggle-icon"></span>`;
@@ -614,7 +906,6 @@
             a.href = link.url || '#'; a.target = '_blank'; a.className = 'link-card'; a.setAttribute('data-id', idUnico);
             a.onclick = () => window.registrarVisualizacao(idUnico, novoCaminho.slice(-2).join(' > '));
             
-            // CONFORME SOLICITADO: Removido por completo o balão deste escopo de links
             a.innerHTML = `
               <span class="star-icon" data-star="${idUnico}" onclick="window.clicarEstrela(event, this.getAttribute('data-star'))">★</span>
               <div class="icon-circle icon-${link.tipo === 'link' ? 'link' : 'insta'}">${link.tipo === 'insta' ? '📸' : '🔗'}</div>
