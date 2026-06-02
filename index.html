@@ -65,7 +65,7 @@
   .login-box button:hover { background: #b02a37; }
 
   /* =========================================
-     PAINEL PRINCIPAL (C2)
+     PAINEL PRINCIPAL
      ========================================= */
   #app-content { display: none; padding: 20px; }
 
@@ -121,14 +121,21 @@
 
   /* --- VISOR FLUTUANTE DE PREVIA (TOOLTIP) --- */
   #tooltip-preview { 
-    position: fixed; z-index: 10000; pointer-events: none; background: rgba(10, 10, 10, 0.98); 
+    position: fixed; z-index: 10000; pointer-events: auto; background: rgba(10, 10, 10, 0.98); 
     backdrop-filter: blur(6px); border: 1px solid #444; border-radius: 8px; padding: 14px; 
     color: rgba(255, 255, 255, 0.8); font-size: 12px; box-shadow: 0 10px 30px rgba(0,0,0,0.8); 
     opacity: 0; visibility: hidden; transition: opacity 0.15s ease, transform 0.15s ease; 
-    max-width: 300px; word-wrap: break-word;
+    max-width: 320px; word-wrap: break-word;
   }
   #tooltip-preview.show { opacity: 1; visibility: visible; }
   .tooltip-title { font-size: 10px; font-weight: bold; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 8px; color: rgba(255, 255, 255, 0.4); border-bottom: 1px solid #333; padding-bottom: 4px; }
+
+  /* --- LINK RECOGNITION STYLE --- */
+  #tooltip-preview a, #calendar-event-list a {
+    color: #00a2ff !important;
+    text-decoration: underline !important;
+    font-weight: bold;
+  }
 
   /* --- SISTEMA DE ESTRELAS --- */
   .star-icon {
@@ -157,29 +164,37 @@
     100% { transform: scale(1.1); box-shadow: 0 0 15px var(--neon-alert); }
   }
 
-  /* --- MODAL DE ESCRITA MULTI-CAMPO --- */
+  /* =========================================
+     MODAL AMPLIADO (PROTÓCOLO MACRO VISÃO)
+     ========================================= */
   #modal-overlay { display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.8); z-index: 19999; backdrop-filter: blur(2px); }
   #nota-modal {
     display: none; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
     background: var(--card-bg); border: 1px solid var(--accent-yellow); border-radius: 8px;
-    padding: 20px; z-index: 20000; width: 340px; box-shadow: 0 15px 40px rgba(0,0,0,0.9);
+    padding: 25px; z-index: 20000; width: 560px; max-width: 92%; box-shadow: 0 15px 40px rgba(0,0,0,0.9);
   }
-  #nota-modal h4 { margin: 0 0 15px 0; color: var(--accent-yellow); font-size: 15px; border-bottom: 1px solid #333; padding-bottom: 8px; }
-  #nota-textarea { width: 100%; height: 80px; background: #111; color: #fff; border: 1px solid #333; padding: 10px; border-radius: 6px; resize: none; outline: none; margin-bottom: 12px; box-sizing: border-box; font-family: inherit; font-size: 13px; }
+  #nota-modal h4 { margin: 0 0 15px 0; color: var(--accent-yellow); font-size: 16px; border-bottom: 1px solid #333; padding-bottom: 10px; }
+  
+  /* Campo de escrita estendido para leitura direta */
+  #nota-textarea { 
+    width: 100%; height: 200px; background: #111; color: #fff; border: 1px solid #333; 
+    padding: 12px; border-radius: 6px; resize: vertical; outline: none; margin-bottom: 15px; 
+    box-sizing: border-box; font-family: inherit; font-size: 14px; line-height: 1.5; 
+  }
   #nota-textarea:focus, #nota-local:focus, #nota-movimento-input:focus { border-color: var(--accent-yellow); }
   
   #nota-local {
-    width: 100%; background: #111; color: #fff; border: 1px solid #333; padding: 8px;
-    border-radius: 6px; margin-bottom: 12px; box-sizing: border-box; outline: none; font-size: 13px;
+    width: 100%; background: #111; color: #fff; border: 1px solid #333; padding: 10px;
+    border-radius: 6px; margin-bottom: 15px; box-sizing: border-box; outline: none; font-size: 13px;
   }
-  .input-linha-dupla { display: flex; gap: 10px; margin-bottom: 12px; }
+  .input-linha-dupla { display: flex; gap: 12px; margin-bottom: 15px; }
   .input-linha-dupla div { flex: 1; }
   .input-linha-dupla label { font-size: 11px; color: #888; display: block; margin-bottom: 4px; }
-  .input-linha-dupla input { width: 100%; background: #111; color: #fff; border: 1px solid #333; padding: 8px; border-radius: 6px; box-sizing: border-box; outline: none; font-size: 13px; color-scheme: dark; }
+  .input-linha-dupla input { width: 100%; background: #111; color: #fff; border: 1px solid #333; padding: 10px; border-radius: 6px; box-sizing: border-box; outline: none; font-size: 13px; color-scheme: dark; }
 
-  .nota-actions { display: flex; justify-content: space-between; }
-  .btn-salvar-nota { background: var(--accent-yellow); color: #000; border: none; padding: 8px 16px; border-radius: 4px; cursor: pointer; font-weight: bold; transition: 0.2s; }
-  .btn-fechar-nota { background: transparent; color: #888; border: 1px solid #555; padding: 8px 16px; border-radius: 4px; cursor: pointer; transition: 0.2s; }
+  .nota-actions { display: flex; justify-content: space-between; border-top: 1px solid #222; padding-top: 15px; margin-top: 5px; }
+  .btn-salvar-nota { var(--accent-yellow); background: var(--accent-yellow); color: #000; border: none; padding: 10px 22px; border-radius: 4px; cursor: pointer; font-weight: bold; transition: 0.2s; font-size: 13px; }
+  .btn-fechar-nota { background: transparent; color: #888; border: 1px solid #555; padding: 10px 22px; border-radius: 4px; cursor: pointer; transition: 0.2s; font-size: 13px; }
   .btn-salvar-nota:hover { background: #e0a800; }
   .btn-fechar-nota:hover { background: #333; color: #fff; }
 
@@ -251,7 +266,7 @@
 <div id="app-content">
   <div class="header-container">
     <div class="header-title">
-      AESI BPCHOQUE - COMANDO E CONTROLE
+      AESI BPCHOQUE
       <div class="date-badge" id="data-display">Conectando à nuvem...</div>
       <div class="connection-status" id="connection-status">Aguardando login...</div>
     </div>
@@ -302,7 +317,8 @@
       <!-- PAINEL DIREITO -->
       <div class="right-panel">
           <div class="stat-box" style="position: sticky; top: 20px;">
-              <h4>Calendário de Operações 📅</h4>
+              <!-- ATUALIZADO CONFORME SOLICITADO -->
+              <h4>Calendário 📅</h4>
               <div class="calendar-box">
                   <div class="calendar-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; border-bottom: 1px solid #333; padding-bottom: 8px;">
                       <button class="btn-action" onclick="window.mudarMesCalendario(-1)" style="padding: 2px 8px; font-size: 11px;">◀</button>
@@ -314,7 +330,7 @@
                   </div>
                   <div id="calendar-days" style="display: grid; grid-template-columns: repeat(7, 1fr); gap: 5px; text-align: center;"></div>
                   
-                  <!-- ATUALIZADO CONFORME PADRONIZAÇÃO EXIGIDA -->
+                  <!-- ATUALIZADO CONFORME SOLICITADO -->
                   <button class="btn-action" onclick="window.abrirModalCalendarioDireto()" style="width: 100%; margin-top: 15px; background: var(--accent-orange); color: black; font-weight: bold; border: none; padding: 10px; border-radius: 6px;">➕ Agendar Evento</button>
 
                   <div id="calendar-event-list" style="margin-top: 15px; border-top: 1px solid #222; padding-top: 12px; display: none;">
@@ -353,7 +369,6 @@
         </div>
     </div>
 
-    <!-- REARQUITETADO: ENTRADA COM FILTRO DE AUTOCOMPLETAR DINÂMICO POR TRECHOS -->
     <div id="container-atrelar-movimento" style="margin-bottom: 15px; display: none; position: relative;">
         <label style="font-size: 11px; color: #888; display: block; margin-bottom: 4px;">🔗 Atrelar a um Movimento (Opcional):</label>
         <input type="text" id="nota-movimento-input" placeholder="Comece a digitar o nome do movimento..." style="width: 100%; background: #111; color: #fff; border: 1px solid #333; padding: 8px; border-radius: 6px; outline: none; font-size: 13px; font-weight: bold;" oninput="window.filtrarMovimentosDropdown()">
@@ -506,7 +521,7 @@
         });
         estatisticasCompletas.sort((a, b) => b.count - a.count);
         const top15 = estatisticasCompletas.filter(s => s.count > 0).slice(0, 15);
-        const bottom15 = estatisticasCompletas.slice(-15).reverse();
+        const bottom15 =  estatisticasCompletas.slice(-15).reverse();
         
         document.getElementById('list-top').innerHTML = top15.length > 0 
             ? top15.map(s => `<li data-caminho="${s.caminho.join(' > ')}" onclick="window.focarCaminhoDireto(this.getAttribute('data-caminho'))"><span>${s.titulo}</span> <span class="stat-count">${s.count} cliques</span></li>`).join('')
@@ -560,6 +575,15 @@
       window.renderizarCalendarioTatico();
   };
 
+  /* --- MOTOR DE DETECÇÃO AUTOMÁTICA E EMBUTIMENTO DE LINKS CLICÁVEIS --- */
+  function linkify(text) {
+      if (!text) return "";
+      const urlRegex = /(https?:\/\/[^\s]+)/g;
+      return text.replace(urlRegex, function(url) {
+          return '<a href="' + url + '" target="_blank">' + url + '</a>';
+      });
+  }
+
   function construirItemVisualEvento(nota, keyId, tipoEntrada) {
       const div = document.createElement('div');
       let caminhoFoco = tipoEntrada === 'direto' ? (nota.movimentoAtrelado || "") : (nota.pathString || "");
@@ -569,12 +593,13 @@
       div.style.cssText = `background: #111; border-left: 3px solid ${tipoEntrada === 'direto' ? 'var(--accent-yellow)' : 'var(--accent-orange)'}; padding: 8px; border-radius: 0 4px 4px 0; font-size: 12px; line-height: 1.4; box-sizing: border-box; ${cursorStyle}`;
       if (caminhoFoco) { div.setAttribute('onclick', `window.focarCaminhoDireto('${caminhoFoco}')`); }
 
+      // Adicionado linkify na exibição do texto
       div.innerHTML = `
           <div style="font-weight: bold; color: var(--accent-yellow); display: flex; justify-content: space-between; align-items: center;">
               <span>${nota.tituloOrigem || 'Evento Geral'}</span>
               <span style="font-size: 9px; background: #222; padding: 1px 4px; border-radius: 3px; color: #aaa; font-family: monospace;">${tipoEntrada === 'direto' ? 'Direto' : 'Pasta'}</span>
           </div>
-          <div style="color: #fff; margin: 4px 0;">"${nota.texto || 'Sem descrição'}"</div>
+          <div style="color: #fff; margin: 4px 0; white-space: pre-wrap;">"${linkify(nota.texto) || 'Sem descrição'}"</div>
           <div style="font-size: 10px; color: #888;">📍 Local: ${nota.local || 'Não informado'}</div>
           <div style="font-size: 10px; color: #888;">⏰ Hora: ${nota.horaAlerta || '--:--'} | Op: ${nota.operador.split('@')[0]}</div>
           ${subSeloCaminho}
@@ -636,7 +661,6 @@
       }
   };
 
-  // --- ARQUITETURA FILTRADA DE AUTOCOMPLETAR POR TRECHOS ---
   window.filtrarMovimentosDropdown = function() {
       const input = document.getElementById('nota-movimento-input').value;
       const box = document.getElementById('nota-movimento-sugestoes');
@@ -726,6 +750,7 @@
       });
   }
 
+  /* --- INTERCEPTADOR DO VISOR HOVER PREVIEW COM LINKIFY --- */
   window.mostrarTooltipTatico = function(e, idUnico, tipo) {
       e.stopPropagation();
       const safeKey = sanitizarId(idUnico);
@@ -736,13 +761,13 @@
       if (tipo === 'postit') {
           tooltip.innerHTML = `
               <div class="tooltip-title" style="color: var(--accent-red); border-bottom-color: var(--accent-red);">NOTA (POST-IT)</div>
-              <div style="color: #ffffff; font-weight: bold; font-size: 13px; margin-bottom: 6px; white-space: normal; line-height: 1.4;">"${data.texto || 'Sem descrição'}"</div>
+              <div style="color: #ffffff; font-weight: bold; font-size: 13px; margin-bottom: 6px; white-space: pre-wrap; line-height: 1.4;">"${linkify(data.texto) || 'Sem descrição'}"</div>
               <div style="font-size: 10px; color: #aaa; border-top: 1px solid #222; padding-top: 4px;">🎯 Operador: ${data.operador.split('@')[0]} | ⏰ Registro: ${data.time}</div>
           `;
       } else {
           tooltip.innerHTML = `
               <div class="tooltip-title" style="color: var(--accent-yellow); border-bottom-color: var(--accent-yellow);">AGENDA DE EVENTO</div>
-              <div style="color: #ffffff; font-weight: bold; font-size: 13px; margin-bottom: 6px; white-space: normal; line-height: 1.4;">"${data.texto || 'Sem descrição'}"</div>
+              <div style="color: #ffffff; font-weight: bold; font-size: 13px; margin-bottom: 6px; white-space: pre-wrap; line-height: 1.4;">"${linkify(data.texto) || 'Sem descrição'}"</div>
               <div style="font-size: 11px; color: var(--accent-orange); margin-bottom: 3px;">📍 Local: ${data.local || 'Não informado'}</div>
               <div style="font-size: 11px; color: var(--accent-blue); margin-bottom: 6px;">📅 Evento: ${data.dataAlerta.split('-').reverse().join('/')} às ${data.horaAlerta || '--:--'}</div>
               <div style="font-size: 10px; color: #aaa; border-top: 1px solid #222; padding-top: 4px;">🎯 Operador: ${data.operador.split('@')[0]} | ⏰ Registro: ${data.time}</div>
@@ -980,7 +1005,6 @@
     });
   }
 
-  // FECHAMENTO INTUITIVO DAS CAIXAS CLICANDO FORA DELAS
   document.addEventListener('click', (e) => { 
       if (!e.target.closest('.search-box')) document.getElementById('caixaResultados').style.display = 'none'; 
       if (!e.target.closest('#container-atrelar-movimento')) {
