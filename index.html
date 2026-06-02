@@ -139,9 +139,7 @@
   .star-icon.star-yellow { color: var(--accent-yellow); -webkit-text-stroke: 0; filter: drop-shadow(0 0 4px rgba(255, 193, 7, 0.4)); }
   .star-icon.star-orange { color: var(--accent-orange); -webkit-text-stroke: 0; filter: drop-shadow(0 0 8px rgba(255, 140, 0, 0.8)); transform: scale(1.15); }
 
-  /* =========================================
-     NOVO DESIGN DOS ÍCONES PUROS DA ARVORE
-     ========================================= */
+  /* --- DESIGN DOS ÍCONES PUROS DA ARVORE --- */
   .icon-nota {
     font-size: 13px; cursor: pointer; margin-left: 6px; color: #888; background: #161616; 
     border: 1px solid #444; width: 25px; height: 25px; border-radius: 4px; transition: all 0.2s ease; 
@@ -149,7 +147,6 @@
   }
   .icon-nota:hover { background: #252525; border-color: #666; color: #fff; }
   
-  /* ESTADO ATIVO DO PROTÓCOLO DE ALERTA INDEPENDENTE */
   .icon-nota.tem-nota {
     background: var(--neon-alert) !important; border-color: var(--neon-alert) !important; color: #ffffff !important;
     box-shadow: 0 0 10px var(--neon-alert), 0 0 20px var(--neon-alert);
@@ -160,7 +157,7 @@
     100% { transform: scale(1.1); box-shadow: 0 0 15px var(--neon-alert); }
   }
 
-  /* --- MODAL DE ESCRITA ADAPTÁVEL MULTI-CAMPO --- */
+  /* --- MODAL DE ESCRITA MULTI-CAMPO --- */
   #modal-overlay { display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.8); z-index: 19999; backdrop-filter: blur(2px); }
   #nota-modal {
     display: none; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
@@ -254,7 +251,7 @@
 <div id="app-content">
   <div class="header-container">
     <div class="header-title">
-      AESI BPCHOQUE
+      AESI BPCHOQUE - COMANDO E CONTROLE
       <div class="date-badge" id="data-display">Conectando à nuvem...</div>
       <div class="connection-status" id="connection-status">Aguardando login...</div>
     </div>
@@ -317,7 +314,7 @@
                   </div>
                   <div id="calendar-days" style="display: grid; grid-template-columns: repeat(7, 1fr); gap: 5px; text-align: center;"></div>
                   
-                  <button class="btn-action" onclick="window.window.abrirModalCalendarioDireto()" style="width: 100%; margin-top: 15px; background: var(--accent-orange); color: black; font-weight: bold; border: none; padding: 10px; border-radius: 6px;">➕ Agendar Evento Direto</button>
+                  <button class="btn-action" onclick="window.abrirModalCalendarioDireto()" style="width: 100%; margin-top: 15px; background: var(--accent-orange); color: black; font-weight: bold; border: none; padding: 10px; border-radius: 6px;">➕ Agendar Evento Direto</button>
 
                   <div id="calendar-event-list" style="margin-top: 15px; border-top: 1px solid #222; padding-top: 12px; display: none;">
                       <h5 style="margin: 0 0 8px 0; font-size: 11px; color: var(--accent-orange); text-transform: uppercase; letter-spacing: 0.5px;">Alertas do Dia Selecionado</h5>
@@ -332,7 +329,6 @@
 
 <div id="tooltip-preview"></div>
 
-<!-- FORMULÁRIO COMPACTO MULTI-CAMPO RECONFIGURADO -->
 <div id="modal-overlay" onclick="window.fecharModalNota()"></div>
 <div id="nota-modal">
     <h4 id="nota-alvo-titulo">Gerenciar Entrada</h4>
@@ -387,8 +383,8 @@
   const db = getDatabase(app);
 
   let vistosGlobais = [];
-  let anotacoesGlobais = {}; // Cache para Post-its
-  let agendaMenusGlobais = {}; // Cache para Operações Agendadas por menus
+  let anotacoesGlobais = {}; 
+  let agendaMenusGlobais = {}; 
   let alertasCalendarioGlobais = {}; 
   window.DADOS_TOTAIS = [];
   window.LISTA_MOVIMENTOS = []; 
@@ -396,7 +392,7 @@
   let estrelasOrigem = []; 
   let alvoAtualNota = ""; 
   let tituloAtualNota = "";
-  let contextoAtual = ""; // Controle dinâmico: 'postit', 'agenda', 'direto'
+  let contextoAtual = ""; 
   let alertasPromptadosSessao = []; 
 
   let currentCalYear = new Date().getFullYear();
@@ -443,9 +439,9 @@
           if (caminhoAtual.length === 0 && item.nome !== "MOVIMENTOS") return;
           const novoCaminho = [...caminhoAtual, item.nome];
           const temFilhos = item.filhos && item.filhos.length > 0;
+          const temLinks = item.links && item.links.length > 0;
 
-          // Validação da 4ª camada em diante
-          if (novoCaminho[0] === "MOVIMENTOS" && temFilhos && novoCaminho.length >= 4) {
+          if (novoCaminho[0] === "MOVIMENTOS" && (temFilhos || temLinks) && novoCaminho.length >= 4) {
               window.LISTA_MOVIMENTOS.push({ caminhoStr: novoCaminho.join(' > '), nome: item.nome });
           }
 
@@ -506,8 +502,8 @@
             return { titulo: alvo.titulo, count: dataFirebase[alvo.id] ? dataFirebase[alvo.id].count : 0, caminho: alvo.caminho };
         });
         estatisticasCompletas.sort((a, b) => b.count - a.count);
-        const top15 = templates_top(estatisticasCompletas);
-        const bottom15 = estatisticasCompletas.slice(-15).reverse();
+        const top15 = estatisticasCompletas.filter(s => s.count > 0).slice(0, 15);
+        const bottom15 = templates_bottom(estatisticasCompletas);
         
         document.getElementById('list-top').innerHTML = top15.length > 0 
             ? top15.map(s => `<li data-caminho="${s.caminho.join(' > ')}" onclick="window.focarCaminhoDireto(this.getAttribute('data-caminho'))"><span>${s.titulo}</span> <span class="stat-count">${s.count} cliques</span></li>`).join('')
@@ -522,12 +518,11 @@
       });
   }
 
-  function templates_top(arr) { return arr.filter(s => s.count > 0).slice(0, 15); }
+  function templates_bottom(arr) { return arr.slice(-15).reverse(); }
 
   function verificarAlertasExpirados() {
       const agoraStr = obterDataBrasiliaISO() + " " + obterHoraBrasilia();
       
-      // Monitora Agendas de Pastas
       Object.keys(agendaMenusGlobais).forEach(safeKey => {
           const nota = agendaMenusGlobais[safeKey];
           if (nota && nota.dataAlerta && nota.horaAlerta) {
@@ -535,14 +530,13 @@
               if (alvoStr <= agoraStr && !alertasPromptadosSessao.includes(safeKey)) {
                   alertasPromptadosSessao.push(safeKey); 
                   setTimeout(() => {
-                      const dispensar = confirm(`[AGENDA VENCIDA]\nO prazo da missão de "${nota.tituloOrigem}" no local "${nota.local || 'Não Definido'}" expirou.\n\nDeseja REMOVER este alerta da agenda de hoje?`);
+                      const dispensar = confirm(`[AGENDA VENCIDA]\nO prazo do evento de "${nota.tituloOrigem}" no local "${nota.local || 'Não Definido'}" expirou.\n\nDeseja REMOVER este alerta da agenda de hoje?`);
                       if (dispensar) set(ref(db, `monitoramentoDiario/${dataHojeISO}/agenda_menus/${safeKey}`), null);
                   }, 600);
               }
           }
       });
 
-      // Monitora Entradas Diretas do Calendário
       Object.keys(alertasCalendarioGlobais).forEach(keyId => {
           const nota = alertasCalendarioGlobais[keyId];
           if (nota && nota.dataAlerta && nota.horaAlerta) {
@@ -557,6 +551,13 @@
           }
       });
   }
+
+  window.mudarMesCalendario = function(direcao) {
+      currentCalMonth += direcao;
+      if (currentCalMonth > 11) { currentCalMonth = 0; currentCalYear++; }
+      if (currentCalMonth < 0) { currentCalMonth = 11; currentCalYear--; }
+      window.renderizarCalendarioTatico();
+  };
 
   function construirItemVisualEvento(nota, keyId, tipoEntrada) {
       const div = document.createElement('div');
@@ -636,7 +637,7 @@
 
   window.abrirModalCalendarioDireto = function() {
       contextoAtual = 'direto'; alvoAtualNota = "";
-      document.getElementById('nota-alvo-titulo').innerText = "Agendar Novo Evento";
+      document.getElementById('nota-alvo-titulo').innerText = "Agendar Novo Evento (Direto)";
       document.getElementById('nota-textarea').value = ""; document.getElementById('nota-local').value = "";
       document.getElementById('nota-data').value = ""; document.getElementById('nota-hora').value = "";
       
@@ -689,7 +690,7 @@
       });
   }
 
-  /* --- INTERCEPTADOR DO VISOR HOVER PREVIEW --- */
+  /* --- INTERCEPTADOR DO VISOR HOVER PREVIEW AJUSTADO --- */
   window.mostrarTooltipTatico = function(e, idUnico, tipo) {
       e.stopPropagation();
       const safeKey = sanitizarId(idUnico);
@@ -699,13 +700,13 @@
       const tooltip = document.getElementById('tooltip-preview');
       if (tipo === 'postit') {
           tooltip.innerHTML = `
-              <div class="tooltip-title" style="color: var(--accent-red); border-bottom-color: var(--accent-red);">NOTA TÁTICA (POST-IT)</div>
+              <div class="tooltip-title" style="color: var(--accent-red); border-bottom-color: var(--accent-red);">NOTA (POST-IT)</div>
               <div style="color: #ffffff; font-weight: bold; font-size: 13px; margin-bottom: 6px; white-space: normal; line-height: 1.4;">"${data.texto || 'Sem descrição'}"</div>
               <div style="font-size: 10px; color: #aaa; border-top: 1px solid #222; padding-top: 4px;">🎯 Operador: ${data.operador.split('@')[0]} | ⏰ Registro: ${data.time}</div>
           `;
       } else {
           tooltip.innerHTML = `
-              <div class="tooltip-title" style="color: var(--accent-yellow); border-bottom-color: var(--accent-yellow);">MISSÃO AGENDADA (AGENDA)</div>
+              <div class="tooltip-title" style="color: var(--accent-yellow); border-bottom-color: var(--accent-yellow);">AGENDA DE EVENTO</div>
               <div style="color: #ffffff; font-weight: bold; font-size: 13px; margin-bottom: 6px; white-space: normal; line-height: 1.4;">"${data.texto || 'Sem descrição'}"</div>
               <div style="font-size: 11px; color: var(--accent-orange); margin-bottom: 3px;">📍 Local: ${data.local || 'Não informado'}</div>
               <div style="font-size: 11px; color: var(--accent-blue); margin-bottom: 6px;">📅 Evento: ${data.dataAlerta.split('-').reverse().join('/')} às ${data.horaAlerta || '--:--'}</div>
@@ -717,22 +718,21 @@
 
   window.esconderTooltipTatico = function() { document.getElementById('tooltip-preview').classList.remove('show'); };
 
-  // --- CONTROLE CENTRAL RECONFIGURÁVEL DO MODAL ---
+  // --- CONTROLE CENTRAL RECONFIGURÁVEL DO MODAL AJUSTADO ---
   window.abrirModalTatico = function(e, idUnico, titulo, tipo) {
       e.preventDefault(); e.stopPropagation(); window.esconderTooltipTatico();
       contextoAtual = tipo; alvoAtualNota = idUnico; tituloAtualNota = titulo;
       const safeKey = sanitizarId(idUnico);
-      
       document.getElementById('container-atrelar-movimento').style.display = 'none';
 
       if (tipo === 'postit') {
-          document.getElementById('nota-alvo-titulo').innerText = "Nota Tática (Post-it): " + titulo;
+          document.getElementById('nota-alvo-titulo').innerText = "Nota (Post-it): " + titulo;
           const nota = anotacoesGlobais[safeKey] || {};
           document.getElementById('nota-textarea').value = nota.texto || "";
           document.getElementById('container-local').style.display = 'none';
           document.getElementById('container-tempo').style.display = 'none';
       } else {
-          document.getElementById('nota-alvo-titulo').innerText = "Agenda de Operação: " + titulo;
+          document.getElementById('nota-alvo-titulo').innerText = "Agenda de Evento: " + titulo;
           const nota = agendaMenusGlobais[safeKey] || {};
           document.getElementById('nota-textarea').value = nota.texto || "";
           document.getElementById('nota-local').value = nota.local || "";
@@ -791,7 +791,6 @@
       if (el) { el.classList.add('visto'); let stamp = document.createElement('span'); stamp.className = 'stamp'; stamp.innerText = `[${v.time}]`; el.appendChild(stamp); }
     });
 
-    // SISTEMA DUAL DE VERIFICAÇÃO VISUAL DE COMPONENTES ATIVOS
     document.querySelectorAll('.icon-agenda').forEach(el => {
         if (agendaMenusGlobais[sanitizarId(el.getAttribute('data-id'))]) el.classList.add('tem-nota');
         else el.classList.remove('tem-nota');
@@ -842,11 +841,11 @@
             vistos.forEach(v => { relatorio += ` - ${v.time} | ${v.id.split(' > ').slice(-2, -1)[0]}${v.operador ? ` | Op: ${v.operador}` : ''}\n`; });
             
             if (dados[d].anotacoes) {
-                relatorio += `\n   *** NOTAS TÁTICAS (POST-IT) DO DIA ***\n`;
+                relatorio += `\n   *** NOTAS (POST-IT) DO DIA ***\n`;
                 Object.values(dados[d].anotacoes).forEach(n => { relatorio += `   [💬] ${n.time} | ${n.tituloOrigem}: "${n.texto}" (Op: ${n.operador.split('@')[0]})\n`; });
             }
             if (dados[d].agenda_menus) {
-                relatorio += `\n   *** OPERAÇÕES AGENDADAS (AGENDA) DO DIA ***\n`;
+                relatorio += `\n   *** EVENTOS AGENDADOS (AGENDA) DO DIA ***\n`;
                 Object.values(dados[d].agenda_menus).forEach(n => { relatorio += `   [📅] ${n.time} | ${n.tituloOrigem} | Local: ${n.local || 'Não Informado'} | Data: ${n.dataAlerta.split('-').reverse().join('/')} às ${n.horaAlerta} (Op: ${n.operador.split('@')[0]})\n`; });
             }
             relatorio += "\n------------------------------------------------\n\n";
@@ -912,9 +911,8 @@
         btn.innerHTML = `<div class="node-progress-bar"><div class="node-progress-fill"></div></div>`;
       }
 
-      // EXPANSORES TÁTICOS DUPLOS FILTRADOS (Somente 4ª camada em diante, apenas em subpastas expansíveis)
       let htmlNota = "";
-      if (novoCaminho[0] === "MOVIMENTOS" && temFilhos && novoCaminho.length >= 4) {
+      if (novoCaminho[0] === "MOVIMENTOS" && (temFilhos || temLinks) && novoCaminho.length >= 4) {
           htmlNota = `
             <span class="icon-nota icon-agenda" data-id="${pathString}" onclick="window.abrirModalTatico(event, '${pathString}', '${item.nome}', 'agenda')" onmouseenter="window.mostrarTooltipTatico(event, '${pathString}', 'agenda')" onmouseleave="window.esconderTooltipTatico()">📅</span>
             <span class="icon-nota icon-postit" data-id="${pathString}" onclick="window.abrirModalTatico(event, '${pathString}', '${item.nome}', 'postit')" onmouseenter="window.mostrarTooltipTatico(event, '${pathString}', 'postit')" onmouseleave="window.esconderTooltipTatico()">💬</span>
@@ -951,3 +949,4 @@
 </script>
 </body>
 </html>
+  
