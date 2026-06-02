@@ -139,14 +139,17 @@
   .star-icon.star-yellow { color: var(--accent-yellow); -webkit-text-stroke: 0; filter: drop-shadow(0 0 4px rgba(255, 193, 7, 0.4)); }
   .star-icon.star-orange { color: var(--accent-orange); -webkit-text-stroke: 0; filter: drop-shadow(0 0 8px rgba(255, 140, 0, 0.8)); transform: scale(1.15); }
 
-  /* --- REESTILIZAÇÃO DO BOTÃO DE CALENDÁRIO INTERNO NA ÁRVORE --- */
+  /* =========================================
+     NOVO DESIGN DOS ÍCONES PUROS DA ARVORE
+     ========================================= */
   .icon-nota {
-    font-size: 10px; font-family: monospace; font-weight: bold; cursor: pointer; 
-    margin-left: 10px; color: #888; background: #161616; border: 1px solid #444;
-    padding: 3px 6px; border-radius: 4px; transition: all 0.2s ease; z-index: 15;
-    display: inline-flex; align-items: center; gap: 4px; user-select: none;
+    font-size: 13px; cursor: pointer; margin-left: 6px; color: #888; background: #161616; 
+    border: 1px solid #444; width: 25px; height: 25px; border-radius: 4px; transition: all 0.2s ease; 
+    z-index: 15; display: inline-flex; align-items: center; justify-content: center; user-select: none; box-sizing: border-box;
   }
   .icon-nota:hover { background: #252525; border-color: #666; color: #fff; }
+  
+  /* ESTADO ATIVO DO PROTÓCOLO DE ALERTA INDEPENDENTE */
   .icon-nota.tem-nota {
     background: var(--neon-alert) !important; border-color: var(--neon-alert) !important; color: #ffffff !important;
     box-shadow: 0 0 10px var(--neon-alert), 0 0 20px var(--neon-alert);
@@ -154,10 +157,10 @@
   }
   @keyframes pulsarAlertaTatico {
     0% { transform: scale(1); box-shadow: 0 0 6px var(--neon-alert); }
-    100% { transform: scale(1.12); box-shadow: 0 0 18px var(--neon-alert), 0 0 30px var(--neon-alert); }
+    100% { transform: scale(1.1); box-shadow: 0 0 15px var(--neon-alert); }
   }
 
-  /* --- MODAL DE ESCRITA MULTI-CAMPO --- */
+  /* --- MODAL DE ESCRITA ADAPTÁVEL MULTI-CAMPO --- */
   #modal-overlay { display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.8); z-index: 19999; backdrop-filter: blur(2px); }
   #nota-modal {
     display: none; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
@@ -314,7 +317,7 @@
                   </div>
                   <div id="calendar-days" style="display: grid; grid-template-columns: repeat(7, 1fr); gap: 5px; text-align: center;"></div>
                   
-                  <button class="btn-action" onclick="window.abrirModalCalendarioDireto()" style="width: 100%; margin-top: 15px; background: var(--accent-orange); color: black; font-weight: bold; border: none; padding: 10px; border-radius: 6px;">➕ Agendar Evento Direto</button>
+                  <button class="btn-action" onclick="window.window.abrirModalCalendarioDireto()" style="width: 100%; margin-top: 15px; background: var(--accent-orange); color: black; font-weight: bold; border: none; padding: 10px; border-radius: 6px;">➕ Agendar Evento Direto</button>
 
                   <div id="calendar-event-list" style="margin-top: 15px; border-top: 1px solid #222; padding-top: 12px; display: none;">
                       <h5 style="margin: 0 0 8px 0; font-size: 11px; color: var(--accent-orange); text-transform: uppercase; letter-spacing: 0.5px;">Alertas do Dia Selecionado</h5>
@@ -329,17 +332,20 @@
 
 <div id="tooltip-preview"></div>
 
+<!-- FORMULÁRIO COMPACTO MULTI-CAMPO RECONFIGURADO -->
 <div id="modal-overlay" onclick="window.fecharModalNota()"></div>
 <div id="nota-modal">
-    <h4 id="nota-alvo-titulo">Adicionar Alerta</h4>
+    <h4 id="nota-alvo-titulo">Gerenciar Entrada</h4>
     
     <label style="font-size: 11px; color: #888; display: block; margin-bottom: 4px;">Informações / Dados do Alerta:</label>
-    <textarea id="nota-textarea" placeholder="Digite os detalhes da observação tática..."></textarea>
+    <textarea id="nota-textarea" placeholder="Digite os detalhes observacionais..."></textarea>
     
-    <label style="font-size: 11px; color: #888; display: block; margin-bottom: 4px;">📍 Local do Evento:</label>
-    <input type="text" id="nota-local" placeholder="Ex: Praça Santos Andrade, Curitiba">
+    <div id="container-local">
+        <label style="font-size: 11px; color: #888; display: block; margin-bottom: 4px;">📍 Local do Evento:</label>
+        <input type="text" id="nota-local" placeholder="Ex: Praça Santos Andrade, Curitiba">
+    </div>
     
-    <div class="input-linha-dupla">
+    <div class="input-linha-dupla" id="container-tempo">
         <div>
             <label>📅 Dia do Evento:</label>
             <input type="date" id="nota-data">
@@ -381,7 +387,8 @@
   const db = getDatabase(app);
 
   let vistosGlobais = [];
-  let anotacoesGlobais = {}; 
+  let anotacoesGlobais = {}; // Cache para Post-its
+  let agendaMenusGlobais = {}; // Cache para Operações Agendadas por menus
   let alertasCalendarioGlobais = {}; 
   window.DADOS_TOTAIS = [];
   window.LISTA_MOVIMENTOS = []; 
@@ -389,7 +396,7 @@
   let estrelasOrigem = []; 
   let alvoAtualNota = ""; 
   let tituloAtualNota = "";
-  let isCalendarioDireto = false; 
+  let contextoAtual = ""; // Controle dinâmico: 'postit', 'agenda', 'direto'
   let alertasPromptadosSessao = []; 
 
   let currentCalYear = new Date().getFullYear();
@@ -437,7 +444,8 @@
           const novoCaminho = [...caminhoAtual, item.nome];
           const temFilhos = item.filhos && item.filhos.length > 0;
 
-          if (novoCaminho[0] === "MOVIMENTOS" && temFilhos && novoCaminho.length >= 3) {
+          // Validação da 4ª camada em diante
+          if (novoCaminho[0] === "MOVIMENTOS" && temFilhos && novoCaminho.length >= 4) {
               window.LISTA_MOVIMENTOS.push({ caminhoStr: novoCaminho.join(' > '), nome: item.nome });
           }
 
@@ -454,10 +462,12 @@
   function obterDataBrasiliaISO() { const d = new Date(new Date().toLocaleString("en-US", {timeZone: "America/Sao_Paulo"})); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`; }
   function obterDataBrasiliaBr() { return new Intl.DateTimeFormat('pt-BR', { timeZone: 'America/Sao_Paulo', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date()); }
   function obterHoraBrasilia() { const d = new Date(new Date().toLocaleString("en-US", {timeZone: "America/Sao_Paulo"})); return `${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`; }
+  
   function obterSegundaFeiraDaSemana() {
     const d = new Date(new Date().toLocaleString("en-US", {timeZone: "America/Sao_Paulo"}));
     const day = d.getDay(); const diff = d.getDate() - day + (day === 0 ? -6 : 1); 
-    return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(new Date(d.setDate(diff)).getDate()).padStart(2,'0')}`;
+    const monday = new Date(d.setDate(diff));
+    return `${monday.getFullYear()}-${String(monday.getMonth()+1).padStart(2,'0')}-${String(monday.getDate()).padStart(2,'0')}`;
   }
   function sanitizarId(str) { return str.replace(/[.#$\[\]/]/g, "_"); }
 
@@ -479,6 +489,7 @@
         const data = snapshot.val() || {};
         vistosGlobais = data.vistos ? Object.values(data.vistos) : [];
         anotacoesGlobais = data.anotacoes || {}; 
+        agendaMenusGlobais = data.agenda_menus || {}; 
         atualizarUiComVistos();
         verificarAlertasExpirados(); 
       });
@@ -495,38 +506,43 @@
             return { titulo: alvo.titulo, count: dataFirebase[alvo.id] ? dataFirebase[alvo.id].count : 0, caminho: alvo.caminho };
         });
         estatisticasCompletas.sort((a, b) => b.count - a.count);
-        const top15 = estatisticasCompletas.filter(s => s.count > 0).slice(0, 15);
+        const top15 = templates_top(estatisticasCompletas);
         const bottom15 = estatisticasCompletas.slice(-15).reverse();
         
         document.getElementById('list-top').innerHTML = top15.length > 0 
-            ? top15.map(s => `<li data-caminho="${s.caminho.join(' > ')}" onclick="window.focarAlvoFromStats(this)"><span>${s.titulo}</span> <span class="stat-count">${s.count} cliques</span></li>`).join('')
+            ? top15.map(s => `<li data-caminho="${s.caminho.join(' > ')}" onclick="window.focarCaminhoDireto(this.getAttribute('data-caminho'))"><span>${s.titulo}</span> <span class="stat-count">${s.count} cliques</span></li>`).join('')
             : '<li style="color: #666; justify-content: center;">Nenhum alvo acessado ainda</li>';
-        document.getElementById('list-bottom').innerHTML = bottom15.map(s => `<li data-caminho="${s.caminho.join(' > ')}" onclick="window.focarAlvoFromStats(this)"><span>${s.titulo}</span> <span class="stat-count">${s.count} cliques</span></li>`).join('');
+        document.getElementById('list-bottom').innerHTML = bottom15.map(s => `<li data-caminho="${s.caminho.join(' > ')}" onclick="window.focarCaminhoDireto(this.getAttribute('data-caminho'))"><span>${s.titulo}</span> <span class="stat-count">${s.count} cliques</span></li>`).join('');
       });
 
       onValue(ref(db, 'marcacoesTaticas/estrelas'), (snapshot) => {
-          estrelasOrigem = snapshot.val() || [];
+          const data = snapshot.val();
+          estrelasOrigem = data ? Object.values(data) : [];
           atualizarEstrelasUI();
       });
   }
 
+  function templates_top(arr) { return arr.filter(s => s.count > 0).slice(0, 15); }
+
   function verificarAlertasExpirados() {
       const agoraStr = obterDataBrasiliaISO() + " " + obterHoraBrasilia();
       
-      Object.keys(anotacoesGlobais).forEach(safeKey => {
-          const nota = anotacoesGlobais[safeKey];
+      // Monitora Agendas de Pastas
+      Object.keys(agendaMenusGlobais).forEach(safeKey => {
+          const nota = agendaMenusGlobais[safeKey];
           if (nota && nota.dataAlerta && nota.horaAlerta) {
               const alvoStr = nota.dataAlerta + " " + nota.horaAlerta;
               if (alvoStr <= agoraStr && !alertasPromptadosSessao.includes(safeKey)) {
                   alertasPromptadosSessao.push(safeKey); 
                   setTimeout(() => {
-                      const dispensar = confirm(`[ALERTA AGENDA VENCIDO]\nO prazo do alerta de "${nota.tituloOrigem}" agendado no local "${nota.local || 'Não Definido'}" expirou.\n\nDeseja REMOVER este alerta do painel?`);
-                      if (dispensar) set(ref(db, `monitoramentoDiario/${dataHojeISO}/anotacoes/${safeKey}`), null);
+                      const dispensar = confirm(`[AGENDA VENCIDA]\nO prazo da missão de "${nota.tituloOrigem}" no local "${nota.local || 'Não Definido'}" expirou.\n\nDeseja REMOVER este alerta da agenda de hoje?`);
+                      if (dispensar) set(ref(db, `monitoramentoDiario/${dataHojeISO}/agenda_menus/${safeKey}`), null);
                   }, 600);
               }
           }
       });
 
+      // Monitora Entradas Diretas do Calendário
       Object.keys(alertasCalendarioGlobais).forEach(keyId => {
           const nota = alertasCalendarioGlobais[keyId];
           if (nota && nota.dataAlerta && nota.horaAlerta) {
@@ -534,7 +550,7 @@
               if (alvoStr <= agoraStr && !alertasPromptadosSessao.includes(keyId)) {
                   alertasPromptadosSessao.push(keyId);
                   setTimeout(() => {
-                      const dispensar = confirm(`[EVENTO CALENDÁRIO VENCIDO]\nO prazo do evento direto "${nota.tituloOrigem}" expirou.\n\nDeseja DELETAR este agendamento?`);
+                      const dispensar = confirm(`[EVENTO CALENDÁRIO VENCIDO]\nO prazo do agendamento direto "${nota.tituloOrigem}" expirou.\n\nDeseja REMOVER este registro da nuvem?`);
                       if (dispensar) set(ref(db, `alertas_calendario/${keyId}`), null);
                   }, 600);
               }
@@ -542,29 +558,19 @@
       });
   }
 
-  window.mudarMesCalendario = function(direcao) {
-      currentCalMonth += direcao;
-      if (currentCalMonth > 11) { currentCalMonth = 0; currentCalYear++; }
-      if (currentCalMonth < 0) { currentCalMonth = 11; currentCalYear--; }
-      window.renderizarCalendarioTatico();
-  };
-
-  function construirItemVisualEvento(nota, keyId, isDirect) {
+  function construirItemVisualEvento(nota, keyId, tipoEntrada) {
       const div = document.createElement('div');
-      let caminhoFoco = isDirect ? (nota.movimentoAtrelado || "") : (nota.pathString || "");
+      let caminhoFoco = tipoEntrada === 'direto' ? (nota.movimentoAtrelado || "") : (nota.pathString || "");
       let cursorStyle = caminhoFoco ? "cursor: pointer;" : "";
       let subSeloCaminho = caminhoFoco ? `<div style="font-size: 10px; color: var(--accent-blue); margin-top: 5px; font-weight: bold;">🔗 Focar: ${caminhoFoco.replace("MOVIMENTOS > ", "")}</div>` : "";
 
-      div.style.cssText = `background: #111; border-left: 3px solid ${isDirect ? 'var(--accent-yellow)' : 'var(--accent-orange)'}; padding: 8px; border-radius: 0 4px 4px 0; font-size: 12px; line-height: 1.4; box-sizing: border-box; ${cursorStyle}`;
-      if (caminhoFoco) {
-          div.setAttribute('onclick', `window.focarCaminhoDireto('${caminhoFoco}')`);
-          div.title = "Clique para focar e abrir este movimento na árvore automaticamente";
-      }
+      div.style.cssText = `background: #111; border-left: 3px solid ${tipoEntrada === 'direto' ? 'var(--accent-yellow)' : 'var(--accent-orange)'}; padding: 8px; border-radius: 0 4px 4px 0; font-size: 12px; line-height: 1.4; box-sizing: border-box; ${cursorStyle}`;
+      if (caminhoFoco) { div.setAttribute('onclick', `window.focarCaminhoDireto('${caminhoFoco}')`); }
 
       div.innerHTML = `
           <div style="font-weight: bold; color: var(--accent-yellow); display: flex; justify-content: space-between; align-items: center;">
               <span>${nota.tituloOrigem || 'Evento Geral'}</span>
-              <span style="font-size: 9px; background: #222; padding: 1px 4px; border-radius: 3px; color: #aaa; font-family: monospace;">${isDirect ? 'Direto' : 'Agenda'}</span>
+              <span style="font-size: 9px; background: #222; padding: 1px 4px; border-radius: 3px; color: #aaa; font-family: monospace;">${tipoEntrada === 'direto' ? 'Direto' : 'Pasta'}</span>
           </div>
           <div style="color: #fff; margin: 4px 0;">"${nota.texto || 'Sem descrição'}"</div>
           <div style="font-size: 10px; color: #888;">📍 Local: ${nota.local || 'Não informado'}</div>
@@ -579,14 +585,14 @@
       const containerEvs = document.getElementById('calendar-event-list');
       listaEvs.innerHTML = ""; let encontrou = false;
 
-      Object.keys(anotacoesGlobais).forEach(key => {
-          const nota = anotacoesGlobais[key];
-          if (nota && nota.dataAlerta === dataStr) { encontrou = true; listaEvs.appendChild(construirItemVisualEvento(nota, key, false)); }
+      Object.keys(agendaMenusGlobais).forEach(key => {
+          const nota = agendaMenusGlobais[key];
+          if (nota && nota.dataAlerta === dataStr) { encontrou = true; listaEvs.appendChild(construirItemVisualEvento(nota, key, 'pasta')); }
       });
 
       Object.keys(alertasCalendarioGlobais).forEach(key => {
           const nota = alertasCalendarioGlobais[key];
-          if (nota && nota.dataAlerta === dataStr) { encontrou = true; listaEvs.appendChild(construirItemVisualEvento(nota, key, true)); }
+          if (nota && nota.dataAlerta === dataStr) { encontrou = true; listaEvs.appendChild(construirItemVisualEvento(nota, key, 'direto')); }
       });
 
       containerEvs.style.display = encontrou ? 'block' : 'none';
@@ -596,7 +602,6 @@
       const meses = ["Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho", "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"];
       document.getElementById('cal-month-year').innerText = `${meses[currentCalMonth]} ${currentCalYear}`;
       const gridDays = document.getElementById('calendar-days'); gridDays.innerHTML = "";
-      
       const primeiroDiaSemana = new Date(currentCalYear, currentCalMonth, 1).getDay();
       const totalDiasMes = new Date(currentCalYear, currentCalMonth + 1, 0).getDate();
       
@@ -605,19 +610,17 @@
       }
       
       const hojeLocal = new Date(new Date().toLocaleString("en-US", {timeZone: "America/Sao_Paulo"}));
-      const hojeAno = hojeLocal.getFullYear(); const hojeMes = hojeLocal.getMonth(); const hojeDia = hojeLocal.getDate();
-
       for (let day = 1; day <= totalDiasMes; day++) {
           const dateStr = `${currentCalYear}-${String(currentCalMonth+1).padStart(2,'0')}-${String(day).padStart(2,'0')}`;
           const dayDiv = document.createElement('div'); dayDiv.innerText = day;
           dayDiv.style.cssText = "background: #111; border: 1px solid #222; border-radius: 4px; padding: 6px 0; font-size: 11px; color: #ccc; transition: all 0.2s; user-select: none;";
           
-          if (currentCalYear === hojeAno && currentCalMonth === hojeMes && day === hojeDia) {
+          if (currentCalYear === hojeLocal.getFullYear() && currentCalMonth === hojeLocal.getMonth() && day === hojeLocal.getDate()) {
               dayDiv.style.borderColor = "var(--accent-blue)"; dayDiv.style.color = "var(--accent-blue)";
           }
 
           let temAlertaNoDia = false;
-          Object.keys(anotacoesGlobais).forEach(key => { if (anotacoesGlobais[key] && anotacoesGlobais[key].dataAlerta === dateStr) temAlertaNoDia = true; });
+          Object.keys(agendaMenusGlobais).forEach(key => { if (agendaMenusGlobais[key] && agendaMenusGlobais[key].dataAlerta === dateStr) temAlertaNoDia = true; });
           Object.keys(alertasCalendarioGlobais).forEach(key => { if (alertasCalendarioGlobais[key] && alertasCalendarioGlobais[key].dataAlerta === dateStr) temAlertaNoDia = true; });
 
           if (temAlertaNoDia) {
@@ -632,7 +635,7 @@
   };
 
   window.abrirModalCalendarioDireto = function() {
-      isCalendarioDireto = true; alvoAtualNota = "";
+      contextoAtual = 'direto'; alvoAtualNota = "";
       document.getElementById('nota-alvo-titulo').innerText = "Agendar Novo Evento (Direto)";
       document.getElementById('nota-textarea').value = ""; document.getElementById('nota-local').value = "";
       document.getElementById('nota-data').value = ""; document.getElementById('nota-hora').value = "";
@@ -644,13 +647,13 @@
           opt.innerText = mov.caminhoStr.replace("MOVIMENTOS > ", ""); select.appendChild(opt);
       });
 
+      document.getElementById('container-local').style.display = 'block';
+      document.getElementById('container-tempo').style.display = 'flex';
       document.getElementById('container-atrelar-movimento').style.display = 'block';
       document.getElementById('modal-overlay').style.display = 'block';
       document.getElementById('nota-modal').style.display = 'block';
       document.getElementById('nota-textarea').focus();
   };
-
-  window.focarAlvoFromStats = function(elemento) { window.focarCaminhoDireto(elemento.getAttribute('data-caminho')); };
 
   window.focarCaminhoDireto = function(caminhoCompletoStr) {
       if (!caminhoCompletoStr) return;
@@ -667,6 +670,7 @@
 
   window.clicarEstrela = function(e, idElemento) {
       e.preventDefault(); e.stopPropagation();
+      if (!Array.isArray(estrelasOrigem)) estrelasOrigem = estrelasOrigem ? Object.values(estrelasOrigem) : [];
       if (estrelasOrigem.includes(idElemento)) {
           estrelasOrigem = estrelasOrigem.filter(orig => orig !== idElemento); set(ref(db, 'marcacoesTaticas/estrelas'), estrelasOrigem);
       } else {
@@ -677,6 +681,7 @@
   };
 
   function atualizarEstrelasUI() {
+      if (!Array.isArray(estrelasOrigem)) estrelasOrigem = estrelasOrigem ? Object.values(estrelasOrigem) : [];
       document.querySelectorAll('.star-icon').forEach(el => {
           const id = el.getAttribute('data-star'); el.classList.remove('star-orange', 'star-yellow');
           if (estrelasOrigem.includes(id)) el.classList.add('star-orange');
@@ -684,35 +689,59 @@
       });
   }
 
-  window.mostrarTooltipNota = function(e, idUnico) {
+  /* --- INTERCEPTADOR DO VISOR HOVER PREVIEW --- */
+  window.mostrarTooltipTatico = function(e, idUnico, tipo) {
       e.stopPropagation();
-      const safeKey = sanitizarId(idUnico); const nota = anotacoesGlobais[safeKey]; if (!nota) return;
+      const safeKey = sanitizarId(idUnico);
+      const data = tipo === 'postit' ? anotacoesGlobais[safeKey] : agendaMenusGlobais[safeKey];
+      if (!data) return;
+
       const tooltip = document.getElementById('tooltip-preview');
-      tooltip.innerHTML = `
-          <div class="tooltip-title" style="color: var(--accent-yellow); border-bottom-color: var(--accent-yellow);">ALERTA DE INTELIGÊNCIA</div>
-          <div style="color: #ffffff; font-weight: bold; font-size: 13px; margin-bottom: 8px; white-space: normal; line-height: 1.4;">"${nota.texto || 'Sem descrição'}"</div>
-          <div style="font-size: 11px; color: var(--accent-orange); margin-bottom: 3px;">📍 Local: ${nota.local || 'Não informado'}</div>
-          <div style="font-size: 11px; color: var(--accent-blue); margin-bottom: 8px;">📅 Agendamento: ${nota.dataAlerta ? nota.dataAlerta.split('-').reverse().join('/') : '--'} às ${nota.horaAlerta || '--'}</div>
-          <div style="font-size: 10px; color: #aaa; border-top: 1px solid #222; padding-top: 5px;">🎯 Operador: ${nota.operador}</div>
-          <div style="font-size: 10px; color: #aaa;">⏰ Registro: ${nota.time}</div>
-      `;
+      if (tipo === 'postit') {
+          tooltip.innerHTML = `
+              <div class="tooltip-title" style="color: var(--accent-red); border-bottom-color: var(--accent-red);">NOTA TÁTICA (POST-IT)</div>
+              <div style="color: #ffffff; font-weight: bold; font-size: 13px; margin-bottom: 6px; white-space: normal; line-height: 1.4;">"${data.texto || 'Sem descrição'}"</div>
+              <div style="font-size: 10px; color: #aaa; border-top: 1px solid #222; padding-top: 4px;">🎯 Operador: ${data.operador.split('@')[0]} | ⏰ Registro: ${data.time}</div>
+          `;
+      } else {
+          tooltip.innerHTML = `
+              <div class="tooltip-title" style="color: var(--accent-yellow); border-bottom-color: var(--accent-yellow);">MISSÃO AGENDADA (AGENDA)</div>
+              <div style="color: #ffffff; font-weight: bold; font-size: 13px; margin-bottom: 6px; white-space: normal; line-height: 1.4;">"${data.texto || 'Sem descrição'}"</div>
+              <div style="font-size: 11px; color: var(--accent-orange); margin-bottom: 3px;">📍 Local: ${data.local || 'Não informado'}</div>
+              <div style="font-size: 11px; color: var(--accent-blue); margin-bottom: 6px;">📅 Evento: ${data.dataAlerta.split('-').reverse().join('/')} às ${data.horaAlerta || '--:--'}</div>
+              <div style="font-size: 10px; color: #aaa; border-top: 1px solid #222; padding-top: 4px;">🎯 Operador: ${data.operador.split('@')[0]} | ⏰ Registro: ${data.time}</div>
+          `;
+      }
       tooltip.style.left = (e.clientX + 15) + 'px'; tooltip.style.top = (e.clientY + 10) + 'px'; tooltip.classList.add('show');
   };
 
-  window.esconderTooltipNota = function() { document.getElementById('tooltip-preview').classList.remove('show'); };
+  window.esconderTooltipTatico = function() { document.getElementById('tooltip-preview').classList.remove('show'); };
 
-  window.abrirModalNota = function(e, idUnico, titulo) {
-      e.preventDefault(); e.stopPropagation(); window.esconderTooltipNota();
-      isCalendarioDireto = false; alvoAtualNota = idUnico; tituloAtualNota = titulo;
-      const safeKey = sanitizarId(idUnico); const nota = anotacoesGlobais[safeKey] || {};
-      
-      document.getElementById('nota-alvo-titulo').innerText = "Alerta: " + titulo;
-      document.getElementById('nota-textarea').value = nota.texto || "";
-      document.getElementById('nota-local').value = nota.local || "";
-      document.getElementById('nota-data').value = nota.dataAlerta || "";
-      document.getElementById('nota-hora').value = nota.horaAlerta || "";
+  // --- CONTROLE CENTRAL RECONFIGURÁVEL DO MODAL ---
+  window.abrirModalTatico = function(e, idUnico, titulo, tipo) {
+      e.preventDefault(); e.stopPropagation(); window.esconderTooltipTatico();
+      contextoAtual = tipo; alvoAtualNota = idUnico; tituloAtualNota = titulo;
+      const safeKey = sanitizarId(idUnico);
       
       document.getElementById('container-atrelar-movimento').style.display = 'none';
+
+      if (tipo === 'postit') {
+          document.getElementById('nota-alvo-titulo').innerText = "Nota Tática (Post-it): " + titulo;
+          const nota = anotacoesGlobais[safeKey] || {};
+          document.getElementById('nota-textarea').value = nota.texto || "";
+          document.getElementById('container-local').style.display = 'none';
+          document.getElementById('container-tempo').style.display = 'none';
+      } else {
+          document.getElementById('nota-alvo-titulo').innerText = "Agenda de Operação: " + titulo;
+          const nota = agendaMenusGlobais[safeKey] || {};
+          document.getElementById('nota-textarea').value = nota.texto || "";
+          document.getElementById('nota-local').value = nota.local || "";
+          document.getElementById('nota-data').value = nota.dataAlerta || "";
+          document.getElementById('nota-hora').value = nota.horaAlerta || "";
+          document.getElementById('container-local').style.display = 'block';
+          document.getElementById('container-tempo').style.display = 'flex';
+      }
+      
       document.getElementById('modal-overlay').style.display = 'block';
       document.getElementById('nota-modal').style.display = 'block';
       document.getElementById('nota-textarea').focus();
@@ -728,36 +757,26 @@
       const local = document.getElementById('nota-local').value.trim();
       const dataAlerta = document.getElementById('nota-data').value;
       const horaAlerta = document.getElementById('nota-hora').value;
-      
-      if (isCalendarioDireto) {
+      const safeKey = sanitizarId(alvoAtualNota);
+      const user = auth.currentUser ? auth.currentUser.email : 'Desconhecido';
+
+      if (contextoAtual === 'direto') {
           const movimentoAtrelado = document.getElementById('nota-movimento-select').value;
-          const uniqueKey = alvoAtualNota || ("CAL_" + Date.now());
-          const notaRef = ref(db, `alertas_calendario/${uniqueKey}`);
-          
-          if (texto === "" && local === "" && dataAlerta === "" && horaAlerta === "") {
-              set(notaRef, null);
-          } else {
-              set(notaRef, { 
-                  texto: texto, local: local, dataAlerta: dataAlerta, horaAlerta: horaAlerta,
-                  movimentoAtrelado: movimentoAtrelado,
-                  operador: auth.currentUser ? auth.currentUser.email : 'Desconhecido', 
-                  time: obterHoraBrasilia(), 
-                  tituloOrigem: movimentoAtrelado ? movimentoAtrelado.split(' > ').pop() : "Evento Geral",
-                  isDirectCalendar: true, keyId: uniqueKey
+          const uniqueKey = "CAL_" + Date.now();
+          if (texto !== "" || local !== "" || dataAlerta !== "" || horaAlerta !== "") {
+              set(ref(db, `alertas_calendario/${uniqueKey}`), { 
+                  texto, local, dataAlerta, horaAlerta, movimentoAtrelado, operador: user, 
+                  time: obterHoraBrasilia(), tituloOrigem: movimentoAtrelado ? movimentoAtrelado.split(' > ').pop() : "Evento Geral", isDirectCalendar: true, keyId: uniqueKey
               });
           }
-      } else {
-          const safeKey = sanitizarId(alvoAtualNota);
+      } else if (contextoAtual === 'postit') {
           const notaRef = ref(db, `monitoramentoDiario/${dataHojeISO}/anotacoes/${safeKey}`);
-          if (texto === "" && local === "" && dataAlerta === "" && horaAlerta === "") {
-              set(notaRef, null);
-          } else {
-              set(notaRef, { 
-                  texto: texto, local: local, dataAlerta: dataAlerta, horaAlerta: horaAlerta,
-                  operador: auth.currentUser ? auth.currentUser.email : 'Desconhecido', 
-                  time: obterHoraBrasilia(), tituloOrigem: tituloAtualNota, pathString: alvoAtualNota
-              });
-          }
+          if (texto === "") set(notaRef, null);
+          else set(notaRef, { texto, operador: user, time: obterHoraBrasilia(), tituloOrigem: tituloAtualNota });
+      } else if (contextoAtual === 'agenda') {
+          const notaRef = ref(db, `monitoramentoDiario/${dataHojeISO}/agenda_menus/${safeKey}`);
+          if (texto === "" && local === "" && dataAlerta === "" && horaAlerta === "") set(notaRef, null);
+          else set(notaRef, { texto, local, dataAlerta, horaAlerta, operador: user, time: obterHoraBrasilia(), tituloOrigem: tituloAtualNota, pathString: alvoAtualNota });
       }
       window.fecharModalNota();
   };
@@ -772,11 +791,14 @@
       if (el) { el.classList.add('visto'); let stamp = document.createElement('span'); stamp.className = 'stamp'; stamp.innerText = `[${v.time}]`; el.appendChild(stamp); }
     });
 
-    // MUTAÇÃO DE TEXTO PARA CALENDÁRIO COM PRESERVAÇÃO DE ESTADOS NEON
-    document.querySelectorAll('.icon-nota').forEach(el => {
-        const id = el.getAttribute('data-nota-id'); const safeKey = sanitizarId(id);
-        if (anotacoesGlobais[safeKey]) { el.classList.add('tem-nota'); el.innerText = "📅 AGENDA ATIVA"; } 
-        else { el.classList.remove('tem-nota'); el.innerText = "📅 AGENDA"; }
+    // SISTEMA DUAL DE VERIFICAÇÃO VISUAL DE COMPONENTES ATIVOS
+    document.querySelectorAll('.icon-agenda').forEach(el => {
+        if (agendaMenusGlobais[sanitizarId(el.getAttribute('data-id'))]) el.classList.add('tem-nota');
+        else el.classList.remove('tem-nota');
+    });
+    document.querySelectorAll('.icon-postit').forEach(el => {
+        if (anotacoesGlobais[sanitizarId(el.getAttribute('data-id'))]) el.classList.add('tem-nota');
+        else el.classList.remove('tem-nota');
     });
 
     document.querySelectorAll('.node').forEach(node => {
@@ -818,12 +840,14 @@
             const vistos = (dados[d] && dados[d].vistos) ? Object.values(dados[d].vistos) : [];
             relatorio += `-> Total de fontes verificadas: ${vistos.length}\n`;
             vistos.forEach(v => { relatorio += ` - ${v.time} | ${v.id.split(' > ').slice(-2, -1)[0]}${v.operador ? ` | Op: ${v.operador}` : ''}\n`; });
+            
             if (dados[d].anotacoes) {
-                relatorio += `\n   *** ALERTAS TÁTICOS DO DIA ***\n`;
-                Object.values(dados[d].anotacoes).forEach(n => { 
-                    const agendadoStr = n.dataAlerta ? ` | Agendado: ${n.dataAlerta.split('-').reverse().join('/')} às ${n.horaAlerta}` : '';
-                    relatorio += `   [!] ${n.time} | ${n.tituloOrigem}: "${n.texto}" | Local: ${n.local || 'Não Informado'}${agendadoStr} (Op: ${n.operador})\n`; 
-                });
+                relatorio += `\n   *** NOTAS TÁTICAS (POST-IT) DO DIA ***\n`;
+                Object.values(dados[d].anotacoes).forEach(n => { relatorio += `   [💬] ${n.time} | ${n.tituloOrigem}: "${n.texto}" (Op: ${n.operador.split('@')[0]})\n`; });
+            }
+            if (dados[d].agenda_menus) {
+                relatorio += `\n   *** OPERAÇÕES AGENDADAS (AGENDA) DO DIA ***\n`;
+                Object.values(dados[d].agenda_menus).forEach(n => { relatorio += `   [📅] ${n.time} | ${n.tituloOrigem} | Local: ${n.local || 'Não Informado'} | Data: ${n.dataAlerta.split('-').reverse().join('/')} às ${n.horaAlerta} (Op: ${n.operador.split('@')[0]})\n`; });
             }
             relatorio += "\n------------------------------------------------\n\n";
         });
@@ -888,10 +912,13 @@
         btn.innerHTML = `<div class="node-progress-bar"><div class="node-progress-fill"></div></div>`;
       }
 
-      // INJEÇÃO DA NOVA IDENTIDADE VISUAL DO BOTÃO DE CALENDÁRIO INTERNO NA ÁRVORE
+      // EXPANSORES TÁTICOS DUPLOS FILTRADOS (Somente 4ª camada em diante, apenas em subpastas expansíveis)
       let htmlNota = "";
-      if (novoCaminho[0] === "MOVIMENTOS" && temFilhos && novoCaminho.length >= 3) {
-          htmlNota = `<span class="icon-nota" data-nota-id="${pathString}" onclick="window.abrirModalNota(event, '${pathString}', '${item.nome}')" onmouseenter="window.mostrarTooltipNota(event, '${pathString}')" onmouseleave="window.esconderTooltipNota()">📅 AGENDA</span>`;
+      if (novoCaminho[0] === "MOVIMENTOS" && temFilhos && novoCaminho.length >= 4) {
+          htmlNota = `
+            <span class="icon-nota icon-agenda" data-id="${pathString}" onclick="window.abrirModalTatico(event, '${pathString}', '${item.nome}', 'agenda')" onmouseenter="window.mostrarTooltipTatico(event, '${pathString}', 'agenda')" onmouseleave="window.esconderTooltipTatico()">📅</span>
+            <span class="icon-nota icon-postit" data-id="${pathString}" onclick="window.abrirModalTatico(event, '${pathString}', '${item.nome}', 'postit')" onmouseenter="window.mostrarTooltipTatico(event, '${pathString}', 'postit')" onmouseleave="window.esconderTooltipTatico()">💬</span>
+          `;
       }
 
       btn.innerHTML += `<div class="btn-left"><span class="star-icon" data-star="${pathString}" onclick="window.clicarEstrela(event, this.getAttribute('data-star'))">★</span><div class="icon-circle icon-${item.cor || 'white'}">${item.icone || '●'}</div><span>${item.nome}</span>${htmlNota}</div><span class="toggle-icon"></span>`;
