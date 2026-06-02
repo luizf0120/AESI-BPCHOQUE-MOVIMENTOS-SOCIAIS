@@ -164,7 +164,7 @@
   }
 
   /* =========================================
-     MODAL AMPLIADO MALHA LARGA
+     MODAL AMPLIADO (LEITURA COMPLETA)
      ========================================= */
   #modal-overlay { display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.8); z-index: 19999; backdrop-filter: blur(2px); }
   #nota-modal {
@@ -292,7 +292,6 @@
 
   <div class="workspace-wrapper">
       
-      <!-- PAINEL ESQUERDO -->
       <div class="left-panel">
           <div class="tree-container" id="raiz-arvore"></div>
           
@@ -312,7 +311,6 @@
           </div>
       </div>
 
-      <!-- PAINEL DIREITO -->
       <div class="right-panel">
           <div class="stat-box" style="position: sticky; top: 20px;">
               <h4>Calendário 📅</h4>
@@ -411,7 +409,7 @@
 
   let currentCalYear = new Date().getFullYear();
   let currentCalMonth = new Date().getMonth();
-  window.CURRENT_SELECTED_DAY = ""; // Rastreia o dia ativo para atualizações reativas automáticas
+  window.CURRENT_SELECTED_DAY = "";
 
   document.getElementById('btn-entrar').addEventListener('click', async () => {
     const e = document.getElementById('email').value; const s = document.getElementById('senha').value;
@@ -434,6 +432,7 @@
   });
 
   function iniciarSistemaC2() {
+      // BLINDAGEM DA CONEXÃO INICIAL COM ALERTA EM CASO DE ERRO OU BANCO VAZIO
       get(ref(db, 'estrutura_arvore')).then(snap => {
           if(snap.exists()) {
               window.DADOS_TOTAIS = snap.val();
@@ -445,13 +444,20 @@
               raiz.innerHTML = "";
               desenhavelArvore(window.DADOS_TOTAIS, raiz, []);
               iniciarMonitoramentoDiario();
+          } else {
+              document.getElementById('data-display').innerText = "Erro: Nó 'estrutura_arvore' não encontrado no Firebase.";
           }
+      }).catch(err => {
+          document.getElementById('data-display').innerText = "Erro de Permissão ou Conexão no Firebase. Veja o console.";
+          console.error(err);
       });
   }
 
   function extrairTodosOsAlvos(lista, caminhoAtual = []) {
+      // COFRE ANTI-TRAVAMENTO: Converte em lista se o Firebase entregar como objeto indexado
+      if (!Array.isArray(lista)) lista = lista ? Object.values(lista) : [];
+      
       lista.forEach(item => {
-          if (caminhoAtual.length === 0 && item.nome !== "MOVIMENTOS") return;
           const novoCaminho = [...caminhoAtual, item.nome];
           const temFilhos = item.filhos && item.filhos.length > 0;
           const temLinks = item.links && item.links.length > 0;
@@ -470,8 +476,8 @@
       });
   }
 
-  function obtenerDataBrasiliaISO() { const d = new Date(new Date().toLocaleString("en-US", {timeZone: "America/Sao_Paulo"})); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`; }
-  function obtenerDataBrasiliaBr() { return new Intl.DateTimeFormat('pt-BR', { timeZone: 'America/Sao_Paulo', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date()); }
+  function obterDataBrasiliaISO() { const d = new Date(new Date().toLocaleString("en-US", {timeZone: "America/Sao_Paulo"})); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`; }
+  function obterDataBrasiliaBr() { return new Intl.DateTimeFormat('pt-BR', { timeZone: 'America/Sao_Paulo', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date()); }
   function obterHoraBrasilia() { const d = new Date(new Date().toLocaleString("en-US", {timeZone: "America/Sao_Paulo"})); return `${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`; }
   
   function obterSegundaFeiraDaSemana() {
@@ -520,7 +526,7 @@
         });
         estatisticasCompletas.sort((a, b) => b.count - a.count);
         const top15 = estatisticasCompletas.filter(s => s.count > 0).slice(0, 15);
-        const bottom15 = estatisticasCompletas.slice(-15).reverse();
+        const bottom15 =  estatisticasCompletas.slice(-15).reverse();
         
         document.getElementById('list-top').innerHTML = top15.length > 0 
             ? top15.map(s => `<li data-caminho="${s.caminho.join(' > ')}" onclick="window.focarCaminhoDireto(this.getAttribute('data-caminho'))"><span>${s.titulo}</span> <span class="stat-count">${s.count} cliques</span></li>`).join('')
@@ -582,7 +588,6 @@
       });
   }
 
-  /* --- ENGENHARIA DE MONTAGEM DOS CARDS COM BOTÃO INTERNO DE EDIÇÃO RECONFIGURADO --- */
   function construirItemVisualEvento(nota, keyId, tipoEntrada) {
       const div = document.createElement('div');
       let caminhoFoco = tipoEntrada === 'direto' ? (nota.movimentoAtrelado || "") : (nota.pathString || "");
@@ -592,7 +597,6 @@
       div.style.cssText = `background: #111; border-left: 3px solid ${tipoEntrada === 'direto' ? 'var(--accent-yellow)' : 'var(--accent-orange)'}; padding: 10px; border-radius: 0 4px 4px 0; font-size: 12px; line-height: 1.4; box-sizing: border-box; ${cursorStyle}`;
       if (caminhoFoco) { div.setAttribute('onclick', `window.focarCaminhoDireto('${caminhoFoco}')`); }
 
-      // INJEÇÃO DA OPÇÃO CLICÁVEL "✏️ EDITAR" ISOLADA PARA EVITAR CONFLITOS DE BOLHA (e.stopPropagation embutido)
       div.innerHTML = `
           <div style="font-weight: bold; color: var(--accent-yellow); display: flex; justify-content: space-between; align-items: center;">
               <span>${nota.tituloOrigem || 'Evento Geral'}</span>
@@ -755,7 +759,6 @@
 
   window.esconderTooltipTatico = function() { document.getElementById('tooltip-preview').classList.remove('show'); };
 
-  /* --- CENTRAL RECONFIGURADA DE ENTRADAS/EDITIONS COMPATÍVEL COM DIRETO/MURAL --- */
   window.abrirModalTatico = function(e, idUnico, titulo, tipo) {
       e.preventDefault(); e.stopPropagation(); window.esconderTooltipTatico();
       contextoAtual = tipo; alvoAtualNota = idUnico; tituloAtualNota = titulo;
@@ -838,7 +841,7 @@
 
       if (contextoAtual === 'direto') {
           const movimentoAtrelado = document.getElementById('nota-movimento-input').value.trim();
-          const uniqueKey = alvoAtualNota || ("CAL_" + Date.now()); // Reaproveita a chave em caso de edição
+          const uniqueKey = alvoAtualNota || ("CAL_" + Date.now()); 
           const notaRef = ref(db, `alertas_calendario/${uniqueKey}`);
           
           if (texto === "" && local === "" && dataAlerta === "" && horaAlerta === "") {
@@ -978,6 +981,9 @@
   };
 
   function desenhavelArvore(listaDeDados, elementoPai, caminhoAtual = []) {
+    // COFRE ANTI-TRAVAMENTO: Evita o crash do .forEach() caso o Firebase envie como objeto indexado
+    if (!Array.isArray(listaDeDados)) listaDeDados = listaDeDados ? Object.values(listaDeDados) : [];
+
     listaDeDados.forEach(item => {
       const novoCaminho = [...caminhoAtual, item.nome]; const pathString = novoCaminho.join(' > ');
       const nodeDiv = document.createElement('div'); nodeDiv.className = 'node'; nodeDiv.setAttribute('data-path', pathString); 
