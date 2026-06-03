@@ -130,11 +130,7 @@
   #tooltip-preview.show { opacity: 1; visibility: visible; }
   .tooltip-title { font-size: 10px; font-weight: bold; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 8px; color: rgba(255, 255, 255, 0.4); border-bottom: 1px solid #333; padding-bottom: 4px; }
 
-  #tooltip-preview a, #calendar-event-list a {
-    color: #00a2ff !important;
-    text-decoration: underline !important;
-    font-weight: bold;
-  }
+  #tooltip-preview a, #calendar-event-list a { color: #00a2ff !important; text-decoration: underline !important; font-weight: bold; }
 
   /* --- SISTEMA DE ESTRELAS --- */
   .star-icon {
@@ -326,6 +322,8 @@
                   <div id="calendar-days" style="display: grid; grid-template-columns: repeat(7, 1fr); gap: 5px; text-align: center;"></div>
                   
                   <button class="btn-action" onclick="window.abrirModalCalendarioDireto()" style="width: 100%; margin-top: 15px; background: var(--accent-orange); color: black; font-weight: bold; border: none; padding: 10px; border-radius: 6px;">➕ Agendar Evento</button>
+                  
+                  <button id="btn-ia-report" class="btn-action" onclick="window.gerarRelatorioIA()" style="width: 100%; margin-top: 8px; background: #00ffaa; color: black; font-weight: bold; border: none; padding: 10px; border-radius: 6px;">🤖 Gerar Relatório IA (7 Dias)</button>
 
                   <div id="calendar-event-list" style="margin-top: 15px; border-top: 1px solid #222; padding-top: 12px; display: none;">
                       <h5 style="margin: 0 0 8px 0; font-size: 11px; color: var(--accent-orange); text-transform: uppercase; letter-spacing: 0.5px;">Alertas do Dia Selecionado</h5>
@@ -371,7 +369,7 @@
 
     <div class="nota-actions">
         <button class="btn-fechar-nota" onclick="window.fecharModalNota()">Cancelar</button>
-        <button class="btn-salvar-nota" onclick="window.salvarNotaFirebase()">Gravar Alerta</button>
+        <button id="btn-modal-gravar" class="btn-salvar-nota" onclick="window.salvarNotaFirebase()">Gravar Alerta</button>
     </div>
 </div>
 
@@ -432,7 +430,6 @@
   });
 
   function iniciarSistemaC2() {
-      // BLINDAGEM DA CONEXÃO INICIAL COM ALERTA EM CASO DE ERRO OU BANCO VAZIO
       get(ref(db, 'estrutura_arvore')).then(snap => {
           if(snap.exists()) {
               window.DADOS_TOTAIS = snap.val();
@@ -445,18 +442,15 @@
               desenhavelArvore(window.DADOS_TOTAIS, raiz, []);
               iniciarMonitoramentoDiario();
           } else {
-              document.getElementById('data-display').innerText = "Erro: Nó 'estrutura_arvore' não encontrado no Firebase.";
+              document.getElementById('data-display').innerText = "Erro ao carregar os nós da nuvem.";
           }
       }).catch(err => {
-          document.getElementById('data-display').innerText = "Erro de Permissão ou Conexão no Firebase. Veja o console.";
-          console.error(err);
+          document.getElementById('data-display').innerText = "Erro de Autenticação na Nuvem.";
       });
   }
 
   function extrairTodosOsAlvos(lista, caminhoAtual = []) {
-      // COFRE ANTI-TRAVAMENTO: Converte em lista se o Firebase entregar como objeto indexado
       if (!Array.isArray(lista)) lista = lista ? Object.values(lista) : [];
-      
       lista.forEach(item => {
           const novoCaminho = [...caminhoAtual, item.nome];
           const temFilhos = item.filhos && item.filhos.length > 0;
@@ -673,20 +667,12 @@
       const box = document.getElementById('nota-movimento-sugestoes');
       box.innerHTML = "";
 
-      if (input.trim().length === 0) {
-          box.style.display = 'none';
-          return;
-      }
+      if (input.trim().length === 0) { box.style.display = 'none'; return; }
 
       const termoFormatado = normalizarTexto(input);
-      const filtrados = window.LISTA_MOVIMENTOS.filter(mov => 
-          normalizarTexto(mov.caminhoStr).includes(termoFormatado)
-      );
+      const filtrados = window.LISTA_MOVIMENTOS.filter(mov => normalizarTexto(mov.caminhoStr).includes(termoFormatado));
 
-      if (filtrados.length === 0) {
-          box.style.display = 'none';
-          return;
-      }
+      if (filtrados.length === 0) { box.style.display = 'none'; return; }
 
       filtrados.forEach(mov => {
           const itemDiv = document.createElement('div');
@@ -702,7 +688,6 @@
           };
           box.appendChild(itemDiv);
       });
-
       box.style.display = 'block';
   };
 
@@ -711,13 +696,17 @@
       document.getElementById('nota-alvo-titulo').innerText = "Agendar Novo Evento";
       document.getElementById('nota-textarea').value = ""; document.getElementById('nota-local').value = "";
       document.getElementById('nota-data').value = ""; document.getElementById('nota-hora').value = "";
-      
       document.getElementById('nota-movimento-input').value = "";
       document.getElementById('nota-movimento-sugestoes').style.display = 'none';
 
       document.getElementById('container-local').style.display = 'block';
       document.getElementById('container-tempo').style.display = 'flex';
       document.getElementById('container-atrelar-movimento').style.display = 'block';
+      
+      // Restaura o botão original do modal
+      document.getElementById('btn-modal-gravar').style.display = 'block';
+      document.getElementById('btn-modal-gravar').innerText = "Gravar Alerta";
+
       document.getElementById('modal-overlay').style.display = 'block';
       document.getElementById('nota-modal').style.display = 'block';
       document.getElementById('nota-textarea').focus();
@@ -764,13 +753,16 @@
       contextoAtual = tipo; alvoAtualNota = idUnico; tituloAtualNota = titulo;
       const safeKey = sanitizarId(idUnico);
       
+      document.getElementById('container-atrelar-movimento').style.display = 'none';
+      document.getElementById('btn-modal-gravar').style.display = 'block';
+      document.getElementById('btn-modal-gravar').innerText = "Gravar Alerta";
+
       if (tipo === 'postit') {
           document.getElementById('nota-alvo-titulo').innerText = "Nota (Post-it): " + titulo;
           const nota = anotacoesGlobais[safeKey] || {};
           document.getElementById('nota-textarea').value = nota.texto || "";
           document.getElementById('container-local').style.display = 'none';
           document.getElementById('container-tempo').style.display = 'none';
-          document.getElementById('container-atrelar-movimento').style.display = 'none';
       } else if (tipo === 'agenda') {
           document.getElementById('nota-alvo-titulo').innerText = "Agenda de Evento: " + titulo;
           const nota = agendaMenusGlobais[safeKey] || {};
@@ -780,7 +772,6 @@
           document.getElementById('nota-hora').value = nota.horaAlerta || "";
           document.getElementById('container-local').style.display = 'block';
           document.getElementById('container-tempo').style.display = 'flex';
-          document.getElementById('container-atrelar-movimento').style.display = 'none';
       } else if (tipo === 'direto') {
           document.getElementById('nota-alvo-titulo').innerText = "Editar Evento";
           const nota = alertasCalendarioGlobais[idUnico] || {};
@@ -863,6 +854,88 @@
       }
       window.fecharModalNota();
   };
+
+  /* =========================================
+     SISTEMA DE INTELIGÊNCIA ARTIFICIAL (GEMINI)
+     ========================================= */
+  window.gerarRelatorioIA = async function() {
+      const btn = document.getElementById('btn-ia-report');
+      const backupText = btn.innerText;
+      btn.innerText = "🤖 Analisando Cenários...";
+      btn.disabled = true;
+
+      try {
+          // 1. Puxa a chave gratuita salva de forma protegida no seu Firebase
+          const snapChave = await get(ref(db, 'config/gemini_key'));
+          if (!snapChave.exists() || snapChave.val().trim() === "") {
+              alert("A IA ainda não foi ativada.\n\nPeça ao administrador para salvar a chave gratuita do Gemini no nó 'config/gemini_key' do Firebase Realtime Database.");
+              btn.innerText = backupText; btn.disabled = false;
+              return;
+          }
+          const apiKey = snapChave.val().trim();
+
+          // 2. Calcula as datas dos próximos 7 dias táticos
+          let datasAlvo = [];
+          for (let i = 0; i < 7; i++) {
+              const d = new Date(new Date().toLocaleString("en-US", {timeZone: "America/Sao_Paulo"}));
+              d.setDate(d.getDate() + i);
+              datasAlvo.push(`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`);
+          }
+
+          // 3. Varre e filtra os dados agendados na rede
+          let pacotesEventos = [];
+          Object.values(agendaMenusGlobais).forEach(ev => { if (ev && datasAlvo.includes(ev.dataAlerta)) pacotesEventos.push(ev); });
+          Object.values(alertasCalendarioGlobais).forEach(ev => { if (ev && datasAlvo.includes(ev.dataAlerta)) pacotesEventos.push(ev); });
+
+          if (pacotesEventos.length === 0) {
+              alert("Não existem eventos agendados para os próximos 7 dias. Agenda limpa.");
+              btn.innerText = backupText; btn.disabled = false;
+              return;
+          }
+
+          // 4. Constrói o Prompt Analítico de Inteligência
+          const prompt = `Você é uma Inteligência Artificial analista de dados. Analise a seguinte lista de eventos e manifestações agendadas para os próximos 7 dias e crie um Relatório Sintético de Cenários Ocultando jargões desnecessários. Organize estritamente por Ordem Cronológica de Dias, resumindo os principais alvos (movimentos envolvidos), horários e os locais citados. Seja muito direto, formal e objetivo. Use tópicos claros. Eventos para análise: ${JSON.stringify(pacotesEventos)}`;
+
+          // 5. Dispara a requisição criptografada para o servidor do Google
+          const resposta = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] })
+          });
+
+          const dataIa = await reply_ia(resposta);
+          if (!dataIa.candidates || dataIa.candidates.length === 0) { throw new Error("A IA recusou ou falhou na análise."); }
+          
+          const relatorioFormatado = dataIa.candidates[0].content.parts[0].text;
+
+          // 6. Abre o modal reaproveitando a interface ampliada para exibir a IA
+          document.getElementById('nota-alvo-titulo').innerText = "🤖 Relatório Analítico IA (Próximos 7 Dias)";
+          document.getElementById('nota-textarea').value = relatorioFormatado;
+          document.getElementById('container-local').style.display = 'none';
+          document.getElementById('container-tempo').style.display = 'none';
+          document.getElementById('container-atrelar-movimento').style.display = 'none';
+          
+          // Transforma o botão de salvar em um botão de cópia rápida
+          const btnGravar = document.getElementById('btn-modal-gravar');
+          btnGravar.innerText = "📋 Copiar Relatório";
+          btnGravar.onclick = function() {
+              navigator.clipboard.writeText(relatorioFormatado);
+              alert("Relatório copiado para a área de transferência!");
+          };
+
+          document.getElementById('modal-overlay').style.display = 'block';
+          document.getElementById('nota-modal').style.display = 'block';
+
+      } catch (err) {
+          alert("Falha de Processamento na IA. Verifique as credenciais ou limite de requisições.");
+          console.error(err);
+      }
+
+      btn.innerText = backupText;
+      btn.disabled = false;
+  };
+
+  async function reply_ia(res) { return await res.json(); }
 
   function atualizarUiComVistos() {
     document.querySelectorAll('.link-card').forEach(el => {
@@ -981,7 +1054,6 @@
   };
 
   function desenhavelArvore(listaDeDados, elementoPai, caminhoAtual = []) {
-    // COFRE ANTI-TRAVAMENTO: Evita o crash do .forEach() caso o Firebase envie como objeto indexado
     if (!Array.isArray(listaDeDados)) listaDeDados = listaDeDados ? Object.values(listaDeDados) : [];
 
     listaDeDados.forEach(item => {
