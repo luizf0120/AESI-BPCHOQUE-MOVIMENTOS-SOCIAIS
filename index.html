@@ -192,6 +192,16 @@
   .btn-salvar-nota:hover { background: #e0a800; }
   .btn-fechar-nota:hover { background: #333; color: #fff; }
 
+  /* =========================================
+     MODAL ESPECÍFICO PARA ENTRADA COLA DA IA
+     ========================================= */
+  #ia-input-modal {
+    display: none; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
+    background: var(--card-bg); border: 1px solid var(--accent-green); border-radius: 8px;
+    padding: 25px; z-index: 20000; width: 500px; max-width: 92%; box-shadow: 0 15px 40px rgba(0,0,0,0.9);
+  }
+  #ia-input-modal h4 { margin: 0 0 15px 0; color: var(--accent-green); font-size: 16px; border-bottom: 1px solid #333; padding-bottom: 10px; }
+
   /* --- CSS DA ÁRVORE --- */
   .tree-container { display: flex; flex-direction: column; gap: 20px; justify-content: flex-start; align-items: flex-start; padding: 0; width: 100%; }
   .node { display: flex; flex-direction: row; align-items: center; }
@@ -323,6 +333,8 @@
                   
                   <button class="btn-action" onclick="window.abrirModalCalendarioDireto()" style="width: 100%; margin-top: 15px; background: var(--accent-orange); color: black; font-weight: bold; border: none; padding: 10px; border-radius: 6px;">➕ Agendar Evento</button>
                   
+                  <button class="btn-action" onclick="window.abrirModalIAParser()" style="width: 100%; margin-top: 8px; background: #00bcd4; color: black; font-weight: bold; border: none; padding: 10px; border-radius: 6px;">🤖 Agendar Evento por IA</button>
+                  
                   <button id="btn-ia-report" class="btn-action" onclick="window.gerarRelatorioIA()" style="width: 100%; margin-top: 8px; background: #00ffaa; color: black; font-weight: bold; border: none; padding: 10px; border-radius: 6px;">🤖 Gerar Relatório IA (7 Dias)</button>
 
                   <div id="calendar-event-list" style="margin-top: 15px; border-top: 1px solid #222; padding-top: 12px; display: none;">
@@ -337,6 +349,16 @@
 </div>
 
 <div id="tooltip-preview"></div>
+
+<div id="ia-input-modal">
+    <h4>🤖 Agendar Evento por IA</h4>
+    <label style="font-size: 11px; color: #888; display: block; margin-bottom: 6px;">Cole o texto bruto (mensagem de rede, notícia ou informe) abaixo:</label>
+    <textarea id="ia-texto-bruto" style="width: 100%; height: 160px; background: #111; color: #fff; border: 1px solid #333; padding: 12px; border-radius: 6px; resize: vertical; outline: none; margin-bottom: 15px; font-size: 13px;" placeholder="Ex: Informamos que o sindicato planeja uma manifestação na Praça Rui Barbosa no dia 12/08/2026 às 14:30 h contra as reformas..."></textarea>
+    <div class="nota-actions">
+        <button class="btn-fechar-nota" onclick="window.fecharModalNota()">Cancelar</button>
+        <button id="btn-ia-avancar" class="btn-salvar-nota" style="background: var(--accent-green);" onclick="window.processarTextoBrutoIA()">Avançar ➔</button>
+    </div>
+</div>
 
 <div id="modal-overlay" onclick="window.fecharModalNota()"></div>
 <div id="nota-modal">
@@ -660,6 +682,84 @@
       document.getElementById('nota-textarea').focus();
   };
 
+  /* --- OPERADORES ESPECÍFICOS DO ASSISTENTE COMPACTO DE ENTRADA IA --- */
+  window.abrirModalIAParser = function() {
+      document.getElementById('ia-texto-bruto').value = "";
+      document.getElementById('btn-ia-avancar').innerText = "Avançar ➔";
+      document.getElementById('btn-ia-avancar').disabled = false;
+      document.getElementById('modal-overlay').style.display = 'block';
+      document.getElementById('ia-input-modal').style.display = 'block';
+      document.getElementById('ia-texto-bruto').focus();
+  };
+
+  window.processarTextoBrutoIA = async function() {
+      const txtBruto = document.getElementById('ia-texto-bruto').value.trim();
+      if (!txtBruto) { alert("Cole o texto do informe antes de avançar."); return; }
+
+      const btn = document.getElementById('btn-ia-avancar');
+      btn.innerText = "🤖 Estruturando Dados...";
+      btn.disabled = true;
+
+      try {
+          const snapChave = await get(ref(db, 'config/gemini_key'));
+          if (!snapChave.exists() || snapChave.val().trim() === "") {
+              alert("A IA não está configurada no Firebase.");
+              btn.innerText = "Avançar ➔"; btn.disabled = false;
+              return;
+          }
+          const apiKey = snapChave.val().trim();
+
+          // Prompt instruindo o modelo a responder estritamente em um objeto JSON plano válido
+          const promptInstrucao = `Você é um robô auxiliar de triagem. Analise o informe bruto fornecido e extraia as informações estruturadas de forma cirúrgica. Responda APENAS E EXCLUSIVAMENTE com um objeto JSON plano (sem caixas de código markdown \`\`\`json, sem textos extras ou explicações). Se um ano não for citado de forma explícita na data, assuma o ano de 2026.
+          Chaves exatas do JSON esperado:
+          - "texto": Um resumo conciso da pauta da manifestação ou evento em poucas palavras.
+          - "local": O local físico, endereço ou praça citado no texto.
+          - "data": O dia do evento formatado rigidamente no padrão internacional YYYY-MM-DD.
+          - "hora": O horário do evento formatado rigidamente no padrão de 24h HH:MM.
+          - "movimento": O trecho ou nome do movimento/grupo envolvido se houver.
+
+          Texto para análise: "${txtBruto}"`;
+
+          const resposta = await fetch(`https://generativelanguage.googleapis.com/v1/models/gemini-2.5-flash:generateContent?key=${apiKey}`, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ contents: [{ parts: [{ text: promptInstrucao }] }] })
+          });
+
+          const dataIa = await resposta.json();
+          let rawText = dataIa.candidates[0].content.parts[0].text;
+          
+          // Tratamento para limpar marcações de bloco que o Gemini às vezes gera por segurança
+          let cleanJsonStr = rawText.replace(/```json|```/g, "").trim();
+          let dataObjeto = JSON.parse(cleanJsonStr);
+
+          // Fecha a caixa da IA
+          document.getElementById('ia-input-modal').style.display = 'none';
+
+          // Carrega e preenche o modal oficial na pauta de validação manual antes de salvar na nuvem
+          contextoAtual = 'direto'; alvoAtualNota = "";
+          document.getElementById('nota-alvo-titulo').innerText = "Conferir Agendamento por IA";
+          document.getElementById('nota-textarea').value = dataObjeto.texto || "";
+          document.getElementById('nota-local').value = dataObjeto.local || "";
+          document.getElementById('nota-data').value = dataObjeto.data || "";
+          document.getElementById('nota-hora').value = dataObjeto.hora || "";
+          document.getElementById('nota-movimento-input').value = dataObjeto.movimento || "";
+
+          document.getElementById('container-local').style.display = 'block';
+          document.getElementById('container-tempo').style.display = 'flex';
+          document.getElementById('container-atrelar-movimento').style.display = 'block';
+          document.getElementById('nota-movimento-sugestoes').style.display = 'none';
+          document.getElementById('btn-modal-gravar').innerText = "Confirmar e Gravar Alerta";
+          
+          document.getElementById('nota-modal').style.display = 'block';
+
+      } catch (err) {
+          alert("A IA falhou em analisar ou estruturar as informações deste informe. Tente novamente.");
+          console.error(err);
+      }
+      btn.innerText = "Avançar ➔"; btn.disabled = false;
+  };
+
   window.focarCaminhoDireto = function(caminhoCompletoStr) {
       if (!caminhoCompletoStr) return;
       const pastas = caminhoCompletoStr.split(' > ');
@@ -768,6 +868,7 @@
   window.fecharModalNota = function() {
       document.getElementById('modal-overlay').style.display = 'none';
       document.getElementById('nota-modal').style.display = 'none';
+      document.getElementById('ia-input-modal').style.display = 'none';
   };
 
   window.salvarNotaFirebase = function() {
@@ -988,7 +1089,6 @@
           }
           const apiKey = snapChave.val().trim();
 
-          // Puxa as regras customizadas salvas no Firebase. Se não houver nada, usa uma de reserva.
           let promptBase = "Você é uma Inteligência Artificial analista de dados. Analise a seguinte lista de eventos e manifestações agendadas para os próximos 7 dias e crie um Relatório Sintético de Cenários Ocultando jargões desnecessários. Organize estritamente por Ordem Cronológica de Dias, resumindo os principais alvos (movimentos envolvidos), horários e os locais citados. Seja muito direto, formal e objetivo. Use tópicos claros.";
           const snapPrompt = await get(ref(db, 'config/prompt_ia'));
           if (snapPrompt.exists() && snapPrompt.val().trim() !== "") {
@@ -1014,7 +1114,6 @@
 
           const promptFinal = `${promptBase}\n\nEventos para análise: ${JSON.stringify(pacotesEventos)}`;
 
-          // MODELO E ROTA DO ENDPOINT OFICIAL ESTÁVEL (V1 / gemini-2.5-flash)
           const resposta = await fetch(`https://generativelanguage.googleapis.com/v1/models/gemini-2.5-flash:generateContent?key=${apiKey}`, {
               method: "POST",
               headers: { "Content-Type": "application/json" },
