@@ -519,7 +519,7 @@
             return { titulo: alvo.titulo, count: dataFirebase[alvo.id] ? dataFirebase[alvo.id].count : 0, caminho: alvo.caminho };
         });
         estatisticasCompletas.sort((a, b) => b.count - a.count);
-        const top15 =  estatisticasCompletas.filter(s => s.count > 0).slice(0, 15);
+        const top15 = estatisticasCompletas.filter(s => s.count > 0).slice(0, 15);
         const bottom15 =  estatisticasCompletas.slice(-15).reverse();
         
         document.getElementById('list-top').innerHTML = top15.length > 0 
@@ -787,12 +787,12 @@
               set(notaRef, null);
           } else {
               set(notaRef, { 
-                  texto, local, dataAlerta, horaAlerta, movimentoAtrelado, operador: user, 
+                  texto, local, dataAlerta, horaAlerta, movimientoAtrelado, operador: user, 
                   time: obterHoraBrasilia(), tituloOrigem: movimientoAtrelado ? movimientoAtrelado.split(' > ').pop() : "Evento Geral", isDirectCalendar: true, keyId: uniqueKey
               });
           }
       } else if (contextoAtual === 'postit') {
-          const notaRef = ref(db, `monitorementDiario/${dataHojeISO}/anotacoes/${safeKey}`);
+          const notaRef = ref(db, `monitoramentoDiario/${dataHojeISO}/anotacoes/${safeKey}`);
           if (texto === "") set(notaRef, null);
           else set(notaRef, { texto, operador: user, time: obterHoraBrasilia(), tituloOrigem: tituloAtualNota });
       } else if (contextoAtual === 'agenda') {
@@ -971,7 +971,7 @@
   }
 
   /* =====================================================================
-     SISTEMA DE INTELIGÊNCIA ARTIFICIAL (GEMINI VIA ENDPOINT OFICIAL V1)
+     SISTEMA DE INTELIGÊNCIA ARTIFICIAL DYNAMIC-PROMPT (ENDPOINT OFICIAL V1)
      ===================================================================== */
   window.gerarRelatorioIA = async function() {
       const btn = document.getElementById('btn-ia-report');
@@ -982,11 +982,18 @@
       try {
           const snapChave = await get(ref(db, 'config/gemini_key'));
           if (!snapChave.exists() || snapChave.val().trim() === "") {
-              alert("A IA ainda não foi ativada.\n\nSalve a chave no nó 'config/gemini_key' do Firebase.");
+              alert("A IA ainda não foi ativada.\n\nSalve sua chave no nó 'config/gemini_key'.");
               btn.innerText = backupText; btn.disabled = false;
               return;
           }
           const apiKey = snapChave.val().trim();
+
+          // Puxa as regras customizadas salvas no Firebase. Se não houver nada, usa uma de reserva.
+          let promptBase = "Você é uma Inteligência Artificial analista de dados. Analise a seguinte lista de eventos e manifestações agendadas para os próximos 7 dias e crie um Relatório Sintético de Cenários Ocultando jargões desnecessários. Organize estritamente por Ordem Cronológica de Dias, resumindo os principais alvos (movimentos envolvidos), horários e os locais citados. Seja muito direto, formal e objetivo. Use tópicos claros.";
+          const snapPrompt = await get(ref(db, 'config/prompt_ia'));
+          if (snapPrompt.exists() && snapPrompt.val().trim() !== "") {
+              promptBase = snapPrompt.val().trim();
+          }
 
           let datasAlvo = [];
           for (let i = 0; i < 7; i++) {
@@ -1000,18 +1007,18 @@
           Object.values(alertasCalendarioGlobais).forEach(ev => { if (ev && datasAlvo.includes(ev.dataAlerta)) pacotesEventos.push(ev); });
 
           if (pacotesEventos.length === 0) {
-              alert("Não existem eventos agendados para os próximos 7 dias. Agenda limpa.");
+              alert("Não existem eventos ou agendas cadastrados nos próximos 7 dias.");
               btn.innerText = backupText; btn.disabled = false;
               return;
           }
 
-          const prompt = `Você é uma Inteligência Artificial analista de dados. Analise a seguinte lista de eventos e manifestações agendadas para os próximos 7 dias e crie um Relatório Sintético de Cenários Ocultando jargões desnecessários. Organize estritamente por Ordem Cronológica de Dias, resumindo os principais alvos (movimentos envolvidos), horários e os locais citados. Seja muito direto, formal e objective. Use tópicos claros. Eventos para análise: ${JSON.stringify(pacotesEventos)}`;
+          const promptFinal = `${promptBase}\n\nEventos para análise: ${JSON.stringify(pacotesEventos)}`;
 
-          // CORREÇÃO DO ENDPOINT: v1 + gemini-2.5-flash aceita chaves AQ. sem disparar erro 404
+          // MODELO E ROTA DO ENDPOINT OFICIAL ESTÁVEL (V1 / gemini-2.5-flash)
           const resposta = await fetch(`https://generativelanguage.googleapis.com/v1/models/gemini-2.5-flash:generateContent?key=${apiKey}`, {
               method: "POST",
               headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] })
+              body: JSON.stringify({ contents: [{ parts: [{ text: promptFinal }] }] })
           });
 
           const dataIa = await resposta.json();
@@ -1029,7 +1036,7 @@
           btnGravar.innerText = "📋 Copiar Relatório";
           btnGravar.onclick = function() {
               navigator.clipboard.writeText(relatorioFormatado);
-              alert("Relatório copiado para a área de transferência!");
+              alert("Relatório copiado!");
           };
 
           document.getElementById('modal-overlay').style.display = 'block';
@@ -1040,8 +1047,7 @@
           console.error(err);
       }
 
-      btn.innerText = backupText;
-      btn.disabled = false;
+      btn.innerText = backupText; btn.disabled = false;
   };
 
   document.addEventListener('click', (e) => { 
