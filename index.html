@@ -361,7 +361,7 @@
         </div>
     </div>
 
-    <div id="container-atrelar-movimento" style="margin-bottom: 15px; display: relative; position: relative;">
+    <div id="container-atrelar-movimento" style="margin-bottom: 15px; display: none; position: relative;">
         <label style="font-size: 11px; color: #888; display: block; margin-bottom: 4px;">🔗 Atrelar a um Movimento (Opcional):</label>
         <input type="text" id="nota-movimento-input" placeholder="Comece a digitar o nome do movimento..." style="width: 100%; background: #111; color: #fff; border: 1px solid #333; padding: 8px; border-radius: 6px; outline: none; font-size: 13px; font-weight: bold;" oninput="window.filtrarMovimentosDropdown()">
         <div id="nota-movimento-sugestoes" style="max-height: 140px; overflow-y: auto; background: #0e0e0e; border: 1px solid #333; margin-top: 4px; border-radius: 6px; display: none; position: absolute; left: 0; right: 0; z-index: 30000; box-shadow: 0 5px 15px rgba(0,0,0,0.8);"></div>
@@ -480,7 +480,7 @@
     const monday = new Date(d.setDate(diff));
     return `${monday.getFullYear()}-${String(monday.getMonth()+1).padStart(2,'0')}-${String(monday.getDate()).padStart(2,'0')}`;
   }
-  function sanitizarId(str) { return str ? str.replace(/[.#$\[\]/]/g, "_") : ""; }
+  function sanitizarId(str) { return str.replace(/[.#$\[\]/]/g, "_"); }
 
   function getCorTermica(pct) {
     if (pct === 0) return 'transparent';
@@ -574,7 +574,6 @@
       window.renderizarCalendarioTatico();
   };
 
-  /* --- DETECÇÃO AUTOMÁTICA DE LINKS --- */
   function linkify(text) {
       if (!text) return "";
       const urlRegex = /(https?:\/\/[^\s]+)/g;
@@ -596,7 +595,7 @@
           <div style="font-weight: bold; color: var(--accent-yellow); display: flex; justify-content: space-between; align-items: center;">
               <span>${nota.tituloOrigem || 'Evento Geral'}</span>
               <div style="display: flex; align-items: center; gap: 6px;">
-                  <span class="btn-editar-card" style="cursor: pointer; font-size: 11px; background: #222; padding: 2px 6px; border-radius: 4px; color: var(--accent-yellow); border: 1px solid #444; font-weight: bold;" title="Editar este compromisso">✏️ Editar</span>
+                  <span onclick="window.abrirModalTatico(event, '${keyId}', '${nota.tituloOrigem || 'Evento Geral'}', '${tipoEntrada === 'direto' ? 'direto' : 'agenda'}')" style="cursor: pointer; font-size: 11px; background: #222; padding: 2px 6px; border-radius: 4px; color: var(--accent-yellow); border: 1px solid #444; font-weight: bold; font-family: sans-serif;" title="Editar este compromisso">✏️ Editar</span>
                   <span style="font-size: 9px; background: #222; padding: 3px 4px; border-radius: 3px; color: #aaa; font-family: monospace;">${tipoEntrada === 'direto' ? 'Direto' : 'Pasta'}</span>
               </div>
           </div>
@@ -605,13 +604,6 @@
           <div style="font-size: 10px; color: #888;">⏰ Hora: ${nota.horaAlerta || '--:--'} | Op: ${nota.operador.split('@')[0]}</div>
           ${subSeloCaminho}
       `;
-
-      // Evento isolado para o botão de edição evitar bolha de foco na árvore
-      div.querySelector('.btn-editar-card').addEventListener('click', (e) => {
-          e.preventDefault(); e.stopPropagation();
-          window.abrirModalTatico(e, keyId, nota.tituloOrigem || 'Evento Geral', tipoEntrada === 'direto' ? 'direto' : 'agenda');
-      });
-
       return div;
   }
 
@@ -711,6 +703,7 @@
       document.getElementById('container-tempo').style.display = 'flex';
       document.getElementById('container-atrelar-movimento').style.display = 'block';
       
+      // Restaura o botão original do modal
       document.getElementById('btn-modal-gravar').style.display = 'block';
       document.getElementById('btn-modal-gravar').innerText = "Gravar Alerta";
 
@@ -756,8 +749,7 @@
   window.esconderTooltipTatico = function() { document.getElementById('tooltip-preview').classList.remove('show'); };
 
   window.abrirModalTatico = function(e, idUnico, titulo, tipo) {
-      if (e) { e.preventDefault(); e.stopPropagation(); }
-      window.esconderTooltipTatico();
+      e.preventDefault(); e.stopPropagation(); window.esconderTooltipTatico();
       contextoAtual = tipo; alvoAtualNota = idUnico; tituloAtualNota = titulo;
       const safeKey = sanitizarId(idUnico);
       
@@ -863,6 +855,88 @@
       window.fecharModalNota();
   };
 
+  /* =========================================
+     SISTEMA DE INTELIGÊNCIA ARTIFICIAL (GEMINI)
+     ========================================= */
+  window.gerarRelatorioIA = async function() {
+      const btn = document.getElementById('btn-ia-report');
+      const backupText = btn.innerText;
+      btn.innerText = "🤖 Analisando Cenários...";
+      btn.disabled = true;
+
+      try {
+          // 1. Puxa a chave gratuita salva de forma protegida no seu Firebase
+          const snapChave = await get(ref(db, 'config/gemini_key'));
+          if (!snapChave.exists() || snapChave.val().trim() === "") {
+              alert("A IA ainda não foi ativada.\n\nPeça ao administrador para salvar a chave gratuita do Gemini no nó 'config/gemini_key' do Firebase Realtime Database.");
+              btn.innerText = backupText; btn.disabled = false;
+              return;
+          }
+          const apiKey = snapChave.val().trim();
+
+          // 2. Calcula as datas dos próximos 7 dias táticos
+          let datasAlvo = [];
+          for (let i = 0; i < 7; i++) {
+              const d = new Date(new Date().toLocaleString("en-US", {timeZone: "America/Sao_Paulo"}));
+              d.setDate(d.getDate() + i);
+              datasAlvo.push(`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`);
+          }
+
+          // 3. Varre e filtra os dados agendados na rede
+          let pacotesEventos = [];
+          Object.values(agendaMenusGlobais).forEach(ev => { if (ev && datasAlvo.includes(ev.dataAlerta)) pacotesEventos.push(ev); });
+          Object.values(alertasCalendarioGlobais).forEach(ev => { if (ev && datasAlvo.includes(ev.dataAlerta)) pacotesEventos.push(ev); });
+
+          if (pacotesEventos.length === 0) {
+              alert("Não existem eventos agendados para os próximos 7 dias. Agenda limpa.");
+              btn.innerText = backupText; btn.disabled = false;
+              return;
+          }
+
+          // 4. Constrói o Prompt Analítico de Inteligência
+          const prompt = `Você é uma Inteligência Artificial analista de dados. Analise a seguinte lista de eventos e manifestações agendadas para os próximos 7 dias e crie um Relatório Sintético de Cenários Ocultando jargões desnecessários. Organize estritamente por Ordem Cronológica de Dias, resumindo os principais alvos (movimentos envolvidos), horários e os locais citados. Seja muito direto, formal e objetivo. Use tópicos claros. Eventos para análise: ${JSON.stringify(pacotesEventos)}`;
+
+          // 5. Dispara a requisição criptografada para o servidor do Google
+          const resposta = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] })
+          });
+
+          const dataIa = await reply_ia(resposta);
+          if (!dataIa.candidates || dataIa.candidates.length === 0) { throw new Error("A IA recusou ou falhou na análise."); }
+          
+          const relatorioFormatado = dataIa.candidates[0].content.parts[0].text;
+
+          // 6. Abre o modal reaproveitando a interface ampliada para exibir a IA
+          document.getElementById('nota-alvo-titulo').innerText = "🤖 Relatório Analítico IA (Próximos 7 Dias)";
+          document.getElementById('nota-textarea').value = relatorioFormatado;
+          document.getElementById('container-local').style.display = 'none';
+          document.getElementById('container-tempo').style.display = 'none';
+          document.getElementById('container-atrelar-movimento').style.display = 'none';
+          
+          // Transforma o botão de salvar em um botão de cópia rápida
+          const btnGravar = document.getElementById('btn-modal-gravar');
+          btnGravar.innerText = "📋 Copiar Relatório";
+          btnGravar.onclick = function() {
+              navigator.clipboard.writeText(relatorioFormatado);
+              alert("Relatório copiado para a área de transferência!");
+          };
+
+          document.getElementById('modal-overlay').style.display = 'block';
+          document.getElementById('nota-modal').style.display = 'block';
+
+      } catch (err) {
+          alert("Falha de Processamento na IA. Verifique as credenciais ou limite de requisições.");
+          console.error(err);
+      }
+
+      btn.innerText = backupText;
+      btn.disabled = false;
+  };
+
+  async function reply_ia(res) { return await res.json(); }
+
   function atualizarUiComVistos() {
     document.querySelectorAll('.link-card').forEach(el => {
         el.classList.remove('visto'); const stamp = el.querySelector('.stamp'); if(stamp) stamp.remove();
@@ -948,11 +1022,10 @@
   };
   window.esconderTooltipPreview = function() { document.getElementById('tooltip-preview').classList.remove('show'); };
   window.recolherArvoreInteira = function() { document.querySelectorAll('.node').forEach(node => { const p = node.getAttribute('data-path'); if (p !== "MOVIMENTOS" && p !== "NOTÍCIAS") node.classList.remove('active'); }); };
-  function normalizarTexto(t) { return t ? t.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase() : ""; }
+  function normalizarTexto(t) { return t.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase(); }
   
   function vasculharArvore(lista, termo, caminhoAtual = [], resultados = []) {
     const termoFormatado = normalizarTexto(termo);
-    if (!Array.isArray(lista)) lista = lista ? Object.values(lista) : [];
     lista.forEach(item => {
       const novoCaminho = [...caminhoAtual, item.nome];
       if (normalizarTexto(item.nome).includes(termoFormatado)) resultados.push({ item: item, caminho: novoCaminho });
@@ -980,9 +1053,6 @@
     caixa.style.display = 'block';
   };
 
-  /* =========================================
-     SISTEMA DE RENDERIZAÇÃO DA ÁRVORE 100% REVISADO
-     ========================================= */
   function desenhavelArvore(listaDeDados, elementoPai, caminhoAtual = []) {
     if (!Array.isArray(listaDeDados)) listaDeDados = listaDeDados ? Object.values(listaDeDados) : [];
 
@@ -1033,79 +1103,6 @@
       elementoPai.appendChild(nodeDiv);
     });
   }
-
-  /* =========================================
-     SISTEMA DE INTELIGÊNCIA ARTIFICIAL (GEMINI 2.5 FLASH)
-     ========================================= */
-  window.gerarRelatorioIA = async function() {
-      const btn = document.getElementById('btn-ia-report');
-      const backupText = btn.innerText;
-      btn.innerText = "🤖 Analisando Cenários...";
-      btn.disabled = true;
-
-      try {
-          const snapChave = await get(ref(db, 'config/gemini_key'));
-          if (!snapChave.exists() || snapChave.val().trim() === "") {
-              alert("A IA ainda não foi configurada no cofre.");
-              btn.innerText = backupText; btn.disabled = false;
-              return;
-          }
-          // Trim limpa os espaços fantasmas e quebras de linha indesejadas automagicamente
-          const apiKey = snapChave.val().trim();
-
-          let datasAlvo = [];
-          for (let i = 0; i < 7; i++) {
-              const d = new Date(new Date().toLocaleString("en-US", {timeZone: "America/Sao_Paulo"}));
-              d.setDate(d.getDate() + i);
-              datasAlvo.push(`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`);
-          }
-
-          let pacotesEventos = [];
-          Object.values(agendaMenusGlobais).forEach(ev => { if (ev && datasAlvo.includes(ev.dataAlerta)) pacotesEventos.push(ev); });
-          Object.values(alertasCalendarioGlobais).forEach(ev => { if (ev && datasAlvo.includes(ev.dataAlerta)) pacotesEventos.push(ev); });
-
-          if (pacotesEventos.length === 0) {
-              alert("Não existem eventos agendados para os próximos 7 dias.");
-              btn.innerText = backupText; btn.disabled = false;
-              return;
-          }
-
-          const prompt = `Você é uma Inteligência Artificial analista de dados. Analise a seguinte lista de eventos e manifestações agendadas para os próximos 7 dias e crie um Relatório Sintético de Cenários Ocultando jargões desnecessários. Organize estritamente por Ordem Cronológica de Dias, resumindo os principais alvos (movimentos envolvidos), horários e os locais citados. Seja muito direto, formal e objetivo. Use tópicos claros. Eventos para análise: ${JSON.stringify(pacotesEventos)}`;
-
-          const resposta = await fetch(`https://generativelanguage.googleapis.com/v1/models/gemini-2.5-flash:generateContent?key=${apiKey}`, {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] })
-          });
-
-          const dataIa = await resposta.json();
-          if (!dataIa.candidates || dataIa.candidates.length === 0) { throw new Error("Retorno inválido."); }
-          
-          const relatorioFormatado = dataIa.candidates[0].content.parts[0].text;
-
-          document.getElementById('nota-alvo-titulo').innerText = "🤖 Relatório Analítico IA (Próximos 7 Dias)";
-          document.getElementById('nota-textarea').value = relatorioFormatado;
-          document.getElementById('container-local').style.display = 'none';
-          document.getElementById('container-tempo').style.display = 'none';
-          document.getElementById('container-atrelar-movimento').style.display = 'none';
-          
-          const btnGravar = document.getElementById('btn-modal-gravar');
-          btnGravar.innerText = "📋 Copiar Relatório";
-          btnGravar.onclick = function() {
-              navigator.clipboard.writeText(relatorioFormatado);
-              alert("Copiado com sucesso!");
-          };
-
-          document.getElementById('modal-overlay').style.display = 'block';
-          document.getElementById('nota-modal').style.display = 'block';
-
-      } catch (err) {
-          alert("Falha de Comunicação com os servidores da Inteligência Artificial Google. Verifique a console.");
-          console.error(err);
-      }
-
-      btn.innerText = backupText; btn.disabled = false;
-  };
 
   document.addEventListener('click', (e) => { 
       if (!e.target.closest('.search-box')) document.getElementById('caixaResultados').style.display = 'none'; 
