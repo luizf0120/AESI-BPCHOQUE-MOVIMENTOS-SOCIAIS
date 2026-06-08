@@ -34,7 +34,7 @@
      ========================================= */
   #login-screen {
     display: flex;
-    justify-content: center;
+    justify::content: center;
     align-items: center;
     height: 100vh;
     background-color: var(--bg-color);
@@ -541,7 +541,7 @@
             return { titulo: alvo.titulo, count: dataFirebase[alvo.id] ? dataFirebase[alvo.id].count : 0, caminho: alvo.caminho };
         });
         estatisticasCompletas.sort((a, b) => b.count - a.count);
-        const top15 = estatisticasCompletas.filter(s => s.count > 0).slice(0, 15);
+        const top15 =       estatisticasCompletas.filter(s => s.count > 0).slice(0, 15);
         const bottom15 =  estatisticasCompletas.slice(-15).reverse();
         
         document.getElementById('list-top').innerHTML = top15.length > 0 
@@ -711,7 +711,7 @@
           <div class="info-detalhada-card" style="display: none; margin-top: 10px; padding-top: 8px; border-top: 1px solid #222; font-size: 12px; color: #fff;">
               <div style="margin-bottom: 6px; white-space: pre-wrap; color: #ddd;">"${linkify(nota.texto) || 'Sem descrição'}"</div>
               <div style="font-size: 11px; color: #aaa; margin-bottom: 3px;">📍 Local/Endereço: ${nota.local || 'Não cadastrado'}</div>
-              ${caminhoFoco ? `<div style="font-size: 11px; color: var(--accent-blue); font-weight: bold; cursor: pointer; text-decoration: underline;" onclick="window.focarCaminhoDireto('${caminhoFoco}')">🔗 Movimento Atrelado: ${caminhoFoco.replace("MOVIMENTOS > ", "")}</div>` : ''}
+              ${caminhoFoco ? `<div class="btn-focar-movimento" style="font-size: 11px; color: var(--accent-blue); font-weight: bold; cursor: pointer; text-decoration: underline;">🔗 Movimento Atrelado: ${caminhoFoco.replace("MOVIMENTOS > ", "")}</div>` : ''}
               <div style="font-size: 10px; color: #666; margin-top: 5px;">Registrado por: ${nota.operador ? nota.operador.split('@')[0] : 'Desconhecido'} às ${nota.time || '--:--'}</div>
           </div>
       `;
@@ -729,7 +729,7 @@
           if (tipoEntrada === 'direto') {
               set(ref(db, `alertas_calendario/${keyId}`), null);
           } else {
-              set(ref(db, `monitorementDiario/${dataHojeISO}/anotacoes/${keyId}`), null);
+              set(ref(db, `monitoramentoDiario/${dataHojeISO}/anotacoes/${keyId}`), null);
               set(ref(db, `monitoramentoDiario/${dataHojeISO}/agenda_menus/${keyId}`), null);
           }
       });
@@ -747,6 +747,16 @@
           }
       });
 
+      if (caminhoFoco) {
+          const btnFocar = div.querySelector('.btn-focar-movimento');
+          if (btnFocar) {
+              btnFocar.addEventListener('click', (e) => {
+                  e.preventDefault(); e.stopPropagation();
+                  window.focarCaminhoDireto(caminhoFoco);
+              });
+          }
+      }
+
       return div;
   }
 
@@ -758,12 +768,12 @@
 
       Object.keys(agendaMenusGlobais).forEach(key => {
           const nota = agendaMenusGlobais[key];
-          if (nota && nota.dataAlerta === dataStr) { encontrou = true; listaEvs.appendChild(construirItemVisualEvento(nota, key, 'pasta')); }
+          if (nota && String(nota.dataAlerta) === String(dataStr)) { encontrou = true; listaEvs.appendChild(construirItemVisualEvento(nota, key, 'pasta')); }
       });
 
       Object.keys(alertasCalendarioGlobais).forEach(key => {
           const nota = alertasCalendarioGlobais[key];
-          if (nota && nota.dataAlerta === dataStr) { encontrou = true; listaEvs.appendChild(construirItemVisualEvento(nota, key, 'direto')); }
+          if (nota && String(nota.dataAlerta) === String(dataStr)) { encontrou = true; listaEvs.appendChild(construirItemVisualEvento(nota, key, 'direto')); }
       });
 
       containerEvs.style.display = encontrou ? 'block' : 'none';
@@ -969,7 +979,7 @@
       const user = auth.currentUser ? auth.currentUser.email : 'Desconhecido';
 
       if (contextoAtual === 'direto') {
-          const movimientoAtrelado = document.getElementById('nota-movimento-input').value.trim();
+          const movimentoAtrelado = document.getElementById('nota-movimento-input').value.trim();
           const uniqueKey = alvoAtualNota || ("CAL_" + Date.now()); 
           const notaRef = ref(db, `alertas_calendario/${uniqueKey}`);
           
@@ -977,8 +987,8 @@
               set(notaRef, null);
           } else {
               set(notaRef, { 
-                  texto, local, dataAlerta, horaAlerta, movimientoAtrelado, operador: user, 
-                  time: obterHoraBrasilia(), tituloOrigem: movimientoAtrelado ? movimientoAtrelado.split(' > ').pop() : "Evento Geral", isDirectCalendar: true, keyId: uniqueKey
+                  texto, local, dataAlerta, horaAlerta, movimentoAtrelado, operador: user, 
+                  time: obterHoraBrasilia(), tituloOrigem: movimentoAtrelado ? movimientoAtrelado.split(' > ').pop() : "Evento Geral", isDirectCalendar: true, keyId: uniqueKey
               });
           }
       } else if (contextoAtual === 'postit') {
@@ -1078,7 +1088,6 @@
   };
   window.esconderTooltipPreview = function() { document.getElementById('tooltip-preview').classList.remove('show'); };
   window.recolherArvoreInteira = function() { document.querySelectorAll('.node').forEach(node => { const p = node.getAttribute('data-path'); if (p !== "MOVIMENTOS" && p !== "NOTÍCIAS") node.classList.remove('active'); }); };
-  function normalizarTexto(t) { return t.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase(); }
   
   function vasculharArvore(lista, termo, caminhoAtual = [], resultados = []) {
     const termoFormatado = normalizarTexto(termo);
@@ -1195,7 +1204,7 @@
           Object.values(agendaMenusGlobais).forEach(ev => { if (ev && datasAlvo.includes(ev.dataAlerta)) pacotesEventos.push(ev); });
           Object.values(alertasCalendarioGlobais).forEach(ev => { if (ev && datasAlvo.includes(ev.dataAlerta)) pacotesEventos.push(ev); });
 
-          if (pacotesEventos.length === 0) {
+          if (pacotesEventEventos.length === 0) {
               alert("Não existem eventos ou agendas cadastrados nos próximos 7 dias.");
               btn.innerText = backupText; btn.disabled = false;
               return;
