@@ -119,7 +119,7 @@
   .stat-list.bottom li { border-left-color: var(--accent-blue); }
   .stat-count { font-weight: bold; color: #888; font-size: 11px; background: #222; padding: 2px 6px; border-radius: 10px; }
 
-  /* --- VISOR FLUTUANTE DE PREVIA --- */
+  /* --- VISOR FLUTUANTE DE PREVIA (TOOLTIP) --- */
   #tooltip-preview { 
     position: fixed; z-index: 10000; pointer-events: auto; background: rgba(10, 10, 10, 0.98); 
     backdrop-filter: blur(6px); border: 1px solid #444; border-radius: 8px; padding: 14px; 
@@ -331,16 +331,16 @@
                   </div>
                   <div id="calendar-days" style="display: grid; grid-template-columns: repeat(7, 1fr); gap: 5px; text-align: center;"></div>
                   
-                  <div id="calendar-event-list" style="margin-top: 15px; border-top: 1px solid #222; padding-top: 12px; display: none;">
-                      <h5 style="margin: 0 0 8px 0; font-size: 11px; color: var(--accent-orange); text-transform: uppercase; letter-spacing: 0.5px;">Alertas do Dia Selecionado</h5>
-                      <div id="cal-events-ul" style="display: flex; flex-direction: column; gap: 6px; max-height: 220px; overflow-y: auto; padding-right: 4px;"></div>
-                  </div>
-
                   <button class="btn-action" onclick="window.abrirModalCalendarioDireto()" style="width: 100%; margin-top: 15px; background: var(--accent-orange); color: black; font-weight: bold; border: none; padding: 10px; border-radius: 6px;">➕ Agendar Evento</button>
                   
                   <button class="btn-action" onclick="window.abrirModalIAParser()" style="width: 100%; margin-top: 8px; background: #00bcd4; color: black; font-weight: bold; border: none; padding: 10px; border-radius: 6px;">🤖 Agendar Evento por IA</button>
                   
                   <button id="btn-ia-report" class="btn-action" onclick="window.gerarRelatorioIA()" style="width: 100%; margin-top: 8px; background: #00ffaa; color: black; font-weight: bold; border: none; padding: 10px; border-radius: 6px;">🤖 Gerar Relatório IA (7 Dias)</button>
+
+                  <div id="calendar-event-list" style="margin-top: 15px; border-top: 1px solid #222; padding-top: 12px; display: none;">
+                      <h5 style="margin: 0 0 8px 0; font-size: 11px; color: var(--accent-orange); text-transform: uppercase; letter-spacing: 0.5px;">Alertas do Dia Selecionado</h5>
+                      <div id="cal-events-ul" style="display: flex; flex-direction: column; gap: 6px; max-height: 180px; overflow-y: auto; padding-right: 4px;"></div>
+                  </div>
               </div>
           </div>
       </div>
@@ -431,9 +431,67 @@
   let currentCalMonth = new Date().getMonth();
   window.CURRENT_SELECTED_DAY = "";
 
-  // =====================================================================
-  // AUXILIARES INDEPENDENTES DE TIMEZONE
-  // =====================================================================
+  document.getElementById('btn-entrar').addEventListener('click', async () => {
+    const e = document.getElementById('email').value; const s = document.getElementById('senha').value;
+    const msg = document.getElementById('msg-erro'); msg.innerText = "Autenticando...";
+    try { await signInWithEmailAndPassword(auth, e, s); } catch (error) { msg.innerText = "Acesso negado. Credenciais incorretas."; }
+  });
+
+  document.getElementById('btn-sair').addEventListener('click', () => { signOut(auth).then(() => { location.reload(); }); });
+
+  onAuthStateChanged(auth, (user) => {
+    if (user) {
+        document.getElementById('login-screen').style.display = 'none';
+        document.getElementById('app-content').style.display = 'block';
+        document.getElementById('connection-status').innerText = `Operador: ${user.email} | Sincronizado 🟢`;
+        iniciarSistemaC2();
+    } else {
+        document.getElementById('login-screen').style.display = 'flex';
+        document.getElementById('app-content').style.display = 'none';
+    }
+  });
+
+  function iniciarSistemaC2() {
+      get(ref(db, 'estrutura_arvore')).then(snap => {
+          if(snap.exists()) {
+              window.DADOS_TOTAIS = snap.val();
+              listaTodosAlvos = [];
+              window.LISTA_MOVIMENTOS = [];
+              extrairTodosOsAlvos(window.DADOS_TOTAIS);
+              
+              const raiz = document.getElementById('raiz-arvore');
+              raiz.innerHTML = "";
+              desenhavelArvore(window.DADOS_TOTAIS, raiz, []);
+              iniciarMonitoramentoDiario();
+          } else {
+              document.getElementById('data-display').innerText = "Erro ao carregar os nós da nuvem.";
+          }
+      }).catch(err => {
+          document.getElementById('data-display').innerText = "Erro de Autenticação na Nuvem.";
+      });
+  }
+
+  function extrairTodosOsAlvos(lista, caminhoAtual = []) {
+      if (!Array.isArray(lista)) lista = lista ? Object.values(lista) : [];
+      lista.forEach(item => {
+          const novoCaminho = [...caminhoAtual, item.nome];
+          const temFilhos = item.filhos && item.filhos.length > 0;
+          const temLinks = item.links && item.links.length > 0;
+
+          if (novoCaminho[0] === "MOVIMENTOS" && (temFilhos || temLinks) && novoCaminho.length >= 4) {
+              window.LISTA_MOVIMENTOS.push({ caminhoStr: novoCaminho.join(' > '), nome: item.nome });
+          }
+
+          if (item.links && item.links.length > 0) {
+              item.links.forEach(link => {
+                  const idUnico = novoCaminho.join(' > ') + " > " + link.url;
+                  listaTodosAlvos.push({ id: sanitizarId(idUnico), titulo: novoCaminho.slice(-2).join(' > '), caminho: novoCaminho });
+              });
+          }
+          if (item.filhos) { extrairTodosOsAlvos(item.filhos, novoCaminho); }
+      });
+  }
+
   function obterDataBrasiliaISO() { const d = new Date(new Date().toLocaleString("en-US", {timeZone: "America/Sao_Paulo"})); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`; }
   function obterDataBrasiliaBr() { return new Intl.DateTimeFormat('pt-BR', { timeZone: 'America/Sao_Paulo', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date()); }
   function obterHoraBrasilia() { const d = new Date(new Date().toLocaleString("en-US", {timeZone: "America/Sao_Paulo"})); return `${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`; }
@@ -444,7 +502,7 @@
     const monday = new Date(d.setDate(diff));
     return `${monday.getFullYear()}-${String(monday.getMonth()+1).padStart(2,'0')}-${String(monday.getDate()).padStart(2,'0')}`;
   }
-  function sanitizarId(str) { return str ? str.replace(/[.#$\[\]/]/g, "_") : ""; }
+  function sanitizarId(str) { return str.replace(/[.#$\[\]/]/g, "_"); }
 
   function getCorTermica(pct) {
     if (pct === 0) return 'transparent';
@@ -454,119 +512,97 @@
     let p = (pct - 70) / 30; return `rgb(${Math.round(40 - (40 - 0) * p)}, ${Math.round(167 - (167 - 123) * p)}, ${Math.round(69 + (255 - 69) * p)})`;
   }
 
-  // =====================================================================
-  // ENGENHARIA COMPACTA E BLINDADA DE SELETORES EM MEMÓRIA (ANTI-CRASH)
-  // =====================================================================
-  function construirItemVisualEvento(nota, keyId, tipoEntrada) {
-      if (!nota) return document.createElement('div');
-      const div = document.createElement('div');
-      div.style.cssText = `background: #111; border-left: 3px solid ${tipoEntrada === 'direto' ? 'var(--accent-yellow)' : 'var(--accent-orange)'}; padding: 10px; border-radius: 4px; font-size: 13px; line-height: 1.4; box-sizing: border-box; margin-bottom: 8px; text-align: left;`;
+  const dataHojeISO = obterDataBrasiliaISO();
+  const semanaAtualISO = obterSegundaFeiraDaSemana();
 
-      const dataAlertaStr = nota.dataAlerta ? String(nota.dataAlerta) : '';
-      let dataBr = dataAlertaStr ? dataAlertaStr.split('-').reverse().join('/') : '--/--/----';
-      let caminhoFoco = (tipoEntrada === 'direto') ? String(nota.movimentoAtrelado || '') : String(nota.pathString || '');
+  function iniciarMonitoramentoDiario() {
+      document.getElementById('data-display').innerText = `Data de Referência (Brasília): ${obterDataBrasiliaBr()}`;
 
-      let operadorLimpo = String(nota.operador || 'Desconhecido').split('@')[0];
-      let horaLimpa = nota.horaAlerta ? String(nota.horaAlerta) : '--:--';
-      let localLimpo = nota.local ? String(nota.local) : 'Não cadastrado';
-      let textoLimpo = nota.texto ? String(nota.texto) : 'Sem descrição';
-      let tituloLimpo = nota.tituloOrigem ? String(nota.tituloOrigem) : 'Evento Geral';
-
-      div.innerHTML = `
-          <div style="display: flex; justify-content: space-between; align-items: center; font-weight: bold; color: var(--accent-yellow);">
-              <span>🎯 ${tituloLimpo}</span>
-              <div style="display: flex; gap: 8px;">
-                  <span class="btn-editar-card" style="cursor: pointer; font-size: 12px; background: #222; padding: 2px 6px; border-radius: 4px; color: var(--accent-yellow); border: 1px solid #444;" title="Editar">✏️</span>
-                  <span class="btn-excluir-card" style="cursor: pointer; font-size: 12px; background: #222; padding: 2px 6px; border-radius: 4px; color: var(--accent-red); border: 1px solid #444;" title="Excluir">🗑️</span>
-              </div>
-          </div>
-          <div style="font-size: 11px; color: #aaa; margin-top: 4px;">
-              📅 ${dataBr} às ${horaLimpa}
-          </div>
-          <div style="margin-top: 6px; text-align: right;">
-              <span class="btn-toggle-info" style="cursor: pointer; font-size: 10px; color: var(--accent-blue); background: #161616; padding: 2px 6px; border-radius: 3px; border: 1px solid #333; font-weight: bold;">🔍 + Detalhes</span>
-          </div>
-          
-          <div class="info-detalhada-card" style="display: none; margin-top: 10px; padding-top: 8px; border-top: 1px solid #222; font-size: 12px; color: #fff;">
-              <div style="margin-bottom: 6px; white-space: pre-wrap; color: #ddd;">"${linkify(textoLimpo)}"</div>
-              <div style="font-size: 11px; color: #aaa; margin-bottom: 3px;">📍 Local/Endereço: ${localLimpo}</div>
-              ${caminhoFoco ? `<div class="btn-focar-movimento" style="font-size: 11px; color: var(--accent-blue); font-weight: bold; cursor: pointer; text-decoration: underline;">🔗 Movimento Atrelado: ${caminhoFoco.replace("MOVIMENTOS > ", "")}</div>` : ''}
-              <div style="font-size: 10px; color: #666; margin-top: 5px;">Registrado por: ${operadorLimpo} às ${nota.time || '--:--'}</div>
-          </div>
-      `;
-
-      div.querySelector('.btn-editar-card').addEventListener('click', (e) => {
-          e.preventDefault(); e.stopPropagation();
-          window.abrirModalTatico(e, keyId, tituloLimpo, tipoEntrada === 'direto' ? 'direto' : 'agenda');
+      onValue(ref(db, `monitoramentoDiario/${dataHojeISO}`), (snapshot) => {
+        const data = snapshot.val() || {};
+        vistosGlobais = data.vistos ? Object.values(data.vistos) : [];
+        anotacoesGlobais = data.anotacoes || {}; 
+        agendaMenusGlobais = data.agenda_menus || {}; 
+        atualizarUiComVistos();
+        verificarAlertasExpirados(); 
+        if (window.CURRENT_SELECTED_DAY) window.selecionarDiaCalendario(window.CURRENT_SELECTED_DAY);
       });
 
-      div.querySelector('.btn-excluir-card').addEventListener('click', (e) => {
-          e.preventDefault(); e.stopPropagation();
-          const confirmar = confirm(`[EXCLUIR COMPROMISSO]\nDeseja apagar permanentemente este agendamento da nuvem?`);
-          if (!confirmar) return;
-          if (tipoEntrada === 'direto') {
-              set(ref(db, `alertas_calendario/${keyId}`), null);
-          } else {
-              set(ref(db, `agenda_menus/${keyId}`), null);
+      onValue(ref(db, 'alertas_calendario'), (snapshot) => {
+          alertasCalendarioGlobais = snapshot.val() || {};
+          window.renderizarCalendarioTatico();
+          verificarAlertasExpirados();
+          if (window.CURRENT_SELECTED_DAY) window.selecionarDiaCalendario(window.CURRENT_SELECTED_DAY);
+      });
+
+      onValue(ref(db, `estatisticas_semanal/${semanaAtualISO}`), (snapshot) => {
+        const dataFirebase = snapshot.val() || {};
+        let estatisticasCompletas = listaTodosAlvos.map(alvo => {
+            return { titulo: alvo.titulo, count: dataFirebase[alvo.id] ? dataFirebase[alvo.id].count : 0, caminho: alvo.caminho };
+        });
+        estatisticasCompletas.sort((a, b) => b.count - a.count);
+        const top15 = estatisticasCompletas.filter(s => s.count > 0).slice(0, 15);
+        const bottom15 =  estatisticasCompletas.slice(-15).reverse();
+        
+        document.getElementById('list-top').innerHTML = top15.length > 0 
+            ? top15.map(s => `<li data-caminho="${s.caminho.join(' > ')}" onclick="window.focarCaminhoDireto(this.getAttribute('data-caminho'))"><span>${s.titulo}</span> <span class="stat-count">${s.count} cliques</span></li>`).join('')
+            : '<li style="color: #666; justify-content: center;">Nenhum alvo acessado ainda</li>';
+        document.getElementById('list-bottom').innerHTML = bottom15.map(s => `<li data-caminho="${s.caminho.join(' > ')}" onclick="window.focarCaminhoDireto(this.getAttribute('data-caminho'))"><span>${s.titulo}</span> <span class="stat-count">${s.count} cliques</span></li>`).join('');
+      });
+
+      onValue(ref(db, 'marcacoesTaticas/estrelas'), (snapshot) => {
+          const data = snapshot.val();
+          estrelasOrigem = data ? Object.values(data) : [];
+          atualizarEstrelasUI();
+      });
+  }
+
+  function verificarAlertasExpirados() {
+      const agoraStr = obterDataBrasiliaISO() + " " + obterHoraBrasilia();
+      
+      Object.keys(agendaMenusGlobais).forEach(safeKey => {
+          const nota = agendaMenusGlobais[safeKey];
+          if (nota && nota.dataAlerta && nota.horaAlerta) {
+              const alvoStr = nota.dataAlerta + " " + nota.horaAlerta;
+              if (alvoStr <= agoraStr && !alertasPromptadosSessao.includes(safeKey)) {
+                  alertasPromptadosSessao.push(safeKey); 
+                  setTimeout(() => {
+                      const dispensar = confirm(`[AGENDA VENCIDA]\nO prazo do evento de "${nota.tituloOrigem}" no local "${nota.local || 'Não Definido'}" expirou.\n\nDeseja REMOVER este alerta da agenda de hoje?`);
+                      if (dispensar) set(ref(db, `monitoramentoDiario/${dataHojeISO}/agenda_menus/${safeKey}`), null);
+                  }, 600);
+              }
           }
       });
 
-      div.querySelector('.btn-toggle-info').addEventListener('click', (e) => {
-          e.preventDefault(); e.stopPropagation();
-          const target = div.querySelector('.info-detalhada-card');
-          target.style.display = (target.style.display === 'none') ? 'block' : 'none';
-          e.target.innerText = (target.style.display === 'none') ? '🔍 + Detalhes' : '✖️ Ocultar';
+      Object.keys(alertasCalendarioGlobais).forEach(keyId => {
+          const nota = alertasCalendarioGlobais[keyId];
+          if (nota && nota.dataAlerta && nota.horaAlerta) {
+              const alvoStr = nota.dataAlerta + " " + nota.horaAlerta;
+              if (alvoStr <= agoraStr && !alertasPromptadosSessao.includes(keyId)) {
+                  alertasPromptadosSessao.push(keyId);
+                  setTimeout(() => {
+                      const dispensar = confirm(`[EVENTO CALENDÁRIO VENCIDO]\nO prazo do agendamento direto "${nota.tituloOrigem}" expirou.\n\nDeseja REMOVER este registro da nuvem?`);
+                      if (dispensar) set(ref(db, `alertas_calendario/${keyId}`), null);
+                  }, 600);
+              }
+          }
       });
-
-      if (caminhoFoco) {
-          div.querySelector('.btn-focar-movimento').addEventListener('click', (e) => {
-              e.preventDefault(); e.stopPropagation();
-              window.focarCaminhoDireto(caminhoFoco);
-          });
-      }
-
-      return div;
   }
 
-  window.selecionarDiaCalendario = function(dataStr) {
-      window.CURRENT_SELECTED_DAY = dataStr;
-      const listaEvs = document.getElementById('cal-events-ul');
-      const containerEvs = document.getElementById('calendar-event-list');
-      if (!listaEvs || !containerEvs) return;
-      listaEvs.innerHTML = ""; let encontrou = false;
-
-      if (agendaMenusGlobais) {
-          Object.keys(agendaMenusGlobais).forEach(key => {
-              const nota = agendaMenusGlobais[key];
-              if (nota && String(nota.dataAlerta) === String(dataStr)) { 
-                  encontrou = true; 
-                  listaEvs.appendChild(construirItemVisualEvento(nota, key, 'pasta')); 
-              }
-          });
-      }
-
-      if (alertasCalendarioGlobais) {
-          Object.keys(alertasCalendarioGlobais).forEach(key => {
-              const nota = alertasCalendarioGlobais[key];
-              if (nota && String(nota.dataAlerta) === String(dataStr)) { 
-                  encontrou = true; 
-                  listaEvs.appendChild(construirItemVisualEvento(nota, key, 'direto')); 
-              }
-          });
-      }
-
-      containerEvs.style.display = encontrou ? 'block' : 'none';
+  window.mudarMesCalendario = function(direcao) {
+      currentCalMonth += direcao;
+      if (currentCalMonth > 11) { currentCalMonth = 0; currentCalYear++; }
+      if (currentCalMonth < 0) { currentCalMonth = 11; currentCalYear--; }
+      window.renderizarCalendarioTatico();
   };
 
+  /* =========================================
+     SISTEMA DE RENDERIZAÇÃO DO CALENDÁRIO
+     ========================================= */
   window.renderizarCalendarioTatico = function() {
       const meses = ["Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho", "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"];
-      const headerDisplay = document.getElementById('cal-month-year');
-      const gridDays = document.getElementById('calendar-days');
-      if (!headerDisplay || !gridDays) return;
-
-      headerDisplay.innerText = `${meses[currentCalMonth]} ${currentCalYear}`;
-      gridDays.innerHTML = "";
-      
+      document.getElementById('cal-month-year').innerText = `${meses[currentCalMonth]} ${currentCalYear}`;
+      const gridDays = document.getElementById('calendar-days'); gridDays.innerHTML = "";
       const primeiroDiaSemana = new Date(currentCalYear, currentCalMonth, 1).getDay();
       const totalDiasMes = new Date(currentCalYear, currentCalMonth + 1, 0).getDate();
       
@@ -585,8 +621,8 @@
           }
 
           let temAlertaNoDia = false;
-          Object.keys(agendaMenusGlobais).forEach(key => { if (agendaMenusGlobais[key] && String(agendaMenusGlobais[key].dataAlerta) === dateStr) temAlertaNoDia = true; });
-          Object.keys(alertasCalendarioGlobais).forEach(key => { if (alertasCalendarioGlobais[key] && String(alertasCalendarioGlobais[key].dataAlerta) === dateStr) temAlertaNoDia = true; });
+          Object.keys(agendaMenusGlobais).forEach(key => { if (agendaMenusGlobais[key] && agendaMenusGlobais[key].dataAlerta === dateStr) temAlertaNoDia = true; });
+          Object.keys(alertasCalendarioGlobais).forEach(key => { if (alertasCalendarioGlobais[key] && alertasCalendarioGlobais[key].dataAlerta === dateStr) temAlertaNoDia = true; });
 
           if (temAlertaNoDia) {
               dayDiv.style.borderColor = "var(--accent-orange)"; dayDiv.style.background = "rgba(255, 140, 0, 0.15)";
@@ -599,9 +635,140 @@
       }
   };
 
-  // =====================================================================
-  // BLOCO 3: CORE DA INTELIGÊNCIA ARTIFICIAL E MODAIS
-  // =====================================================================
+  window.filtrarMovimentosDropdown = function() {
+      const input = document.getElementById('nota-movimento-input').value;
+      const box = document.getElementById('nota-movimento-sugestoes');
+      box.innerHTML = "";
+
+      if (input.trim().length === 0) { box.style.display = 'none'; return; }
+
+      const termoFormatado = normalizarTexto(input);
+      const filtrados = window.LISTA_MOVIMENTOS.filter(mov => normalizarTexto(mov.caminhoStr).includes(termoFormatado));
+
+      if (filtrados.length === 0) { box.style.display = 'none'; return; }
+
+      filtrados.forEach(mov => {
+          const itemDiv = document.createElement('div');
+          itemDiv.style.cssText = "padding: 8px 12px; cursor: pointer; border-bottom: 1px solid #1a1a1a; font-size: 12px; color: #ccc; transition: 0.15s; text-align: left;";
+          itemDiv.innerText = mov.caminhoStr.replace("MOVIMENTOS > ", "");
+          
+          itemDiv.onmouseenter = function() { this.style.background = "#1c1c1c"; this.style.color = "var(--accent-yellow)"; };
+          itemDiv.onmouseleave = function() { this.style.background = "transparent"; this.style.color = "#ccc"; };
+          
+          itemDiv.onclick = function() {
+              document.getElementById('nota-movimento-input').value = mov.caminhoStr;
+              box.style.display = 'none';
+          };
+          box.appendChild(itemDiv);
+      });
+      box.style.display = 'block';
+  };
+
+  window.abrirModalCalendarioDireto = function() {
+      contextoAtual = 'direto'; alvoAtualNota = "";
+      document.getElementById('nota-alvo-titulo').innerText = "Agendar Novo Evento";
+      document.getElementById('nota-textarea').value = ""; document.getElementById('nota-local').value = "";
+      document.getElementById('nota-data').value = ""; document.getElementById('nota-hora').value = "";
+      document.getElementById('nota-movimento-input').value = "";
+      document.getElementById('nota-movimento-sugestoes').style.display = 'none';
+
+      document.getElementById('container-local').style.display = 'block';
+      document.getElementById('container-tempo').style.display = 'flex';
+      document.getElementById('container-atrelar-movimento').style.display = 'block';
+      
+      document.getElementById('btn-modal-gravar').style.display = 'block';
+      document.getElementById('btn-modal-gravar').innerText = "Gravar Alerta";
+
+      document.getElementById('modal-overlay').style.display = 'block';
+      document.getElementById('nota-modal').style.display = 'block';
+      document.getElementById('nota-textarea').focus();
+  };
+
+  /* --- SISTEMA COMPACTO DE EXPANSÃO E RESUMO DO CALENDÁRIO --- */
+  function construirItemVisualEvento(nota, keyId, tipoEntrada) {
+      const div = document.createElement('div');
+      div.style.cssText = `background: #111; border-left: 3px solid ${tipoEntrada === 'direto' ? 'var(--accent-yellow)' : 'var(--accent-orange)'}; padding: 10px; border-radius: 4px; font-size: 13px; line-height: 1.4; box-sizing: border-box; margin-bottom: 8px;`;
+
+      let dataBr = nota.dataAlerta ? nota.dataAlerta.split('-').reverse().join('/') : '--/--/----';
+      let caminhoFoco = tipoEntrada === 'direto' ? (nota.movimentoAtrelado || "") : (nota.pathString || "");
+
+      // MONTAGEM DO LAYOUT DE ACORDO COM AS ESPECIFICAÇÕES (RESUMO + EDIÇÃO + EXCLUSÃO + SANFONA DETALHADA)
+      div.innerHTML = `
+          <div style="display: flex; justify-content: space-between; align-items: center; font-weight: bold; color: var(--accent-yellow);">
+              <span>🎯 ${nota.tituloOrigem || 'Evento Geral'}</span>
+              <div style="display: flex; gap: 5px;" onclick="event.stopPropagation();">
+                  <span class="btn-editar-card" style="cursor: pointer; font-size: 11px; background: #222; padding: 2px 6px; border-radius: 4px; color: var(--accent-yellow); border: 1px solid #444;" title="Editar">✏️</span>
+                  <span class="btn-excluir-card" style="cursor: pointer; font-size: 11px; background: #222; padding: 2px 6px; border-radius: 4px; color: var(--accent-red); border: 1px solid #444;" title="Excluir">🗑️</span>
+              </div>
+          </div>
+          <div style="font-size: 11px; color: #aaa; margin-top: 4px;">
+              📅 ${dataBr} às ${nota.horaAlerta || '--:--'}
+          </div>
+          <div style="margin-top: 6px; text-align: right;">
+              <span class="btn-toggle-info" style="cursor: pointer; font-size: 10px; color: var(--accent-blue); background: #161616; padding: 2px 6px; border-radius: 3px; border: 1px solid #333; font-weight: bold;">🔍 + Detalhes</span>
+          </div>
+          
+          <div class="info-detalhada-card" style="display: none; margin-top: 10px; padding-top: 8px; border-top: 1px solid #222; font-size: 12px; color: #fff;">
+              <div style="margin-bottom: 6px; white-space: pre-wrap; color: #ddd;">"${linkify(nota.texto) || 'Sem descrição'}"</div>
+              <div style="font-size: 11px; color: #aaa; margin-bottom: 3px;">📍 Local/Endereço: ${nota.local || 'Não cadastrado'}</div>
+              ${caminhoFoco ? `<div style="font-size: 11px; color: var(--accent-blue); font-weight: bold; cursor: pointer; text-decoration: underline;" onclick="window.focarCaminhoDireto('${caminhoFoco}')">🔗 Movimento Atrelado: ${caminhoFoco.replace("MOVIMENTOS > ", "")}</div>` : ''}
+              <div style="font-size: 10px; color: #666; margin-top: 5px;">Registrado por: ${nota.operador ? nota.operador.split('@')[0] : 'Desconhecido'} às ${nota.time || '--:--'}</div>
+          </div>
+      `;
+
+      // Evento para o botão de Edição
+      div.querySelector('.btn-editar-card').addEventListener('click', (e) => {
+          window.abrirModalTatico(e, keyId, nota.tituloOrigem || 'Evento Geral', tipoEntrada === 'direto' ? 'direto' : 'agenda');
+      });
+
+      // Evento para a lixeira de exclusão
+      div.querySelector('.btn-excluir-card').addEventListener('click', (e) => {
+          e.preventDefault(); e.stopPropagation();
+          const confirmar = confirm(`[EXCLUIR COMPROMISSO]\nDeseja apagar permanentemente este agendamento da nuvem?`);
+          if (!confirmar) return;
+          if (tipoEntrada === 'direto') {
+              set(ref(db, `alertas_calendario/${keyId}`), null);
+          } else {
+              set(ref(db, `monitorementDiario/${dataHojeISO}/anotacoes/${keyId}`), null);
+              set(ref(db, `monitoramentoDiario/${dataHojeISO}/agenda_menus/${keyId}`), null);
+          }
+      });
+
+      // Evento para a Sanfona de Detalhes
+      div.querySelector('.btn-toggle-info').addEventListener('click', (e) => {
+          e.preventDefault(); e.stopPropagation();
+          const target = div.querySelector('.info-detalhada-card');
+          if (target.style.display === 'none') {
+              target.style.display = 'block';
+              e.target.innerText = "✖️ Ocultar";
+          } else {
+              target.style.display = 'none';
+              e.target.innerText = "🔍 + Detalhes";
+          }
+      });
+
+      return div;
+  }
+
+  window.selecionarDiaCalendario = function(dataStr) {
+      window.CURRENT_SELECTED_DAY = dataStr;
+      const listaEvs = document.getElementById('cal-events-ul');
+      const containerEvs = document.getElementById('calendar-event-list');
+      listaEvs.innerHTML = ""; let encontrou = false;
+
+      Object.keys(agendaMenusGlobais).forEach(key => {
+          const nota = agendaMenusGlobais[key];
+          if (nota && nota.dataAlerta === dataStr) { encontrou = true; listaEvs.appendChild(construirItemVisualEvento(nota, key, 'pasta')); }
+      });
+
+      Object.keys(alertasCalendarioGlobais).forEach(key => {
+          const nota = alertasCalendarioGlobais[key];
+          if (nota && nota.dataAlerta === dataStr) { encontrou = true; listaEvs.appendChild(construirItemVisualEvento(nota, key, 'direto')); }
+      });
+
+      containerEvs.style.display = encontrou ? 'block' : 'none';
+  };
+
   window.abrirModalIAParser = function() {
       document.getElementById('ia-texto-bruto').value = "";
       document.getElementById('btn-ia-avancar').innerText = "Avançar ➔";
@@ -611,6 +778,7 @@
       document.getElementById('ia-texto-bruto').focus();
   };
 
+  /* --- ADAPTADOR DE INTELIGÊNCIA TEMPORAL DINÂMICA EM TEMPO REAL --- */
   window.processarTextoBrutoIA = async function() {
       const txtBruto = document.getElementById('ia-texto-bruto').value.trim();
       if (!txtBruto) { alert("Cole o texto do informe antes de avançar."); return; }
@@ -625,14 +793,27 @@
           }
           const apiKey = snapChave.val().trim();
 
+          // CAPTURA CONTEXTUAL CRÍTICA DO RELÓGIO ATUAL DO SISTEMA (AMERICA/SAO_PAULO)
           const tempoSistema = new Date(new Date().toLocaleString("en-US", {timeZone: "America/Sao_Paulo"}));
           const anoCorrente = tempoSistema.getFullYear();
           const mesCorrenteNum = String(tempoSistema.getMonth() + 1).padStart(2, '0');
           const mesesMatriz = ["Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho", "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"];
           const nomeMesCorrente = mesesMatriz[tempoSistema.getMonth()];
 
-          const promptInstrucao = `Você é um robô auxiliar de inteligência e triagem. Analise o informe operacional fornecido e extraia os dados estruturados. Responda APENAS com um objeto JSON plano válido. Se omitido, use o ano ${anoCorrente} e mês de ${nomeMesCorrente}.
-          JSON Chaves obrigatórias: "texto", "local", "data" (YYYY-MM-DD), "hora" (HH:MM), "movimento". Texto original: "${txtBruto}"`;
+          // PROMPT REARQUITETADO COM INJEÇÃO DINÂMICA DE CONTEXTO ATUAL DE MÊS E ANO
+          const promptInstrucao = `Você é um robô auxiliar de triagem. Analise o informe bruto fornecido e extraia as informações estruturadas de forma cirúrgica. Responda APENAS E EXCLUSIVAMENTE com um objeto JSON plano (sem caixas de código markdown, sem textos extras ou explicações).
+          
+          DIRETRIZ CRÍTICA DE COMPLETAÇÃO DE DATA:
+          - Caso o texto bruto NÃO cite o ano de forma explícita, utilize obrigatoriamente o ano atual: ${anoCorrente}.
+          - Caso o texto bruto cite apenas o dia mas omita o mês (ex: "nesta terça dia 9" ou "marcado para o dia 15"), utilize obrigatoriamente o mês atual de referência: ${nomeMesCorrente} (${mesCorrenteNum}) do ano ${anoCorrente}, a menos que o contexto aponte de forma explícita para uma virada de mês óbvia.
+          
+          Chaves exatas do JSON esperado:
+          - "texto": Um resumo conciso da pauta da manifestação ou evento em poucas palavras.
+          - "local": O local físico, endereço ou praça citado no texto.
+          - "data": O dia do evento formatado rigidamente no padrão internacional YYYY-MM-DD.
+          - "hora": O horário do evento formatado rigidamente no padrão de 24h HH:MM.
+          - "movimento": O trecho ou nome do movimento/grupo envolvido se houver.
+          Texto para análise: "${txtBruto}"`;
 
           const resposta = await fetch(`https://generativelanguage.googleapis.com/v1/models/gemini-2.5-flash:generateContent?key=${apiKey}`, {
               method: "POST", headers: { "Content-Type": "application/json" },
@@ -641,11 +822,7 @@
 
           const dataIa = await resposta.json();
           let rawText = dataIa.candidates[0].content.parts[0].text;
-          
-          let inicioJson = rawText.indexOf('{');
-          let fimJson = rawText.lastIndexOf('}');
-          if (inicioJson === -1 || fimJson === -1) { throw new Error("JSON inválido."); }
-          let cleanJsonStr = rawText.substring(inicioJson, fimJson + 1).trim();
+          let cleanJsonStr = rawText.replace(/```json|```/g, "").trim();
           let dataObjeto = JSON.parse(cleanJsonStr);
 
           document.getElementById('ia-input-modal').style.display = 'none';
@@ -665,79 +842,51 @@
           document.getElementById('btn-modal-gravar').innerText = "Confirmar e Gravar Alerta";
           document.getElementById('nota-modal').style.display = 'block';
       } catch (err) {
-          alert("A IA falhou em estruturar as informações.");
+          alert("A IA não conseguiu completar de forma precisa. Use o agendamento clássico.");
           console.error(err);
       }
       btn.innerText = "Avançar ➔"; btn.disabled = false;
   };
 
-  window.gerarRelatorioIA = async function() {
-      const btn = document.getElementById('btn-ia-report');
-      const backupText = btn.innerText;
-      btn.innerText = "🤖 Analisando Cenários..."; btn.disabled = true;
-
-      try {
-          const snapChave = await get(ref(db, 'config/gemini_key'));
-          if (!snapChave.exists() || snapChave.val().trim() === "") {
-              alert("A IA ainda não foi ativada.\n\nSalve sua chave no nó 'config/gemini_key'.");
-              btn.innerText = backupText; btn.disabled = false; return;
-          }
-          const apiKey = snapChave.val().trim();
-
-          let promptBase = "Você é uma Inteligência Artificial analista de dados. Analise a seguinte lista de eventos e manifestações agendadas para os próximos 7 dias e crie um Relatório Sintético de Cenários Ocultando jargões desnecessários. Organize estritamente por Ordem Cronológica de Dias, resumindo os principais alvos (movimentos envolvidos), horários e os locais citados. Seja muito direto, formal e objetivo. Use tópicos claros.";
-          const snapPrompt = await get(ref(db, 'config/prompt_ia'));
-          if (snapPrompt.exists() && snapPrompt.val().trim() !== "") { promptBase = snapPrompt.val().trim(); }
-
-          let datasAlvo = [];
-          for (let i = 0; i < 7; i++) {
-              const d = new Date(new Date().toLocaleString("en-US", {timeZone: "America/Sao_Paulo"}));
-              d.setDate(d.getDate() + i);
-              datasAlvo.push(`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`);
-          }
-
-          let pacotesEventos = [];
-          Object.values(agendaMenusGlobais).forEach(ev => { if (ev && datasAlvo.includes(ev.dataAlerta)) pacotesEventos.push(ev); });
-          Object.values(alertasCalendarioGlobais).forEach(ev => { if (ev && datasAlvo.includes(ev.dataAlerta)) pacotesEventos.push(ev); });
-
-          if (pacotesEventos.length === 0) {
-              alert("Não existem eventos ou agendas cadastrados nos próximos 7 dias.");
-              btn.innerText = backupText; btn.disabled = false; return;
-          }
-
-          const promptFinal = `${promptBase}\n\nEventos para análise: ${JSON.stringify(pacotesEventos)}`;
-
-          const resposta = await fetch(`https://generativelanguage.googleapis.com/v1/models/gemini-2.5-flash:generateContent?key=${apiKey}`, {
-              method: "POST", headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ contents: [{ parts: [{ text: promptFinal }] }] })
-          });
-
-          const dataIa = await resposta.json();
-          const relatorioFormatado = dataIa.candidates[0].content.parts[0].text;
-
-          document.getElementById('nota-alvo-titulo').innerText = "🤖 Relatório Analítico IA (Próximos 7 Dias)";
-          document.getElementById('nota-textarea').value = relatorioFormatado;
-          document.getElementById('container-local').style.display = 'none';
-          document.getElementById('container-tempo').style.display = 'none';
-          document.getElementById('container-atrelar-movimento').style.display = 'none';
-          
-          const btnGravar = document.getElementById('btn-modal-gravar');
-          btnGravar.innerText = "📋 Copiar Relatório";
-          btnGravar.onclick = function() {
-              navigator.clipboard.writeText(relatorioFormatado);
-              alert("Relatório copiado!");
-          };
-
-          document.getElementById('modal-overlay').style.display = 'block';
-          document.getElementById('nota-modal').style.display = 'block';
-      } catch (err) {
-          alert("Falha de Processamento na IA.");
-          console.error(err);
-      }
-      btn.innerText = backupText; btn.disabled = false;
+  window.focarCaminhoDireto = function(caminhoCompletoStr) {
+      if (!caminhoCompletoStr) return;
+      const pastas = caminhoCompletoStr.split(' > ');
+      document.querySelectorAll('.node').forEach(node => node.classList.remove('active'));
+      let c = "";
+      pastas.forEach((pasta, idx) => {
+          c += (idx === 0 ? "" : " > ") + pasta;
+          const n = document.querySelector(`.node[data-path="${c}"]`); if (n) n.classList.add('active');
+      });
+      const target = document.querySelector(`.node[data-path="${caminhoCompletoStr}"]`);
+      if (target) target.scrollIntoView({ behavior: 'smooth', block: 'center' });
   };
 
+  window.clicarEstrela = function(e, idElemento) {
+      e.preventDefault(); e.stopPropagation();
+      if (!Array.isArray(estrelasOrigem)) estrelasOrigem = estrelasOrigem ? Object.values(estrelasOrigem) : [];
+      if (estrelasOrigem.includes(idElemento)) {
+          estrelasOrigem = estrelasOrigem.filter(orig => orig !== idElemento); set(ref(db, 'marcacoesTaticas/estrelas'), estrelasOrigem);
+      } else {
+          if (!estrelasOrigem.some(orig => idElemento.startsWith(orig + " > ") || orig.startsWith(idElemento + " > "))) {
+              estrelasOrigem.push(idElemento); set(ref(db, 'marcacoesTaticas/estrelas'), estrelasOrigem);
+          }
+      }
+  };
+
+  function atualizarEstrelasUI() {
+      if (!Array.isArray(estrelasOrigem)) estrelasOrigem = estrelasOrigem ? Object.values(estrelasOrigem) : [];
+      document.querySelectorAll('.star-icon').forEach(el => {
+          const id = el.getAttribute('data-star'); el.classList.remove('star-orange', 'star-yellow');
+          if (estrelasOrigem.includes(id)) el.classList.add('star-orange');
+          else if (estrelasOrigem.some(orig => id.startsWith(orig + " > ") || orig.startsWith(id + " > "))) el.classList.add('star-yellow');
+      });
+  }
+
+  window.esconderTooltipTatico = function() { document.getElementById('tooltip-preview').classList.remove('show'); };
+
   window.abrirModalTatico = function(e, idUnico, titulo, tipo) {
-      e.preventDefault(); e.stopPropagation(); window.esconderTooltipTatico();
+      if (e) { e.preventDefault(); e.stopPropagation(); }
+      window.esconderTooltipTatico();
       contextoAtual = tipo; alvoAtualNota = idUnico; tituloAtualNota = titulo;
       const safeKey = sanitizarId(idUnico);
       
@@ -780,6 +929,31 @@
       document.getElementById('nota-textarea').focus();
   };
 
+  window.mostrarTooltipTatico = function(e, idUnico, tipo) {
+      e.stopPropagation();
+      const safeKey = sanitizarId(idUnico);
+      const data = tipo === 'postit' ? anotacoesGlobais[safeKey] : agendaMenusGlobais[safeKey];
+      if (!data) return;
+
+      const tooltip = document.getElementById('tooltip-preview');
+      if (tipo === 'postit') {
+          tooltip.innerHTML = `
+              <div class="tooltip-title" style="color: var(--accent-red); border-bottom-color: var(--accent-red);">NOTA (POST-IT)</div>
+              <div style="color: #ffffff; font-weight: bold; font-size: 13px; margin-bottom: 6px; white-space: pre-wrap; line-height: 1.4;">"${linkify(data.texto) || 'Sem descrição'}"</div>
+              <div style="font-size: 10px; color: #aaa; border-top: 1px solid #222; padding-top: 4px;">🎯 Operador: ${data.operador.split('@')[0]} | ⏰ Registro: ${data.time}</div>
+          `;
+      } else {
+          tooltip.innerHTML = `
+              <div class="tooltip-title" style="color: var(--accent-yellow); border-bottom-color: var(--accent-yellow);">AGENDA DE EVENTO</div>
+              <div style="color: #ffffff; font-weight: bold; font-size: 13px; margin-bottom: 6px; white-space: pre-wrap; line-height: 1.4;">"${linkify(data.texto) || 'Sem descrição'}"</div>
+              <div style="font-size: 11px; color: var(--accent-orange); margin-bottom: 3px;">📍 Local: ${data.local || 'Não informado'}</div>
+              <div style="font-size: 11px; color: var(--accent-blue); margin-bottom: 6px;">📅 Evento: ${data.dataAlerta.split('-').reverse().join('/')} às ${data.horaAlerta || '--:--'}</div>
+              <div style="font-size: 10px; color: #aaa; border-top: 1px solid #222; padding-top: 4px;">🎯 Operador: ${data.operador.split('@')[0]} | ⏰ Registro: ${data.time}</div>
+          `;
+      }
+      tooltip.style.left = (e.clientX + 15) + 'px'; tooltip.style.top = (e.clientY + 10) + 'px'; tooltip.classList.add('show');
+  };
+
   window.fecharModalNota = function() {
       document.getElementById('modal-overlay').style.display = 'none';
       document.getElementById('nota-modal').style.display = 'none';
@@ -795,7 +969,7 @@
       const user = auth.currentUser ? auth.currentUser.email : 'Desconhecido';
 
       if (contextoAtual === 'direto') {
-          const movimentoAtrelado = document.getElementById('nota-movimento-input').value.trim();
+          const movimientoAtrelado = document.getElementById('nota-movimento-input').value.trim();
           const uniqueKey = alvoAtualNota || ("CAL_" + Date.now()); 
           const notaRef = ref(db, `alertas_calendario/${uniqueKey}`);
           
@@ -803,7 +977,7 @@
               set(notaRef, null);
           } else {
               set(notaRef, { 
-                  texto, local, dataAlerta, horaAlerta, movimentoAtrelado, operador: user, 
+                  texto, local, dataAlerta, horaAlerta, movimientoAtrelado, operador: user, 
                   time: obterHoraBrasilia(), tituloOrigem: movimientoAtrelado ? movimientoAtrelado.split(' > ').pop() : "Evento Geral", isDirectCalendar: true, keyId: uniqueKey
               });
           }
@@ -812,64 +986,20 @@
           if (texto === "") set(notaRef, null);
           else set(notaRef, { texto, operador: user, time: obterHoraBrasilia(), tituloOrigem: tituloAtualNota });
       } else if (contextoAtual === 'agenda') {
-          const notaRef = ref(db, `agenda_menus/${safeKey}`);
+          const notaRef = ref(db, `monitoramentoDiario/${dataHojeISO}/agenda_menus/${safeKey}`);
           if (texto === "" && local === "" && dataAlerta === "" && horaAlerta === "") set(notaRef, null);
           else set(notaRef, { texto, local, dataAlerta, horaAlerta, operador: user, time: obterHoraBrasilia(), tituloOrigem: tituloAtualNota, pathString: alvoAtualNota });
       }
       window.fecharModalNota();
   };
 
-  // =====================================================================
-  // BLOCO 4: ENGINE DA ÁRVORE TÁTICA, SISTEMA DE BUSCA E VISUALIZAÇÃO
-  // =====================================================================
-  window.recolherBusca = function() { document.getElementById('caixaResultados').style.display = 'none'; };
-
-  function focarCaminhoDireto(caminhoCompletoStr) {
-      if (!caminhoCompletoStr) return;
-      const pastas = caminhoCompletoStr.split(' > ');
-      document.querySelectorAll('.node').forEach(node => node.classList.remove('active'));
-      let c = "";
-      pastas.forEach((pasta, idx) => {
-          c += (idx === 0 ? "" : " > ") + pasta;
-          const n = Array.from(document.querySelectorAll('.node')).find(el => el.getAttribute('data-path') === c);
-          if (n) n.classList.add('active');
-      });
-      const target = Array.from(document.querySelectorAll('.node')).find(el => el.getAttribute('data-path') === caminhoCompletoStr);
-      if (target) target.scrollIntoView({ behavior: 'smooth', block: 'center' });
-  }
-  window.focarCaminhoDireto = focarCaminhoDireto;
-
-  window.clicarEstrela = function(e, idElemento) {
-      e.preventDefault(); e.stopPropagation();
-      if (!Array.isArray(estrelasOrigem)) estrelasOrigem = estrelasOrigem ? Object.values(estrelasOrigem) : [];
-      if (estrelasOrigem.includes(idElemento)) {
-          estrelasOrigem = estrelasOrigem.filter(orig => orig !== idElemento); set(ref(db, 'marcacoesTaticas/estrelas'), estrelasOrigem);
-      } else {
-          if (!estrelasOrigem.some(orig => idElemento.startsWith(orig + " > ") || orig.startsWith(idElemento + " > "))) {
-              estrelasOrigem.push(idElemento); set(ref(db, 'marcacoesTaticas/estrelas'), estrelasOrigem);
-          }
-      }
-  };
-
-  function atualizarEstrelasUI() {
-      if (!Array.isArray(estrelasOrigem)) estrelasOrigem = estrelasOrigem ? Object.values(estrelasOrigem) : [];
-      document.querySelectorAll('.star-icon').forEach(el => {
-          const id = el.getAttribute('data-star'); 
-          if (!id) return;
-          el.classList.remove('star-orange', 'star-yellow');
-          if (estrelasOrigem.includes(id)) el.classList.add('star-orange');
-          else if (estrelasOrigem.some(orig => id.startsWith(orig + " > ") || orig.startsWith(id + " > "))) el.classList.add('star-yellow');
-      });
-  }
-
   function atualizarUiComVistos() {
     document.querySelectorAll('.link-card').forEach(el => {
         el.classList.remove('visto'); const stamp = el.querySelector('.stamp'); if(stamp) stamp.remove();
     });
 
-    // BLINDAGEM COMPLETA DA BUSCA: Substituído querySelector por find em array de memória nativa
     vistosGlobais.forEach(v => {
-      const el = Array.from(document.querySelectorAll('.link-card')).find(card => card.getAttribute('data-id') === v.id);
+      const el = document.querySelector(`.link-card[data-id="${v.id}"]`);
       if (el) { el.classList.add('visto'); let stamp = document.createElement('span'); stamp.className = 'stamp'; stamp.innerText = `[${v.time}]`; el.appendChild(stamp); }
     });
 
@@ -897,14 +1027,14 @@
     if (totalLinks === 0) return; 
     const porcentagem = Math.round((vistosGlobais.length / totalLinks) * 100);
     fill.style.width = `${porcentagem}%`;
-    text.innerHTML = porcentagem >= 100 ? `<span style="color: var(--accent-green); font-weight: bold;">MONITORAMENTO GERAL CONCLUÍDO (100%) ✔️</span>` : `${vistosGlobais.length} / ${totalLinks} verificados (${porcentagem}%)`;
+    text.innerHTML = porcentagem >= 100 ? `<span style="color: var(--accent-green); font-weight: bold;">MONITORAMENTO GERAL CONCLUÍDO (100%) ✔️</span>` : `${vistosGlobais.length} / ${totalLinks} verificado (${porcentagem}%)`;
 
     window.renderizarCalendarioTatico();
   }
 
   window.registrarVisualizacao = function(idUnico, tituloLink) {
     if (!vistosGlobais.some(v => v.id === idUnico)) {
-      set(ref(db, `monitorementDiario/${dataHojeISO}/vistos`), [...vistosGlobais, { id: idUnico, time: obterHoraBrasilia(), operador: auth.currentUser ? auth.currentUser.email : 'Desconhecido' }]);
+      set(ref(db, `monitoramentoDiario/${dataHojeISO}/vistos`), [...vistosGlobais, { id: idUnico, time: obterHoraBrasilia(), operador: auth.currentUser ? auth.currentUser.email : 'Desconhecido' }]);
     }
     if (idUnico.startsWith("MOVIMENTOS")) {
         const safeKey = sanitizarId(idUnico); const statRef = ref(db, `estatisticas_semanal/${semanaAtualISO}/${safeKey}`);
@@ -948,6 +1078,7 @@
   };
   window.esconderTooltipPreview = function() { document.getElementById('tooltip-preview').classList.remove('show'); };
   window.recolherArvoreInteira = function() { document.querySelectorAll('.node').forEach(node => { const p = node.getAttribute('data-path'); if (p !== "MOVIMENTOS" && p !== "NOTÍCIAS") node.classList.remove('active'); }); };
+  function normalizarTexto(t) { return t.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase(); }
   
   function vasculharArvore(lista, termo, caminhoAtual = [], resultados = []) {
     const termoFormatado = normalizarTexto(termo);
@@ -967,13 +1098,9 @@
         const div = document.createElement('div'); div.className = 'search-item';
         div.innerHTML = `<div class="search-item-title">${res.item.nome}</div><div class="search-item-path">${res.caminho.join(' > ')}</div>`;
         div.onclick = () => {
-          window.recolherArvoreInteira();
-          res.caminho.forEach((p, idx) => {
-              const subCaminho = res.caminho.slice(0, idx + 1).join(' > ');
-              const node = Array.from(document.querySelectorAll('.node')).find(el => el.getAttribute('data-path') === subCaminho);
-              if (node) node.classList.add('active');
-          });
-          const target = Array.from(document.querySelectorAll('.node')).find(el => el.getAttribute('data-path') === res.caminho.join(' > '));
+          window.recolherArvoreInteira(); let c = ""; 
+          res.caminho.forEach((p, idx) => { c += (idx === 0 ? "" : " > ") + p; const node = document.querySelector(`.node[data-path="${c}"]`); if(node) node.classList.add('active'); });
+          const target = document.querySelector(`.node[data-path="${res.caminho.join(' > ')}"]`);
           if (target) target.scrollIntoView({ behavior: 'smooth', block: 'center' });
           caixa.style.display = 'none';
         };
@@ -1033,76 +1160,87 @@
     });
   }
 
-  // =====================================================================
-  // BLOCO 5: CRONOGRAMA DE INICIALIZAÇÃO E SINCRONIZAÇÃO EM SEGUNDO PLANO
-  // =====================================================================
-  function iniciarMonitoramentoDiario() {
-      document.getElementById('data-display').innerText = `Data de Referência (Brasília): ${obterDataBrasiliaBr()}`;
+  /* =====================================================================
+     SISTEMA DE INTELIGÊNCIA ARTIFICIAL DYNAMIC-PROMPT (ENDPOINT OFICIAL V1)
+     ===================================================================== */
+  window.gerarRelatorioIA = async function() {
+      const btn = document.getElementById('btn-ia-report');
+      const backupText = btn.innerText;
+      btn.innerText = "🤖 Analisando Cenários...";
+      btn.disabled = true;
 
-      onValue(ref(db, `monitoramentoDiario/${dataHojeISO}`), (snapshot) => {
-        const data = snapshot.val() || {};
-        vistosGlobais = data.vistos ? Object.values(data.vistos) : [];
-        anotacoesGlobais = data.anotacoes || {}; 
-        atualizarUiComVistos();
-        verificarAlertasExpirados(); 
-        if (window.CURRENT_SELECTED_DAY) window.selecionarDiaCalendario(window.CURRENT_SELECTED_DAY);
-      });
+      try {
+          const snapChave = await get(ref(db, 'config/gemini_key'));
+          if (!snapChave.exists() || snapChave.val().trim() === "") {
+              alert("A IA ainda não foi ativada.\n\nSalve sua chave no nó 'config/gemini_key'.");
+              btn.innerText = backupText; btn.disabled = false;
+              return;
+          }
+          const apiKey = snapChave.val().trim();
 
-      onValue(ref(db, 'agenda_menus'), (snapshot) => {
-          agendaMenusGlobais = snapshot.val() || {};
-          window.renderizarCalendarioTatico();
-          verificarAlertasExpirados();
-          if (window.CURRENT_SELECTED_DAY) window.selecionarDiaCalendario(window.CURRENT_SELECTED_DAY);
-      });
+          let promptBase = "Você é uma Inteligência Artificial analista de dados. Analise a seguinte lista de eventos e manifestações agendadas para os próximos 7 dias e crie um Relatório Sintético de Cenários Ocultando jargões desnecessários. Organize estritamente por Ordem Cronológica de Dias, resumindo os principais alvos (movimentos envolvidos), horários e os locais citados. Seja muito direto, formal e objetivo. Use tópicos claros.";
+          const snapPrompt = await get(ref(db, 'config/prompt_ia'));
+          if (snapPrompt.exists() && snapPrompt.val().trim() !== "") {
+              promptBase = snapPrompt.val().trim();
+          }
 
-      onValue(ref(db, 'alertas_calendario'), (snapshot) => {
-          alertasCalendarioGlobais = snapshot.val() || {};
-          window.renderizarCalendarioTatico();
-          verificarAlertasExpirados();
-          if (window.CURRENT_SELECTED_DAY) window.selecionarDiaCalendario(window.CURRENT_SELECTED_DAY);
-      });
+          let datasAlvo = [];
+          for (let i = 0; i < 7; i++) {
+              const d = new Date(new Date().toLocaleString("en-US", {timeZone: "America/Sao_Paulo"}));
+              d.setDate(d.getDate() + i);
+              datasAlvo.push(`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`);
+          }
 
-      onValue(ref(db, `estatisticas_semanal/${semanaAtualISO}`), (snapshot) => {
-        const dataFirebase = snapshot.val() || {};
-        let estatisticasCompletas = listaTodosAlvos.map(alvo => {
-            return { titulo: alvo.titulo, count: dataFirebase[alvo.id] ? dataFirebase[alvo.id].count : 0, caminho: alvo.caminho };
-        });
-        estatisticasCompletas.sort((a, b) => b.count - a.count);
-        const top15 =  estatisticasCompletas.filter(s => s.count > 0).slice(0, 15);
-        const bottom15 =  estatisticasCompletas.slice(-15).reverse();
-        
-        document.getElementById('list-top').innerHTML = top15.length > 0 
-            ? top15.map(s => `<li data-caminho="${s.caminho.join(' > ')}" onclick="window.focarCaminhoDireto(this.getAttribute('data-caminho'))"><span>${s.titulo}</span> <span class="stat-count">${s.count} cliques</span></li>`).join('')
-            : '<li style="color: #666; justify-content: center;">Nenhum alvo acessado ainda</li>';
-        document.getElementById('list-bottom').innerHTML = bottom15.map(s => `<li data-caminho="${s.caminho.join(' > ')}" onclick="window.focarCaminhoDireto(this.getAttribute('data-caminho'))"><span>${s.titulo}</span> <span class="stat-count">${s.count} cliques</span></li>`).join('');
-      });
+          let pacotesEventos = [];
+          Object.values(agendaMenusGlobais).forEach(ev => { if (ev && datasAlvo.includes(ev.dataAlerta)) pacotesEventos.push(ev); });
+          Object.values(alertasCalendarioGlobais).forEach(ev => { if (ev && datasAlvo.includes(ev.dataAlerta)) pacotesEventos.push(ev); });
 
-      onValue(ref(db, 'marcacoesTaticas/estrelas'), (snapshot) => {
-          const data = snapshot.val();
-          estrelasOrigem = data ? Object.values(data) : [];
-          atualizarEstrelasUI();
-      });
-  }
+          if (pacotesEventos.length === 0) {
+              alert("Não existem eventos ou agendas cadastrados nos próximos 7 dias.");
+              btn.innerText = backupText; btn.disabled = false;
+              return;
+          }
 
-  // EVENT LISTENERS E DISPARADORES DE LOGIN NATIVOS NO FINAL COMPLETO DO ARQUIVO
-  document.getElementById('btn-entrar').addEventListener('click', async () => {
-    const e = document.getElementById('email').value; const s = document.getElementById('senha').value;
-    const msg = document.getElementById('msg-erro'); msg.innerText = "Autenticando...";
-    try { await signInWithEmailAndPassword(auth, e, s); } catch (error) { msg.innerText = "Acesso negado. Credenciais incorretas."; }
-  });
+          const promptFinal = `${promptBase}\n\nEventos para análise: ${JSON.stringify(pacotesEventos)}`;
 
-  document.getElementById('btn-sair').addEventListener('click', () => { signOut(auth).then(() => { location.reload(); }); });
+          const resposta = await fetch(`https://generativelanguage.googleapis.com/v1/models/gemini-2.5-flash:generateContent?key=${apiKey}`, {
+              method: "POST", headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ contents: [{ parts: [{ text: promptFinal }] }] })
+          });
 
-  onAuthStateChanged(auth, (user) => {
-    if (user) {
-        document.getElementById('login-screen').style.display = 'none';
-        document.getElementById('app-content').style.display = 'block';
-        document.getElementById('connection-status').innerText = `Operador: ${user.email} | Sincronizado 🟢`;
-        iniciarSistemaC2();
-    } else {
-        document.getElementById('login-screen').style.display = 'flex';
-        document.getElementById('app-content').style.display = 'none';
-    }
+          const dataIa = await resposta.json();
+          if (!dataIa.candidates || dataIa.candidates.length === 0) { throw new Error("A IA recusou ou falhou na análise."); }
+          
+          const relatorioFormatado = dataIa.candidates[0].content.parts[0].text;
+
+          document.getElementById('nota-alvo-titulo').innerText = "🤖 Relatório Analítico IA (Próximos 7 Dias)";
+          document.getElementById('nota-textarea').value = relatorioFormatado;
+          document.getElementById('container-local').style.display = 'none';
+          document.getElementById('container-tempo').style.display = 'none';
+          document.getElementById('container-atrelar-movimento').style.display = 'none';
+          
+          const btnGravar = document.getElementById('btn-modal-gravar');
+          btnGravar.innerText = "📋 Copiar Relatório";
+          btnGravar.onclick = function() {
+              navigator.clipboard.writeText(relatorioFormatado);
+              alert("Relatório copiado!");
+          };
+
+          document.getElementById('modal-overlay').style.display = 'block';
+          document.getElementById('nota-modal').style.display = 'block';
+      } catch (err) {
+          alert("Falha de Processamento na IA. Verifique as credenciais no console.");
+          console.error(err);
+      }
+
+      btn.innerText = backupText; btn.disabled = false;
+  };
+
+  document.addEventListener('click', (e) => { 
+      if (!e.target.closest('.search-box')) document.getElementById('caixaResultados').style.display = 'none'; 
+      if (!e.target.closest('#container-atrelar-movimento')) {
+          const sug = document.getElementById('nota-movimento-sugestoes'); if (sug) sug.style.display = 'none';
+      }
   });
 </script>
 </body>
