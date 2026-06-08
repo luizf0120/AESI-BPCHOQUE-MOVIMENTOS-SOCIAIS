@@ -119,7 +119,7 @@
   .stat-list.bottom li { border-left-color: var(--accent-blue); }
   .stat-count { font-weight: bold; color: #888; font-size: 11px; background: #222; padding: 2px 6px; border-radius: 10px; }
 
-  /* --- VISOR FLUTUANTE DE PREVIA (TOOLTIP) --- */
+  /* --- VISOR FLUTUANTE DE PREVIA --- */
   #tooltip-preview { 
     position: fixed; z-index: 10000; pointer-events: auto; background: rgba(10, 10, 10, 0.98); 
     backdrop-filter: blur(6px); border: 1px solid #444; border-radius: 8px; padding: 14px; 
@@ -518,16 +518,25 @@
   function iniciarMonitoramentoDiario() {
       document.getElementById('data-display').innerText = `Data de Referência (Brasília): ${obterDataBrasiliaBr()}`;
 
+      // MONITORAMENTO DIÁRIO (Mural e Vistos)
       onValue(ref(db, `monitoramentoDiario/${dataHojeISO}`), (snapshot) => {
         const data = snapshot.val() || {};
         vistosGlobais = data.vistos ? Object.values(data.vistos) : [];
         anotacoesGlobais = data.anotacoes || {}; 
-        agendaMenusGlobais = data.agenda_menus || {}; 
         atualizarUiComVistos();
         verificarAlertasExpirados(); 
         if (window.CURRENT_SELECTED_DAY) window.selecionarDiaCalendario(window.CURRENT_SELECTED_DAY);
       });
 
+      // ARQUITETURA GLOBAL: Agenda vinculada por Pastas
+      onValue(ref(db, 'agenda_menus'), (snapshot) => {
+          agendaMenusGlobais = snapshot.val() || {};
+          window.renderizarCalendarioTatico();
+          verificarAlertasExpirados();
+          if (window.CURRENT_SELECTED_DAY) window.selecionarDiaCalendario(window.CURRENT_SELECTED_DAY);
+      });
+
+      // ARQUITETURA GLOBAL: Eventos Diretos do Calendário
       onValue(ref(db, 'alertas_calendario'), (snapshot) => {
           alertasCalendarioGlobais = snapshot.val() || {};
           window.renderizarCalendarioTatico();
@@ -567,8 +576,8 @@
               if (alvoStr <= agoraStr && !alertasPromptadosSessao.includes(safeKey)) {
                   alertasPromptadosSessao.push(safeKey); 
                   setTimeout(() => {
-                      const dispensar = confirm(`[AGENDA VENCIDA]\nO prazo do evento de "${nota.tituloOrigem}" no local "${nota.local || 'Não Definido'}" expirou.\n\nDeseja REMOVER este alerta da agenda de hoje?`);
-                      if (dispensar) set(ref(db, `monitoramentoDiario/${dataHojeISO}/agenda_menus/${safeKey}`), null);
+                      const dispensar = confirm(`[AGENDA VENCIDA]\nO prazo do evento de "${nota.tituloOrigem}" no local "${nota.local || 'Não Definido'}" expirou.\n\nDeseja REMOVER este alerta?`);
+                      if (dispensar) set(ref(db, `agenda_menus/${safeKey}`), null);
                   }, 600);
               }
           }
@@ -596,9 +605,7 @@
       window.renderizarCalendarioTatico();
   };
 
-  /* =========================================
-     SISTEMA DE RENDERIZAÇÃO DO CALENDÁRIO
-     ========================================= */
+  /* --- DEFINIÇÃO DA FUNÇÃO DO CALENDÁRIO --- */
   window.renderizarCalendarioTatico = function() {
       const meses = ["Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho", "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"];
       document.getElementById('cal-month-year').innerText = `${meses[currentCalMonth]} ${currentCalYear}`;
@@ -621,8 +628,8 @@
           }
 
           let temAlertaNoDia = false;
-          Object.keys(agendaMenusGlobais).forEach(key => { if (agendaMenusGlobais[key] && agendaMenusGlobais[key].dataAlerta === dateStr) temAlertaNoDia = true; });
-          Object.keys(alertasCalendarioGlobais).forEach(key => { if (alertasCalendarioGlobais[key] && alertasCalendarioGlobais[key].dataAlerta === dateStr) temAlertaNoDia = true; });
+          Object.keys(agendaMenusGlobais).forEach(key => { if (agendaMenusGlobais[key] && String(agendaMenusGlobais[key].dataAlerta) === dateStr) temAlertaNoDia = true; });
+          Object.keys(alertasCalendarioGlobais).forEach(key => { if (alertasCalendarioGlobais[key] && String(alertasCalendarioGlobais[key].dataAlerta) === dateStr) temAlertaNoDia = true; });
 
           if (temAlertaNoDia) {
               dayDiv.style.borderColor = "var(--accent-orange)"; dayDiv.style.background = "rgba(255, 140, 0, 0.15)";
@@ -684,24 +691,16 @@
       document.getElementById('nota-textarea').focus();
   };
 
-  /* ==========================================================
-     SISTEMA 100% BLINDADO CONTRA DATAS OU DADOS NULOS/MUTÁVEIS
-     ========================================================== */
+  /* --- RENDERIZADOR DOS CARDS EMBAIXO DO CALENDÁRIO COM CONVERSÃO DE STRINGS --- */
   function construirItemVisualEvento(nota, keyId, tipoEntrada) {
       if (!nota) return document.createElement('div');
       const div = document.createElement('div');
-      div.style.cssText = `background: #111; border-left: 3px solid ${tipoEntrada === 'direto' ? 'var(--accent-yellow)' : 'var(--accent-orange)'}; padding: 10px; border-radius: 4px; font-size: 13px; line-height: 1.4; box-sizing: border-box; margin-bottom: 8px;`;
+      div.style.cssText = `background: #111; border-left: 3px solid ${tipoEntrada === 'direto' ? 'var(--accent-yellow)' : 'var(--accent-orange)'}; padding: 10px; border-radius: 4px; font-size: 13px; line-height: 1.4; box-sizing: border-box; margin-bottom: 8px; text-align: left;`;
 
-      // Conversão forçada de tipos (String) para impedir que dados poluidos quebrem o loop
       const dataAlertaStr = nota.dataAlerta ? String(nota.dataAlerta) : '';
       let dataBr = dataAlertaStr ? dataAlertaStr.split('-').reverse().join('/') : '--/--/----';
       
-      let caminhoFoco = '';
-      if (tipoEntrada === 'direto') {
-          caminhoFoco = nota.movimentoAtrelado ? String(nota.movimentoAtrelado) : '';
-      } else {
-          caminhoFoco = nota.pathString ? String(nota.pathString) : '';
-      }
+      let caminhoFoco = (tipoEntrada === 'direto') ? String(nota.movimentoAtrelado || '') : String(nota.pathString || '');
 
       let operadorLimpo = String(nota.operador || 'Desconhecido').split('@')[0];
       let horaLimpa = nota.horaAlerta ? String(nota.horaAlerta) : '--:--';
@@ -712,9 +711,9 @@
       div.innerHTML = `
           <div style="display: flex; justify-content: space-between; align-items: center; font-weight: bold; color: var(--accent-yellow);">
               <span>🎯 ${tituloLimpo}</span>
-              <div style="display: flex; gap: 5px;" onclick="event.stopPropagation();">
-                  <span class="btn-editar-card" style="cursor: pointer; font-size: 11px; background: #222; padding: 2px 6px; border-radius: 4px; color: var(--accent-yellow); border: 1px solid #444;" title="Editar">✏️</span>
-                  <span class="btn-excluir-card" style="cursor: pointer; font-size: 11px; background: #222; padding: 2px 6px; border-radius: 4px; color: var(--accent-red); border: 1px solid #444;" title="Excluir">🗑️</span>
+              <div style="display: flex; gap: 8px;">
+                  <span class="btn-editar-card" style="cursor: pointer; font-size: 12px; background: #222; padding: 2px 6px; border-radius: 4px; color: var(--accent-yellow); border: 1px solid #444;" title="Editar">✏️</span>
+                  <span class="btn-excluir-card" style="cursor: pointer; font-size: 12px; background: #222; padding: 2px 6px; border-radius: 4px; color: var(--accent-red); border: 1px solid #444;" title="Excluir">🗑️</span>
               </div>
           </div>
           <div style="font-size: 11px; color: #aaa; margin-top: 4px;">
@@ -733,6 +732,7 @@
       `;
 
       div.querySelector('.btn-editar-card').addEventListener('click', (e) => {
+          e.preventDefault(); e.stopPropagation();
           window.abrirModalTatico(e, keyId, tituloLimpo, tipoEntrada === 'direto' ? 'direto' : 'agenda');
       });
 
@@ -743,8 +743,7 @@
           if (tipoEntrada === 'direto') {
               set(ref(db, `alertas_calendario/${keyId}`), null);
           } else {
-              set(ref(db, `monitoramentoDiario/${dataHojeISO}/anotacoes/${keyId}`), null);
-              set(ref(db, `monitoramentoDiario/${dataHojeISO}/agenda_menus/${keyId}`), null);
+              set(ref(db, `agenda_menus/${keyId}`), null);
           }
       });
 
@@ -822,19 +821,8 @@
           const mesesMatriz = ["Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho", "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"];
           const nomeMesCorrente = mesesMatriz[tempoSistema.getMonth()];
 
-          const promptInstrucao = `Você é um robô auxiliar de triagem. Analise o informe bruto fornecido e extraia as informações estruturadas de forma cirúrgica. Responda APENAS E EXCLUSIVAMENTE com um objeto JSON plano (sem caixas de código markdown, sem textos extras ou explicações).
-          
-          DIRETRIZ CRÍTICA DE COMPLETAÇÃO DE DATA:
-          - Caso o texto bruto NÃO cite o ano de forma explícita, utilize obrigatoriamente o ano atual: ${anoCorrente}.
-          - Caso o texto bruto cite apenas o dia mas omita o mês (ex: "nesta terça dia 9" ou "marcado para o dia 15"), utilize obrigatoriamente o mês atual de referência: ${nomeMesCorrente} (${mesCorrenteNum}) do ano ${anoCorrente}.
-          
-          Chaves exatas do JSON esperado:
-          - "texto": Um resumo conciso da pauta da manifestação ou evento em poucas palavras.
-          - "local": O local físico, endereço ou praça citado no texto.
-          - "data": O dia do evento formatado rigidamente no padrão internacional YYYY-MM-DD.
-          - "hora": O horário do evento formatado rigidamente no padrão de 24h HH:MM.
-          - "movimento": O trecho ou nome do movimento/grupo envolvido se houver.
-          Texto para análise: "${txtBruto}"`;
+          const promptInstrucao = `Você é um robô auxiliar de triagem. Analise the raw text provided and extract structures. Responda apenas com um objeto JSON plano válido (sem blocos markdown). Se omitido, use o ano ${anoCorrente} e mês ${nomeMesCorrente}.
+          JSON Chaves: "texto", "local", "data" (YYYY-MM-DD), "hora" (HH:MM), "movimento". Text: "${txtBruto}"`;
 
           const resposta = await fetch(`https://generativelanguage.googleapis.com/v1/models/gemini-2.5-flash:generateContent?key=${apiKey}`, {
               method: "POST", headers: { "Content-Type": "application/json" },
@@ -863,7 +851,7 @@
           document.getElementById('btn-modal-gravar').innerText = "Confirmar e Gravar Alerta";
           document.getElementById('nota-modal').style.display = 'block';
       } catch (err) {
-          alert("A IA não conseguiu completar de forma precisa. Use o agendamento clássico.");
+          alert("A IA falhou em estruturar as informações.");
           console.error(err);
       }
       btn.innerText = "Avançar ➔"; btn.disabled = false;
@@ -907,8 +895,7 @@
   window.esconderTooltipTatico = function() { document.getElementById('tooltip-preview').classList.remove('show'); };
 
   window.abrirModalTatico = function(e, idUnico, titulo, tipo) {
-      if (e) { e.preventDefault(); e.stopPropagation(); }
-      window.esconderTooltipTatico();
+      e.preventDefault(); e.stopPropagation(); window.esconderTooltipTatico();
       contextoAtual = tipo; alvoAtualNota = idUnico; tituloAtualNota = titulo;
       const safeKey = sanitizarId(idUnico);
       
@@ -991,7 +978,7 @@
       const user = auth.currentUser ? auth.currentUser.email : 'Desconhecido';
 
       if (contextoAtual === 'direto') {
-          const movimientoAtrelado = document.getElementById('nota-movimento-input').value.trim();
+          const movimentoAtrelado = document.getElementById('nota-movimento-input').value.trim();
           const uniqueKey = alvoAtualNota || ("CAL_" + Date.now()); 
           const notaRef = ref(db, `alertas_calendario/${uniqueKey}`);
           
@@ -999,8 +986,8 @@
               set(notaRef, null);
           } else {
               set(notaRef, { 
-                  texto, local, dataAlerta, horaAlerta, movimientoAtrelado, operador: user, 
-                  time: obterHoraBrasilia(), tituloOrigem: movimientoAtrelado ? movimientoAtrelado.split(' > ').pop() : "Evento Geral", isDirectCalendar: true, keyId: uniqueKey
+                  texto, local, dataAlerta, horaAlerta, movimentoAtrelado, operador: user, 
+                  time: obterHoraBrasilia(), tituloOrigem: movimentoAtrelado ? movimientoAtrelado.split(' > ').pop() : "Evento Geral", isDirectCalendar: true, keyId: uniqueKey
               });
           }
       } else if (contextoAtual === 'postit') {
@@ -1008,7 +995,8 @@
           if (texto === "") set(notaRef, null);
           else set(notaRef, { texto, operador: user, time: obterHoraBrasilia(), tituloOrigem: tituloAtualNota });
       } else if (contextoAtual === 'agenda') {
-          const notaRef = ref(db, `monitoramentoDiario/${dataHojeISO}/agenda_menus/${safeKey}`);
+          // CORREÇÃO DE LOGICA: Modificado para salvar na arvore unificada e persistente global
+          const notaRef = ref(db, `agenda_menus/${safeKey}`);
           if (texto === "" && local === "" && dataAlerta === "" && horaAlerta === "") set(notaRef, null);
           else set(notaRef, { texto, local, dataAlerta, horaAlerta, operador: user, time: obterHoraBrasilia(), tituloOrigem: tituloAtualNota, pathString: alvoAtualNota });
       }
@@ -1100,7 +1088,7 @@
   };
   window.esconderTooltipPreview = function() { document.getElementById('tooltip-preview').classList.remove('show'); };
   window.recolherArvoreInteira = function() { document.querySelectorAll('.node').forEach(node => { const p = node.getAttribute('data-path'); if (p !== "MOVIMENTOS" && p !== "NOTÍCIAS") node.classList.remove('active'); }); };
-  function normalizarTexto(t) { return t.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase(); }
+  function normalizarTexto(t) { return t ? t.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase() : ""; }
   
   function vasculharArvore(lista, termo, caminhoAtual = [], resultados = []) {
     const termoFormatado = normalizarTexto(termo);
@@ -1181,6 +1169,83 @@
       elementoPai.appendChild(nodeDiv);
     });
   }
+
+  /* =====================================================================
+     SISTEMA DE INTELIGÊNCIA ARTIFICIAL DYNAMIC-PROMPT (ENDPOINT OFICIAL V1)
+     ===================================================================== */
+  window.gerarRelatorioIA = async function() {
+      const btn = document.getElementById('btn-ia-report');
+      const backupText = btn.innerText;
+      btn.innerText = "🤖 Analisando Cenários...";
+      btn.disabled = true;
+
+      try {
+          const snapChave = await get(ref(db, 'config/gemini_key'));
+          if (!snapChave.exists() || snapChave.val().trim() === "") {
+              alert("A IA ainda não foi ativada.\n\nSalve sua chave no nó 'config/gemini_key'.");
+              btn.innerText = backupText; btn.disabled = false;
+              return;
+          }
+          const apiKey = snapChave.val().trim();
+
+          let promptBase = "Você é uma Inteligência Artificial analista de dados. Analise a seguinte lista de eventos e manifestações agendadas para os próximos 7 dias e crie um Relatório Sintético de Cenários Ocultando jargões desnecessários. Organize estritamente por Ordem Cronológica de Dias, resumindo os principais alvos (movimentos envolvidos), horários e os locais citados. Seja muito direto, formal e objetivo. Use tópicos claros.";
+          const snapPrompt = await get(ref(db, 'config/prompt_ia'));
+          if (snapPrompt.exists() && snapPrompt.val().trim() !== "") {
+              promptBase = snapPrompt.val().trim();
+          }
+
+          let datasAlvo = [];
+          for (let i = 0; i < 7; i++) {
+              const d = new Date(new Date().toLocaleString("en-US", {timeZone: "America/Sao_Paulo"}));
+              d.setDate(d.getDate() + i);
+              datasAlvo.push(`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`);
+          }
+
+          let pacotesEventos = [];
+          Object.values(agendaMenusGlobais).forEach(ev => { if (ev && datasAlvo.includes(ev.dataAlerta)) pacotesEventos.push(ev); });
+          Object.values(alertasCalendarioGlobais).forEach(ev => { if (ev && datasAlvo.includes(ev.dataAlerta)) pacotesEventos.push(ev); });
+
+          if (pacotesEventos.length === 0) {
+              alert("Não existem eventos ou agendas cadastrados nos próximos 7 dias.");
+              btn.innerText = backupText; btn.disabled = false;
+              return;
+          }
+
+          const promptFinal = `${promptBase}\n\nEventos para análise: ${JSON.stringify(pacotesEventos)}`;
+
+          const resposta = await fetch(`https://generativelanguage.googleapis.com/v1/models/gemini-2.5-flash:generateContent?key=${apiKey}`, {
+              method: "POST", headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ contents: [{ parts: [{ text: promptFinal }] }] })
+          });
+
+          const dataIa = await resposta.json();
+          if (!dataIa.candidates || dataIa.candidates.length === 0) { throw new Error("A IA recusou ou falhou na análise."); }
+          
+          const relatorioFormatado = dataIa.candidates[0].content.parts[0].text;
+
+          document.getElementById('nota-alvo-titulo').innerText = "🤖 Relatório Analítico IA (Próximos 7 Dias)";
+          document.getElementById('nota-textarea').value = relatorioFormatado;
+          document.getElementById('container-local').style.display = 'none';
+          document.getElementById('container-tempo').style.display = 'none';
+          document.getElementById('container-atrelar-movimento').style.display = 'none';
+          
+          const btnGravar = document.getElementById('btn-modal-gravar');
+          btnGravar.innerText = "📋 Copiar Relatório";
+          btnGravar.onclick = function() {
+              navigator.clipboard.writeText(relatorioFormatado);
+              alert("Relatório copiado!");
+          };
+
+          document.getElementById('modal-overlay').style.display = 'block';
+          document.getElementById('nota-modal').style.display = 'block';
+
+      } catch (err) {
+          alert("Falha de Processamento na IA. Verifique as credenciais no console.");
+          console.error(err);
+      }
+
+      btn.innerText = backupText; btn.disabled = false;
+  };
 
   document.addEventListener('click', (e) => { 
       if (!e.target.closest('.search-box')) document.getElementById('caixaResultados').style.display = 'none'; 
