@@ -596,7 +596,9 @@
       window.renderizarCalendarioTatico();
   };
 
-  /* --- DEFINIÇÃO DA FUNÇÃO DO CALENDÁRIO --- */
+  /* =========================================
+     SISTEMA DE RENDERIZAÇÃO DO CALENDÁRIO
+     ========================================= */
   window.renderizarCalendarioTatico = function() {
       const meses = ["Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho", "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"];
       document.getElementById('cal-month-year').innerText = `${meses[currentCalMonth]} ${currentCalYear}`;
@@ -682,7 +684,91 @@
       document.getElementById('nota-textarea').focus();
   };
 
-  /* --- OPERADORES ESPECÍFICOS DO ASSISTENTE COMPACTO DE ENTRADA IA --- */
+  /* --- SISTEMA COMPACTO DE EXPANSÃO E RESUMO DO CALENDÁRIO --- */
+  function construirItemVisualEvento(nota, keyId, tipoEntrada) {
+      const div = document.createElement('div');
+      div.style.cssText = `background: #111; border-left: 3px solid ${tipoEntrada === 'direto' ? 'var(--accent-yellow)' : 'var(--accent-orange)'}; padding: 10px; border-radius: 4px; font-size: 13px; line-height: 1.4; box-sizing: border-box; margin-bottom: 8px;`;
+
+      let dataBr = nota.dataAlerta ? nota.dataAlerta.split('-').reverse().join('/') : '--/--/----';
+      let caminhoFoco = tipoEntrada === 'direto' ? (nota.movimentoAtrelado || "") : (nota.pathString || "");
+
+      // MONTAGEM DO LAYOUT DE ACORDO COM AS ESPECIFICAÇÕES (RESUMO + EDIÇÃO + EXCLUSÃO + SANFONA DETALHADA)
+      div.innerHTML = `
+          <div style="display: flex; justify-content: space-between; align-items: center; font-weight: bold; color: var(--accent-yellow);">
+              <span>🎯 ${nota.tituloOrigem || 'Evento Geral'}</span>
+              <div style="display: flex; gap: 5px;" onclick="event.stopPropagation();">
+                  <span class="btn-editar-card" style="cursor: pointer; font-size: 11px; background: #222; padding: 2px 6px; border-radius: 4px; color: var(--accent-yellow); border: 1px solid #444;" title="Editar">✏️</span>
+                  <span class="btn-excluir-card" style="cursor: pointer; font-size: 11px; background: #222; padding: 2px 6px; border-radius: 4px; color: var(--accent-red); border: 1px solid #444;" title="Excluir">🗑️</span>
+              </div>
+          </div>
+          <div style="font-size: 11px; color: #aaa; margin-top: 4px;">
+              📅 ${dataBr} às ${nota.horaAlerta || '--:--'}
+          </div>
+          <div style="margin-top: 6px; text-align: right;">
+              <span class="btn-toggle-info" style="cursor: pointer; font-size: 10px; color: var(--accent-blue); background: #161616; padding: 2px 6px; border-radius: 3px; border: 1px solid #333; font-weight: bold;">🔍 + Detalhes</span>
+          </div>
+          
+          <div class="info-detalhada-card" style="display: none; margin-top: 10px; padding-top: 8px; border-top: 1px solid #222; font-size: 12px; color: #fff;">
+              <div style="margin-bottom: 6px; white-space: pre-wrap; color: #ddd;">"${linkify(nota.texto) || 'Sem descrição'}"</div>
+              <div style="font-size: 11px; color: #aaa; margin-bottom: 3px;">📍 Local/Endereço: ${nota.local || 'Não cadastrado'}</div>
+              ${caminhoFoco ? `<div style="font-size: 11px; color: var(--accent-blue); font-weight: bold; cursor: pointer; text-decoration: underline;" onclick="window.focarCaminhoDireto('${caminhoFoco}')">🔗 Movimento Atrelado: ${caminhoFoco.replace("MOVIMENTOS > ", "")}</div>` : ''}
+              <div style="font-size: 10px; color: #666; margin-top: 5px;">Registrado por: ${nota.operador ? nota.operador.split('@')[0] : 'Desconhecido'} às ${nota.time || '--:--'}</div>
+          </div>
+      `;
+
+      // Evento para o botão de Edição
+      div.querySelector('.btn-editar-card').addEventListener('click', (e) => {
+          window.abrirModalTatico(e, keyId, nota.tituloOrigem || 'Evento Geral', tipoEntrada === 'direto' ? 'direto' : 'agenda');
+      });
+
+      // Evento para a lixeira de exclusão
+      div.querySelector('.btn-excluir-card').addEventListener('click', (e) => {
+          e.preventDefault(); e.stopPropagation();
+          const confirmar = confirm(`[EXCLUIR COMPROMISSO]\nDeseja apagar permanentemente este agendamento da nuvem?`);
+          if (!confirmar) return;
+          if (tipoEntrada === 'direto') {
+              set(ref(db, `alertas_calendario/${keyId}`), null);
+          } else {
+              set(ref(db, `monitorementDiario/${dataHojeISO}/anotacoes/${keyId}`), null);
+              set(ref(db, `monitoramentoDiario/${dataHojeISO}/agenda_menus/${keyId}`), null);
+          }
+      });
+
+      // Evento para a Sanfona de Detalhes
+      div.querySelector('.btn-toggle-info').addEventListener('click', (e) => {
+          e.preventDefault(); e.stopPropagation();
+          const target = div.querySelector('.info-detalhada-card');
+          if (target.style.display === 'none') {
+              target.style.display = 'block';
+              e.target.innerText = "✖️ Ocultar";
+          } else {
+              target.style.display = 'none';
+              e.target.innerText = "🔍 + Detalhes";
+          }
+      });
+
+      return div;
+  }
+
+  window.selecionarDiaCalendario = function(dataStr) {
+      window.CURRENT_SELECTED_DAY = dataStr;
+      const listaEvs = document.getElementById('cal-events-ul');
+      const containerEvs = document.getElementById('calendar-event-list');
+      listaEvs.innerHTML = ""; let encontrou = false;
+
+      Object.keys(agendaMenusGlobais).forEach(key => {
+          const nota = agendaMenusGlobais[key];
+          if (nota && nota.dataAlerta === dataStr) { encontrou = true; listaEvs.appendChild(construirItemVisualEvento(nota, key, 'pasta')); }
+      });
+
+      Object.keys(alertasCalendarioGlobais).forEach(key => {
+          const nota = alertasCalendarioGlobais[key];
+          if (nota && nota.dataAlerta === dataStr) { encontrou = true; listaEvs.appendChild(construirItemVisualEvento(nota, key, 'direto')); }
+      });
+
+      containerEvs.style.display = encontrou ? 'block' : 'none';
+  };
+
   window.abrirModalIAParser = function() {
       document.getElementById('ia-texto-bruto').value = "";
       document.getElementById('btn-ia-avancar').innerText = "Avançar ➔";
@@ -692,51 +778,55 @@
       document.getElementById('ia-texto-bruto').focus();
   };
 
+  /* --- ADAPTADOR DE INTELIGÊNCIA TEMPORAL DINÂMICA EM TEMPO REAL --- */
   window.processarTextoBrutoIA = async function() {
       const txtBruto = document.getElementById('ia-texto-bruto').value.trim();
       if (!txtBruto) { alert("Cole o texto do informe antes de avançar."); return; }
-
       const btn = document.getElementById('btn-ia-avancar');
-      btn.innerText = "🤖 Estruturando Dados...";
-      btn.disabled = true;
+      btn.innerText = "🤖 Estruturando Dados..."; btn.disabled = true;
 
       try {
           const snapChave = await get(ref(db, 'config/gemini_key'));
           if (!snapChave.exists() || snapChave.val().trim() === "") {
               alert("A IA não está configurada no Firebase.");
-              btn.innerText = "Avançar ➔"; btn.disabled = false;
-              return;
+              btn.innerText = "Avançar ➔"; btn.disabled = false; return;
           }
           const apiKey = snapChave.val().trim();
 
-          // Prompt instruindo o modelo a responder estritamente em um objeto JSON plano válido
-          const promptInstrucao = `Você é um robô auxiliar de triagem. Analise o informe bruto fornecido e extraia as informações estruturadas de forma cirúrgica. Responda APENAS E EXCLUSIVAMENTE com um objeto JSON plano (sem caixas de código markdown \`\`\`json, sem textos extras ou explicações). Se um ano não for citado de forma explícita na data, assuma o ano de 2026.
+          // CAPTURA CONTEXTUAL CRÍTICA DO RELÓGIO ATUAL DO SISTEMA (AMERICA/SAO_PAULO)
+          const tempoSistema = new Date(new Date().toLocaleString("en-US", {timeZone: "America/Sao_Paulo"}));
+          const anoCorrente = tempoSistema.getFullYear();
+          const mesCorrenteNum = String(tempoSistema.getMonth() + 1).padStart(2, '0');
+          const mesesMatriz = ["Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho", "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"];
+          const nomeMesCorrente = mesesMatriz[tempoSistema.getMonth()];
+
+          // PROMPT REARQUITETADO COM INJEÇÃO DINÂMICA DE CONTEXTO ATUAL DE MÊS E ANO
+          const promptInstrucao = `Você é um robô auxiliar de triagem. Analise o informe bruto fornecido e extraia as informações estruturadas de forma cirúrgica. Responda APENAS E EXCLUSIVAMENTE com um objeto JSON plano (sem caixas de código markdown, sem textos extras ou explicações).
+          
+          DIRETRIZ CRÍTICA DE COMPLETAÇÃO DE DATA:
+          - Caso o texto bruto NÃO cite o ano de forma explícita, utilize obrigatoriamente o ano atual: ${anoCorrente}.
+          - Caso o texto bruto cite apenas o dia mas omita o mês (ex: "nesta terça dia 9" ou "marcado para o dia 15"), utilize obrigatoriamente o mês atual de referência: ${nomeMesCorrente} (${mesCorrenteNum}) do ano ${anoCorrente}, a menos que o contexto aponte de forma explícita para uma virada de mês óbvia.
+          
           Chaves exatas do JSON esperado:
           - "texto": Um resumo conciso da pauta da manifestação ou evento em poucas palavras.
           - "local": O local físico, endereço ou praça citado no texto.
           - "data": O dia do evento formatado rigidamente no padrão internacional YYYY-MM-DD.
           - "hora": O horário do evento formatado rigidamente no padrão de 24h HH:MM.
           - "movimento": O trecho ou nome do movimento/grupo envolvido se houver.
-
           Texto para análise: "${txtBruto}"`;
 
           const resposta = await fetch(`https://generativelanguage.googleapis.com/v1/models/gemini-2.5-flash:generateContent?key=${apiKey}`, {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
+              method: "POST", headers: { "Content-Type": "application/json" },
               body: JSON.stringify({ contents: [{ parts: [{ text: promptInstrucao }] }] })
           });
 
           const dataIa = await resposta.json();
           let rawText = dataIa.candidates[0].content.parts[0].text;
-          
-          // Tratamento para limpar marcações de bloco que o Gemini às vezes gera por segurança
           let cleanJsonStr = rawText.replace(/```json|```/g, "").trim();
           let dataObjeto = JSON.parse(cleanJsonStr);
 
-          // Fecha a caixa da IA
           document.getElementById('ia-input-modal').style.display = 'none';
 
-          // Carrega e preenche o modal oficial na pauta de validação manual antes de salvar na nuvem
           contextoAtual = 'direto'; alvoAtualNota = "";
           document.getElementById('nota-alvo-titulo').innerText = "Conferir Agendamento por IA";
           document.getElementById('nota-textarea').value = dataObjeto.texto || "";
@@ -750,11 +840,9 @@
           document.getElementById('container-atrelar-movimento').style.display = 'block';
           document.getElementById('nota-movimento-sugestoes').style.display = 'none';
           document.getElementById('btn-modal-gravar').innerText = "Confirmar e Gravar Alerta";
-          
           document.getElementById('nota-modal').style.display = 'block';
-
       } catch (err) {
-          alert("A IA falhou em analisar ou estruturar as informações deste informe. Tente novamente.");
+          alert("A IA não conseguiu completar de forma precisa. Use o agendamento clássico.");
           console.error(err);
       }
       btn.innerText = "Avançar ➔"; btn.disabled = false;
@@ -797,7 +885,8 @@
   window.esconderTooltipTatico = function() { document.getElementById('tooltip-preview').classList.remove('show'); };
 
   window.abrirModalTatico = function(e, idUnico, titulo, tipo) {
-      e.preventDefault(); e.stopPropagation(); window.esconderTooltipTatico();
+      if (e) { e.preventDefault(); e.stopPropagation(); }
+      window.esconderTooltipTatico();
       contextoAtual = tipo; alvoAtualNota = idUnico; tituloAtualNota = titulo;
       const safeKey = sanitizarId(idUnico);
       
@@ -938,7 +1027,7 @@
     if (totalLinks === 0) return; 
     const porcentagem = Math.round((vistosGlobais.length / totalLinks) * 100);
     fill.style.width = `${porcentagem}%`;
-    text.innerHTML = porcentagem >= 100 ? `<span style="color: var(--accent-green); font-weight: bold;">MONITORAMENTO GERAL CONCLUÍDO (100%) ✔️</span>` : `${vistosGlobais.length} / ${totalLinks} verificados (${porcentagem}%)`;
+    text.innerHTML = porcentagem >= 100 ? `<span style="color: var(--accent-green); font-weight: bold;">MONITORAMENTO GERAL CONCLUÍDO (100%) ✔️</span>` : `${vistosGlobais.length} / ${totalLinks} verificado (${porcentagem}%)`;
 
     window.renderizarCalendarioTatico();
   }
@@ -1115,8 +1204,7 @@
           const promptFinal = `${promptBase}\n\nEventos para análise: ${JSON.stringify(pacotesEventos)}`;
 
           const resposta = await fetch(`https://generativelanguage.googleapis.com/v1/models/gemini-2.5-flash:generateContent?key=${apiKey}`, {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
+              method: "POST", headers: { "Content-Type": "application/json" },
               body: JSON.stringify({ contents: [{ parts: [{ text: promptFinal }] }] })
           });
 
@@ -1140,7 +1228,6 @@
 
           document.getElementById('modal-overlay').style.display = 'block';
           document.getElementById('nota-modal').style.display = 'block';
-
       } catch (err) {
           alert("Falha de Processamento na IA. Verifique as credenciais no console.");
           console.error(err);
