@@ -431,20 +431,271 @@
   let currentCalMonth = new Date().getMonth();
   window.CURRENT_SELECTED_DAY = "";
 
-  function linkify(text) {
-      if (!text) return "";
-      const urlRegex = /(https?:\/\/[^\s]+)/g;
-      return text.replace(urlRegex, function(url) {
-          return '<a href="' + url + '" target="_blank">' + url + '</a>';
+  document.getElementById('btn-entrar').addEventListener('click', async () => {
+    const e = document.getElementById('email').value; const s = document.getElementById('senha').value;
+    const msg = document.getElementById('msg-erro'); msg.innerText = "Autenticando...";
+    try { await signInWithEmailAndPassword(auth, e, s); } catch (error) { msg.innerText = "Acesso negado. Credenciais incorretas."; }
+  });
+
+  document.getElementById('btn-sair').addEventListener('click', () => { signOut(auth).then(() => { location.reload(); }); });
+
+  onAuthStateChanged(auth, (user) => {
+    if (user) {
+        document.getElementById('login-screen').style.display = 'none';
+        document.getElementById('app-content').style.display = 'block';
+        document.getElementById('connection-status').innerText = `Operador: ${user.email} | Sincronizado 🟢`;
+        iniciarSistemaC2();
+    } else {
+        document.getElementById('login-screen').style.display = 'flex';
+        document.getElementById('app-content').style.display = 'none';
+    }
+  });
+
+  function iniciarSistemaC2() {
+      get(ref(db, 'estrutura_arvore')).then(snap => {
+          if(snap.exists()) {
+              window.DADOS_TOTAIS = snap.val();
+              listaTodosAlvos = [];
+              window.LISTA_MOVIMENTOS = [];
+              extrairTodosOsAlvos(window.DADOS_TOTAIS);
+              
+              const raiz = document.getElementById('raiz-arvore');
+              raiz.innerHTML = "";
+              desenhavelArvore(window.DADOS_TOTAIS, raiz, []);
+              iniciarMonitoramentoDiario();
+          } else {
+              document.getElementById('data-display').innerText = "Erro ao carregar os nós da nuvem.";
+          }
+      }).catch(err => {
+          document.getElementById('data-display').innerText = "Erro de Autenticação na Nuvem.";
       });
   }
 
+  function extrairTodosOsAlvos(lista, caminhoAtual = []) {
+      if (!Array.isArray(lista)) lista = lista ? Object.values(lista) : [];
+      lista.forEach(item => {
+          const novoCaminho = [...caminhoAtual, item.nome];
+          const temFilhos = item.filhos && item.filhos.length > 0;
+          const temLinks = item.links && item.links.length > 0;
+
+          if (novoCaminho[0] === "MOVIMENTOS" && (temFilhos || temLinks) && novoCaminho.length >= 4) {
+              window.LISTA_MOVIMENTOS.push({ caminhoStr: novoCaminho.join(' > '), nome: item.nome });
+          }
+
+          if (item.links && item.links.length > 0) {
+              item.links.forEach(link => {
+                  const idUnico = novoCaminho.join(' > ') + " > " + link.url;
+                  listaTodosAlvos.push({ id: sanitizarId(idUnico), titulo: novoCaminho.slice(-2).join(' > '), caminho: novoCaminho });
+              });
+          }
+          if (item.filhos) { extrairTodosOsAlvos(item.filhos, novoCaminho); }
+      });
+  }
+
+  function obterDataBrasiliaISO() { const d = new Date(new Date().toLocaleString("en-US", {timeZone: "America/Sao_Paulo"})); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`; }
+  function obterDataBrasiliaBr() { return new Intl.DateTimeFormat('pt-BR', { timeZone: 'America/Sao_Paulo', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date()); }
+  function obterHoraBrasilia() { const d = new Date(new Date().toLocaleString("en-US", {timeZone: "America/Sao_Paulo"})); return `${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`; }
+  
+  function obterSegundaFeiraDaSemana() {
+    const d = new Date(new Date().toLocaleString("en-US", {timeZone: "America/Sao_Paulo"}));
+    const day = d.getDay(); const diff = d.getDate() - day + (day === 0 ? -6 : 1); 
+    const monday = new Date(d.setDate(diff));
+    return `${monday.getFullYear()}-${String(monday.getMonth()+1).padStart(2,'0')}-${String(monday.getDate()).padStart(2,'0')}`;
+  }
+  function sanitizarId(str) { return str.replace(/[.#$\[\]/]/g, "_"); }
+
+  function getCorTermica(pct) {
+    if (pct === 0) return 'transparent';
+    if (pct <= 10) return 'rgb(220, 53, 69)';
+    if (pct <= 40) { let p = (pct - 10) / 30; return `rgb(${Math.round(220 + (255 - 220) * p)}, ${Math.round(53 + (193 - 53) * p)}, ${Math.round(69 + (7 - 69) * p)})`; }
+    if (pct <= 70) { let p = (pct - 40) / 30; return `rgb(${Math.round(255 - (255 - 40) * p)}, ${Math.round(193 - (193 - 167) * p)}, ${Math.round(7 + (69 - 7) * p)})`; }
+    let p = (pct - 70) / 30; return `rgb(${Math.round(40 - (40 - 0) * p)}, ${Math.round(167 - (167 - 123) * p)}, ${Math.round(69 + (255 - 69) * p)})`;
+  }
+
+  const dataHojeISO = obterDataBrasiliaISO();
+  const semanaAtualISO = obterSegundaFeiraDaSemana();
+
+  function iniciarMonitoramentoDiario() {
+      document.getElementById('data-display').innerText = `Data de Referência (Brasília): ${obterDataBrasiliaBr()}`;
+
+      onValue(ref(db, `monitoramentoDiario/${dataHojeISO}`), (snapshot) => {
+        const data = snapshot.val() || {};
+        vistosGlobais = data.vistos ? Object.values(data.vistos) : [];
+        anotacoesGlobais = data.anotacoes || {}; 
+        agendaMenusGlobais = data.agenda_menus || {}; 
+        atualizarUiComVistos();
+        verificarAlertasExpirados(); 
+        if (window.CURRENT_SELECTED_DAY) window.selecionarDiaCalendario(window.CURRENT_SELECTED_DAY);
+      });
+
+      onValue(ref(db, 'alertas_calendario'), (snapshot) => {
+          alertasCalendarioGlobais = snapshot.val() || {};
+          window.renderizarCalendarioTatico();
+          verificarAlertasExpirados();
+          if (window.CURRENT_SELECTED_DAY) window.selecionarDiaCalendario(window.CURRENT_SELECTED_DAY);
+      });
+
+      onValue(ref(db, `estatisticas_semanal/${semanaAtualISO}`), (snapshot) => {
+        const dataFirebase = snapshot.val() || {};
+        let estatisticasCompletas = listaTodosAlvos.map(alvo => {
+            return { titulo: alvo.titulo, count: dataFirebase[alvo.id] ? dataFirebase[alvo.id].count : 0, caminho: alvo.caminho };
+        });
+        estatisticasCompletas.sort((a, b) => b.count - a.count);
+        const top15 = estatisticasCompletas.filter(s => s.count > 0).slice(0, 15);
+        const bottom15 =  estatisticasCompletas.slice(-15).reverse();
+        
+        document.getElementById('list-top').innerHTML = top15.length > 0 
+            ? top15.map(s => `<li data-caminho="${s.caminho.join(' > ')}" onclick="window.focarCaminhoDireto(this.getAttribute('data-caminho'))"><span>${s.titulo}</span> <span class="stat-count">${s.count} cliques</span></li>`).join('')
+            : '<li style="color: #666; justify-content: center;">Nenhum alvo acessado ainda</li>';
+        document.getElementById('list-bottom').innerHTML = bottom15.map(s => `<li data-caminho="${s.caminho.join(' > ')}" onclick="window.focarCaminhoDireto(this.getAttribute('data-caminho'))"><span>${s.titulo}</span> <span class="stat-count">${s.count} cliques</span></li>`).join('');
+      });
+
+      onValue(ref(db, 'marcacoesTaticas/estrelas'), (snapshot) => {
+          const data = snapshot.val();
+          estrelasOrigem = data ? Object.values(data) : [];
+          atualizarEstrelasUI();
+      });
+  }
+
+  function verificarAlertasExpirados() {
+      const agoraStr = obterDataBrasiliaISO() + " " + obterHoraBrasilia();
+      
+      Object.keys(agendaMenusGlobais).forEach(safeKey => {
+          const nota = agendaMenusGlobais[safeKey];
+          if (nota && nota.dataAlerta && nota.horaAlerta) {
+              const alvoStr = nota.dataAlerta + " " + nota.horaAlerta;
+              if (alvoStr <= agoraStr && !alertasPromptadosSessao.includes(safeKey)) {
+                  alertasPromptadosSessao.push(safeKey); 
+                  setTimeout(() => {
+                      const dispensar = confirm(`[AGENDA VENCIDA]\nO prazo do evento de "${nota.tituloOrigem}" no local "${nota.local || 'Não Definido'}" expirou.\n\nDeseja REMOVER este alerta da agenda de hoje?`);
+                      if (dispensar) set(ref(db, `monitoramentoDiario/${dataHojeISO}/agenda_menus/${safeKey}`), null);
+                  }, 600);
+              }
+          }
+      });
+
+      Object.keys(alertasCalendarioGlobais).forEach(keyId => {
+          const nota = alertasCalendarioGlobais[keyId];
+          if (nota && nota.dataAlerta && nota.horaAlerta) {
+              const alvoStr = nota.dataAlerta + " " + nota.horaAlerta;
+              if (alvoStr <= agoraStr && !alertasPromptadosSessao.includes(keyId)) {
+                  alertasPromptadosSessao.push(keyId);
+                  setTimeout(() => {
+                      const dispensar = confirm(`[EVENTO CALENDÁRIO VENCIDO]\nO prazo do agendamento direto "${nota.tituloOrigem}" expirou.\n\nDeseja REMOVER este registro da nuvem?`);
+                      if (dispensar) set(ref(db, `alertas_calendario/${keyId}`), null);
+                  }, 600);
+              }
+          }
+      });
+  }
+
+  window.mudarMesCalendario = function(direcao) {
+      currentCalMonth += direcao;
+      if (currentCalMonth > 11) { currentCalMonth = 0; currentCalYear++; }
+      if (currentCalMonth < 0) { currentCalMonth = 11; currentCalYear--; }
+      window.renderizarCalendarioTatico();
+  };
+
+  /* =========================================
+     SISTEMA DE RENDERIZAÇÃO DO CALENDÁRIO
+     ========================================= */
+  window.renderizarCalendarioTatico = function() {
+      const meses = ["Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho", "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"];
+      document.getElementById('cal-month-year').innerText = `${meses[currentCalMonth]} ${currentCalYear}`;
+      const gridDays = document.getElementById('calendar-days'); gridDays.innerHTML = "";
+      const primeiroDiaSemana = new Date(currentCalYear, currentCalMonth, 1).getDay();
+      const totalDiasMes = new Date(currentCalYear, currentCalMonth + 1, 0).getDate();
+      
+      for (let i = 0; i < primeiroDiaSemana; i++) {
+          const emptyDiv = document.createElement('div'); emptyDiv.className = 'calendar-day empty'; gridDays.appendChild(emptyDiv);
+      }
+      
+      const hojeLocal = new Date(new Date().toLocaleString("en-US", {timeZone: "America/Sao_Paulo"}));
+      for (let day = 1; day <= totalDiasMes; day++) {
+          const dateStr = `${currentCalYear}-${String(currentCalMonth+1).padStart(2,'0')}-${String(day).padStart(2,'0')}`;
+          const dayDiv = document.createElement('div'); dayDiv.innerText = day;
+          dayDiv.style.cssText = "background: #111; border: 1px solid #222; border-radius: 4px; padding: 6px 0; font-size: 11px; color: #ccc; transition: all 0.2s; user-select: none;";
+          
+          if (currentCalYear === hojeLocal.getFullYear() && currentCalMonth === hojeLocal.getMonth() && day === hojeLocal.getDate()) {
+              dayDiv.style.borderColor = "var(--accent-blue)"; dayDiv.style.color = "var(--accent-blue)";
+          }
+
+          let temAlertaNoDia = false;
+          Object.keys(agendaMenusGlobais).forEach(key => { if (agendaMenusGlobais[key] && agendaMenusGlobais[key].dataAlerta === dateStr) temAlertaNoDia = true; });
+          Object.keys(alertasCalendarioGlobais).forEach(key => { if (alertasCalendarioGlobais[key] && alertasCalendarioGlobais[key].dataAlerta === dateStr) temAlertaNoDia = true; });
+
+          if (temAlertaNoDia) {
+              dayDiv.style.borderColor = "var(--accent-orange)"; dayDiv.style.background = "rgba(255, 140, 0, 0.15)";
+              dayDiv.style.color = "#fff"; dayDiv.style.fontWeight = "bold"; dayDiv.style.cursor = "pointer";
+              dayDiv.onclick = () => window.selecionarDiaCalendario(dateStr);
+              dayDiv.onmouseenter = function() { this.style.background = "rgba(255, 140, 0, 0.3)"; this.style.boxShadow = "0 0 8px var(--accent-orange)"; };
+              dayDiv.onmouseleave = function() { this.style.background = "rgba(255, 140, 0, 0.15)"; this.style.boxShadow = "none"; };
+          }
+          gridDays.appendChild(dayDiv);
+      }
+  };
+
+  window.filtrarMovimentosDropdown = function() {
+      const input = document.getElementById('nota-movimento-input').value;
+      const box = document.getElementById('nota-movimento-sugestoes');
+      box.innerHTML = "";
+
+      if (input.trim().length === 0) { box.style.display = 'none'; return; }
+
+      const termoFormatado = normalizarTexto(input);
+      const filtrados = window.LISTA_MOVIMENTOS.filter(mov => normalizarTexto(mov.caminhoStr).includes(termoFormatado));
+
+      if (filtrados.length === 0) { box.style.display = 'none'; return; }
+
+      filtrados.forEach(mov => {
+          const itemDiv = document.createElement('div');
+          itemDiv.style.cssText = "padding: 8px 12px; cursor: pointer; border-bottom: 1px solid #1a1a1a; font-size: 12px; color: #ccc; transition: 0.15s; text-align: left;";
+          itemDiv.innerText = mov.caminhoStr.replace("MOVIMENTOS > ", "");
+          
+          itemDiv.onmouseenter = function() { this.style.background = "#1c1c1c"; this.style.color = "var(--accent-yellow)"; };
+          itemDiv.onmouseleave = function() { this.style.background = "transparent"; this.style.color = "#ccc"; };
+          
+          itemDiv.onclick = function() {
+              document.getElementById('nota-movimento-input').value = mov.caminhoStr;
+              box.style.display = 'none';
+          };
+          box.appendChild(itemDiv);
+      });
+      box.style.display = 'block';
+  };
+
+  window.abrirModalCalendarioDireto = function() {
+      contextoAtual = 'direto'; alvoAtualNota = "";
+      document.getElementById('nota-alvo-titulo').innerText = "Agendar Novo Evento";
+      document.getElementById('nota-textarea').value = ""; document.getElementById('nota-local').value = "";
+      document.getElementById('nota-data').value = ""; document.getElementById('nota-hora').value = "";
+      document.getElementById('nota-movimento-input').value = "";
+      document.getElementById('nota-movimento-sugestoes').style.display = 'none';
+
+      document.getElementById('container-local').style.display = 'block';
+      document.getElementById('container-tempo').style.display = 'flex';
+      document.getElementById('container-atrelar-movimento').style.display = 'block';
+      
+      document.getElementById('btn-modal-gravar').style.display = 'block';
+      document.getElementById('btn-modal-gravar').innerText = "Gravar Alerta";
+
+      document.getElementById('modal-overlay').style.display = 'block';
+      document.getElementById('nota-modal').style.display = 'block';
+      document.getElementById('nota-textarea').focus();
+  };
+
+  /* ==========================================================
+     SISTEMA COMPACTO DE EXPANSÃO E RESUMO DO CALENDÁRIO (FIXED)
+     ========================================================== */
   function construirItemVisualEvento(nota, keyId, tipoEntrada) {
       const div = document.createElement('div');
       div.style.cssText = `background: #111; border-left: 3px solid ${tipoEntrada === 'direto' ? 'var(--accent-yellow)' : 'var(--accent-orange)'}; padding: 10px; border-radius: 4px; font-size: 13px; line-height: 1.4; box-sizing: border-box; margin-bottom: 8px; text-align: left;`;
 
       let dataBr = nota.dataAlerta ? nota.dataAlerta.split('-').reverse().join('/') : '--/--/----';
       let caminhoFoco = tipoEntrada === 'direto' ? (nota.movimentoAtrelado || "") : (nota.pathString || "");
+
+      // SOLUÇÃO CIRÚRGICA: Transforma links inline nativamente ignorando chamadas fantasmas quebradas
+      const textoComLinks = nota.texto ? String(nota.texto).replace(/(https?:\/\/[^\s]+)/g, '<a href="$1" target="_blank">$1</a>') : "Sem descrição";
 
       div.innerHTML = `
           <div style="display: flex; justify-content: space-between; align-items: center; font-weight: bold; color: var(--accent-yellow);">
@@ -462,7 +713,7 @@
           </div>
           
           <div class="info-detalhada-card" style="display: none; margin-top: 10px; padding-top: 8px; border-top: 1px solid #222; font-size: 12px; color: #fff;">
-              <div style="margin-bottom: 6px; white-space: pre-wrap; color: #ddd;">"${linkify(nota.texto)}"</div>
+              <div style="margin-bottom: 6px; white-space: pre-wrap; color: #ddd;">"${textoComLinks}"</div>
               <div style="font-size: 11px; color: #aaa; margin-bottom: 3px;">📍 Local/Endereço: ${nota.local || 'Não cadastrado'}</div>
               ${caminhoFoco ? `<div class="btn-focar-movimento" style="font-size: 11px; color: var(--accent-blue); font-weight: bold; cursor: pointer; text-decoration: underline;">🔗 Movimento Atrelado: ${caminhoFoco.replace("MOVIMENTOS > ", "")}</div>` : ''}
               <div style="font-size: 10px; color: #666; margin-top: 5px;">Registrado por: ${nota.operador ? nota.operador.split('@')[0] : 'Desconhecido'} às ${nota.time || '--:--'}</div>
@@ -710,6 +961,7 @@
       document.getElementById('ia-input-modal').style.display = 'none';
   };
 
+  /* --- CORREÇÃO DE ESCOPO: Unificada variável movimentoAtrelado contra erros de compilação --- */
   window.salvarNotaFirebase = function() {
       const texto = document.getElementById('nota-textarea').value.trim();
       const local = document.getElementById('nota-local').value.trim();
@@ -913,7 +1165,7 @@
   }
 
   /* =====================================================================
-     SISTEMA DE INTELIGÊNCIA ARTIFICIAL COORDENADO PARA WHATSAPP
+     SISTEMA DE INTELIGÊNCIA ARTIFICIAL DYNAMIC-PROMPT WHATSAPP (V1 ESTÁVEL)
      ===================================================================== */
   window.gerarRelatorioIA = async function() {
       const btn = document.getElementById('btn-ia-report');
@@ -929,6 +1181,12 @@
               return;
           }
           const apiKey = snapChave.val().trim();
+
+          let promptBase = "Você é uma Inteligência Artificial analista de dados. Analise a seguinte lista de eventos e manifestações agendadas para os próximos 7 dias e crie um Relatório Sintético de Cenários Ocultando jargões desnecessários. Organize estritamente por Ordem Cronológica de Dias, resumindo os principais alvos (movimentos envolvidos), horários e os locais citados. Seja muito direto, formal e objetivo. Use tópicos claros.";
+          const snapPrompt = await get(ref(db, 'config/prompt_ia'));
+          if (snapPrompt.exists() && snapPrompt.val().trim() !== "") {
+              promptBase = snapPrompt.val().trim();
+          }
 
           let datasAlvo = [];
           for (let i = 0; i < 7; i++) {
@@ -947,10 +1205,9 @@
               return;
           }
 
-          // PROMPT CONFIGURADO RIGOROSAMENTE PARA SINTAXE DE NEGRIÇÃO E EXPEDIÇÃO DO WHATSAPP
           const promptFinal = `Você é uma Inteligência Artificial analista de dados de inteligência de segurança. Analise a seguinte lista de eventos e manifestações agendadas para os próximos 7 dias e crie um Relatório Sintético de Cenários formatado RIGOROSAMENTE para envio direto no WhatsApp.
 
-          A estrutura da mensagem DEVE seguir estritamente o modelo abaixo, sem linhas em branco entre as siglas do cabeçalho institucional inicial, agrupando todos os eventos de um mesmo dia cronologicamente pelo horário. Use asteriscos para deixar os títulos em negrito no WhatsApp.
+          A estrutura da mensagem DEVE seguir estritamente o modelo abaixo, sem linhas em branco entre as siglas do cabeçalho institucional inicial. Agrupe todos os eventos de um mesmo dia cronologicamente pelo horário e use asteriscos de forma explícita para deixar os títulos em negrito no WhatsApp.
 
           *PMPR*
           *CME*
@@ -959,6 +1216,7 @@
 
           *Data*: [Data formatada DD/MM/YYYY]
 
+          Listar todos os eventos desta data em ordem de horário. Descrevendo o titulo da manifestação, horario e endereço nos moldes abaixo:
           • 🕒 [Horário HH:MM] - *[Título/Nome do Evento]*
           📍 Endereço: [Local ou Endereço completo]
           📝 Detalhes: [Descrição concisa da pauta ou informe observacional]
