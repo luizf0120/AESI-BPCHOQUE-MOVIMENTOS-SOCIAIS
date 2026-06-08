@@ -92,6 +92,8 @@
   .search-input:focus { border-color: var(--accent-red); box-shadow: 0 0 8px rgba(220, 53, 69, 0.4); }
   .search-results { position: absolute; top: 45px; left: 0; right: 0; background: var(--card-bg); border: 1px solid var(--border-color); border-radius: 8px; max-height: 400px; overflow-y: auto; display: none; box-shadow: 0 8px 16px rgba(0,0,0,0.8); z-index: 9999; }
   .search-item { padding: 12px; border-bottom: 1px solid var(--border-color); cursor: pointer; transition: 0.2s; }
+  .search-item:last-child { border-bottom: none; }
+  .search-item:hover { background: #1f1f1f; border-left: 3px solid var(--accent-red); }
   .search-item-title { font-weight: bold; font-size: 14px; color: var(--text-main); }
   .search-item-path { font-size: 11px; color: #888; margin-top: 4px; }
 
@@ -329,7 +331,6 @@
                   </div>
                   <div id="calendar-days" style="display: grid; grid-template-columns: repeat(7, 1fr); gap: 5px; text-align: center;"></div>
                   
-                  <!-- INTERFACE DO RESUMO DIÁRIO INVERTIDA PARA FICAR ACIMA DOS BOTÕES OPERACIONAIS -->
                   <div id="calendar-event-list" style="margin-top: 15px; border-top: 1px solid #222; padding-top: 12px; display: none;">
                       <h5 style="margin: 0 0 8px 0; font-size: 11px; color: var(--accent-orange); text-transform: uppercase; letter-spacing: 0.5px;">Alertas do Dia Selecionado</h5>
                       <div id="cal-events-ul" style="display: flex; flex-direction: column; gap: 6px; max-height: 220px; overflow-y: auto; padding-right: 4px;"></div>
@@ -431,7 +432,7 @@
   window.CURRENT_SELECTED_DAY = "";
 
   // =====================================================================
-  // BLOCO 1: NÚCLEO DE UTILITÁRIOS CRONOLÓGICOS E AUXILIARES
+  // AUXILIARES INDEPENDENTES DE TIMEZONE
   // =====================================================================
   function obterDataBrasiliaISO() { const d = new Date(new Date().toLocaleString("en-US", {timeZone: "America/Sao_Paulo"})); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`; }
   function obterDataBrasiliaBr() { return new Intl.DateTimeFormat('pt-BR', { timeZone: 'America/Sao_Paulo', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date()); }
@@ -443,7 +444,7 @@
     const monday = new Date(d.setDate(diff));
     return `${monday.getFullYear()}-${String(monday.getMonth()+1).padStart(2,'0')}-${String(monday.getDate()).padStart(2,'0')}`;
   }
-  function sanitizarId(str) { return str.replace(/[.#$\[\]/]/g, "_"); }
+  function sanitizarId(str) { return str ? str.replace(/[.#$\[\]/]/g, "_") : ""; }
 
   function getCorTermica(pct) {
     if (pct === 0) return 'transparent';
@@ -453,11 +454,8 @@
     let p = (pct - 70) / 30; return `rgb(${Math.round(40 - (40 - 0) * p)}, ${Math.round(167 - (167 - 123) * p)}, ${Math.round(69 + (255 - 69) * p)})`;
   }
 
-  const dataHojeISO = obterDataBrasiliaISO();
-  const semanaAtualISO = obterSegundaFeiraDaSemana();
-
   // =====================================================================
-  // BLOCO 2: CONSTRUTORES DE RENDERIZAÇÃO DA INTERFACE DO CALENDÁRIO
+  // ENGENHARIA COMPACTA E BLINDADA DE SELETORES EM MEMÓRIA (ANTI-CRASH)
   // =====================================================================
   function construirItemVisualEvento(nota, keyId, tipoEntrada) {
       if (!nota) return document.createElement('div');
@@ -516,13 +514,8 @@
       div.querySelector('.btn-toggle-info').addEventListener('click', (e) => {
           e.preventDefault(); e.stopPropagation();
           const target = div.querySelector('.info-detalhada-card');
-          if (target.style.display === 'none') {
-              target.style.display = 'block';
-              e.target.innerText = "✖️ Ocultar";
-          } else {
-              target.style.display = 'none';
-              e.target.innerText = "🔍 + Detalhes";
-          }
+          target.style.display = (target.style.display === 'none') ? 'block' : 'none';
+          e.target.innerText = (target.style.display === 'none') ? '🔍 + Detalhes' : '✖️ Ocultar';
       });
 
       if (caminhoFoco) {
@@ -607,7 +600,7 @@
   };
 
   // =====================================================================
-  // BLOCO 3: COMPONENTES DE GERENCIAMENTO DOS ENTRADAS E MODAIS
+  // BLOCO 3: CORE DA INTELIGÊNCIA ARTIFICIAL E MODAIS
   // =====================================================================
   window.abrirModalIAParser = function() {
       document.getElementById('ia-texto-bruto').value = "";
@@ -638,20 +631,20 @@
           const mesesMatriz = ["Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho", "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"];
           const nomeMesCorrente = mesesMatriz[tempoSistema.getMonth()];
 
-          const promptInstrucao = `Você é um robô auxiliar de inteligência e triagem. Analise o informe operacional fornecido e extraia os dados estruturados. Responda APENAS com um objeto JSON plano válido (sem blocos de código markdown ou texto explicativo adicional). Se omitido, use o ano ${anoCorrente} e mês de ${nomeMesCorrente}.
+          const promptInstrucao = `Você é um robô auxiliar de inteligência e triagem. Analise o informe operacional fornecido e extraia os dados estruturados. Responda APENAS com um objeto JSON plano válido. Se omitido, use o ano ${anoCorrente} e mês de ${nomeMesCorrente}.
           JSON Chaves obrigatórias: "texto", "local", "data" (YYYY-MM-DD), "hora" (HH:MM), "movimento". Texto original: "${txtBruto}"`;
 
-          const response = await fetch(`https://generativelanguage.googleapis.com/v1/models/gemini-2.5-flash:generateContent?key=${apiKey}`, {
+          const resposta = await fetch(`https://generativelanguage.googleapis.com/v1/models/gemini-2.5-flash:generateContent?key=${apiKey}`, {
               method: "POST", headers: { "Content-Type": "application/json" },
               body: JSON.stringify({ contents: [{ parts: [{ text: promptInstrucao }] }] })
           });
 
-          const dataIa = await response.json();
+          const dataIa = await resposta.json();
           let rawText = dataIa.candidates[0].content.parts[0].text;
           
           let inicioJson = rawText.indexOf('{');
           let fimJson = rawText.lastIndexOf('}');
-          if (inicioJson === -1 || fimJson === -1) { throw new Error("JSON inválido na resposta."); }
+          if (inicioJson === -1 || fimJson === -1) { throw new Error("JSON inválido."); }
           let cleanJsonStr = rawText.substring(inicioJson, fimJson + 1).trim();
           let dataObjeto = JSON.parse(cleanJsonStr);
 
@@ -719,7 +712,6 @@
           });
 
           const dataIa = await resposta.json();
-          if (!dataIa.candidates || dataIa.candidates.length === 0) { throw new Error("A IA recusou ou falhou na análise."); }
           const relatorioFormatado = dataIa.candidates[0].content.parts[0].text;
 
           document.getElementById('nota-alvo-titulo').innerText = "🤖 Relatório Analítico IA (Próximos 7 Dias)";
@@ -738,7 +730,7 @@
           document.getElementById('modal-overlay').style.display = 'block';
           document.getElementById('nota-modal').style.display = 'block';
       } catch (err) {
-          alert("Falha de Processamento na IA. Verifique as credenciais no cofre.");
+          alert("Falha de Processamento na IA.");
           console.error(err);
       }
       btn.innerText = backupText; btn.disabled = false;
@@ -828,10 +820,9 @@
   };
 
   // =====================================================================
-  // BLOCO 4: NÚCLEO DE ÁRVORE, MOTOR DE BUSCA E METRICAS
+  // BLOCO 4: ENGINE DA ÁRVORE TÁTICA, SISTEMA DE BUSCA E VISUALIZAÇÃO
   // =====================================================================
   window.recolherBusca = function() { document.getElementById('caixaResultados').style.display = 'none'; };
-  window.esconderTooltipTatico = function() { document.getElementById('tooltip-preview').classList.remove('show'); };
 
   function focarCaminhoDireto(caminhoCompletoStr) {
       if (!caminhoCompletoStr) return;
@@ -840,9 +831,10 @@
       let c = "";
       pastas.forEach((pasta, idx) => {
           c += (idx === 0 ? "" : " > ") + pasta;
-          const n = document.querySelector(`.node[data-path="${c}"]`); if (n) n.classList.add('active');
+          const n = Array.from(document.querySelectorAll('.node')).find(el => el.getAttribute('data-path') === c);
+          if (n) n.classList.add('active');
       });
-      const target = document.querySelector(`.node[data-path="${caminhoCompletoStr}"]`);
+      const target = Array.from(document.querySelectorAll('.node')).find(el => el.getAttribute('data-path') === caminhoCompletoStr);
       if (target) target.scrollIntoView({ behavior: 'smooth', block: 'center' });
   }
   window.focarCaminhoDireto = focarCaminhoDireto;
@@ -862,44 +854,22 @@
   function atualizarEstrelasUI() {
       if (!Array.isArray(estrelasOrigem)) estrelasOrigem = estrelasOrigem ? Object.values(estrelasOrigem) : [];
       document.querySelectorAll('.star-icon').forEach(el => {
-          const id = el.getAttribute('data-star'); el.classList.remove('star-orange', 'star-yellow');
+          const id = el.getAttribute('data-star'); 
+          if (!id) return;
+          el.classList.remove('star-orange', 'star-yellow');
           if (estrelasOrigem.includes(id)) el.classList.add('star-orange');
           else if (estrelasOrigem.some(orig => id.startsWith(orig + " > ") || orig.startsWith(id + " > "))) el.classList.add('star-yellow');
       });
   }
-
-  window.mostrarTooltipTatico = function(e, idUnico, tipo) {
-      e.stopPropagation();
-      const safeKey = sanitizarId(idUnico);
-      const data = tipo === 'postit' ? anotacoesGlobais[safeKey] : agendaMenusGlobais[safeKey];
-      if (!data) return;
-
-      const tooltip = document.getElementById('tooltip-preview');
-      if (tipo === 'postit') {
-          tooltip.innerHTML = `
-              <div class="tooltip-title" style="color: var(--accent-red); border-bottom-color: var(--accent-red);">NOTA (POST-IT)</div>
-              <div style="color: #ffffff; font-weight: bold; font-size: 13px; margin-bottom: 6px; white-space: pre-wrap; line-height: 1.4;">"${linkify(data.texto) || 'Sem descrição'}"</div>
-              <div style="font-size: 10px; color: #aaa; border-top: 1px solid #222; padding-top: 4px;">🎯 Operador: ${data.operador.split('@')[0]} | ⏰ Registro: ${data.time}</div>
-          `;
-      } else {
-          tooltip.innerHTML = `
-              <div class="tooltip-title" style="color: var(--accent-yellow); border-bottom-color: var(--accent-yellow);">AGENDA DE EVENTO</div>
-              <div style="color: #ffffff; font-weight: bold; font-size: 13px; margin-bottom: 6px; white-space: pre-wrap; line-height: 1.4;">"${linkify(data.texto) || 'Sem descrição'}"</div>
-              <div style="font-size: 11px; color: var(--accent-orange); margin-bottom: 3px;">📍 Local: ${data.local || 'Não informado'}</div>
-              <div style="font-size: 11px; color: var(--accent-blue); margin-bottom: 6px;">📅 Evento: ${data.dataAlerta.split('-').reverse().join('/')} às ${data.horaAlerta || '--:--'}</div>
-              <div style="font-size: 10px; color: #aaa; border-top: 1px solid #222; padding-top: 4px;">🎯 Operador: ${data.operador.split('@')[0]} | ⏰ Registro: ${data.time}</div>
-          `;
-      }
-      tooltip.style.left = (e.clientX + 15) + 'px'; tooltip.style.top = (e.clientY + 10) + 'px'; tooltip.classList.add('show');
-  };
 
   function atualizarUiComVistos() {
     document.querySelectorAll('.link-card').forEach(el => {
         el.classList.remove('visto'); const stamp = el.querySelector('.stamp'); if(stamp) stamp.remove();
     });
 
+    // BLINDAGEM COMPLETA DA BUSCA: Substituído querySelector por find em array de memória nativa
     vistosGlobais.forEach(v => {
-      const el = document.querySelector(`.link-card[data-id="${v.id}"]`);
+      const el = Array.from(document.querySelectorAll('.link-card')).find(card => card.getAttribute('data-id') === v.id);
       if (el) { el.classList.add('visto'); let stamp = document.createElement('span'); stamp.className = 'stamp'; stamp.innerText = `[${v.time}]`; el.appendChild(stamp); }
     });
 
@@ -934,7 +904,7 @@
 
   window.registrarVisualizacao = function(idUnico, tituloLink) {
     if (!vistosGlobais.some(v => v.id === idUnico)) {
-      set(ref(db, `monitoramentoDiario/${dataHojeISO}/vistos`), [...vistosGlobais, { id: idUnico, time: obterHoraBrasilia(), operador: auth.currentUser ? auth.currentUser.email : 'Desconhecido' }]);
+      set(ref(db, `monitorementDiario/${dataHojeISO}/vistos`), [...vistosGlobais, { id: idUnico, time: obterHoraBrasilia(), operador: auth.currentUser ? auth.currentUser.email : 'Desconhecido' }]);
     }
     if (idUnico.startsWith("MOVIMENTOS")) {
         const safeKey = sanitizarId(idUnico); const statRef = ref(db, `estatisticas_semanal/${semanaAtualISO}/${safeKey}`);
@@ -978,7 +948,6 @@
   };
   window.esconderTooltipPreview = function() { document.getElementById('tooltip-preview').classList.remove('show'); };
   window.recolherArvoreInteira = function() { document.querySelectorAll('.node').forEach(node => { const p = node.getAttribute('data-path'); if (p !== "MOVIMENTOS" && p !== "NOTÍCIAS") node.classList.remove('active'); }); };
-  function normalizarTexto(t) { return t ? t.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase() : ""; }
   
   function vasculharArvore(lista, termo, caminhoAtual = [], resultados = []) {
     const termoFormatado = normalizarTexto(termo);
@@ -998,9 +967,13 @@
         const div = document.createElement('div'); div.className = 'search-item';
         div.innerHTML = `<div class="search-item-title">${res.item.nome}</div><div class="search-item-path">${res.caminho.join(' > ')}</div>`;
         div.onclick = () => {
-          window.recolherArvoreInteira(); let c = ""; 
-          res.caminho.forEach((p, idx) => { c += (idx === 0 ? "" : " > ") + p; const node = document.querySelector(`.node[data-path="${c}"]`); if(node) node.classList.add('active'); });
-          const target = document.querySelector(`.node[data-path="${res.caminho.join(' > ')}"]`);
+          window.recolherArvoreInteira();
+          res.caminho.forEach((p, idx) => {
+              const subCaminho = res.caminho.slice(0, idx + 1).join(' > ');
+              const node = Array.from(document.querySelectorAll('.node')).find(el => el.getAttribute('data-path') === subCaminho);
+              if (node) node.classList.add('active');
+          });
+          const target = Array.from(document.querySelectorAll('.node')).find(el => el.getAttribute('data-path') === res.caminho.join(' > '));
           if (target) target.scrollIntoView({ behavior: 'smooth', block: 'center' });
           caixa.style.display = 'none';
         };
@@ -1061,7 +1034,7 @@
   }
 
   // =====================================================================
-  // BLOCO 5: PONTOS DE ENTRADA, SCRIPT DE LOGIN E SINC DE ESCUTADORES
+  // BLOCO 5: CRONOGRAMA DE INICIALIZAÇÃO E SINCRONIZAÇÃO EM SEGUNDO PLANO
   // =====================================================================
   function iniciarMonitoramentoDiario() {
       document.getElementById('data-display').innerText = `Data de Referência (Brasília): ${obterDataBrasiliaBr()}`;
@@ -1130,13 +1103,6 @@
         document.getElementById('login-screen').style.display = 'flex';
         document.getElementById('app-content').style.display = 'none';
     }
-  });
-
-  document.addEventListener('click', (e) => { 
-      if (!e.target.closest('.search-box')) document.getElementById('caixaResultados').style.display = 'none'; 
-      if (!e.target.closest('#container-atrelar-movimento')) {
-          const sug = document.getElementById('nota-movimento-sugestoes'); if (sug) sug.style.display = 'none';
-      }
   });
 </script>
 </body>
