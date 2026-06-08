@@ -684,23 +684,34 @@
       document.getElementById('nota-textarea').focus();
   };
 
-  /* --- DEFINIÇÃO BLINDADA DO PARSER VISUAL DE CARDS DO CALENDÁRIO --- */
+  /* ==========================================================
+     SISTEMA 100% BLINDADO CONTRA DATAS OU DADOS NULOS/MUTÁVEIS
+     ========================================================== */
   function construirItemVisualEvento(nota, keyId, tipoEntrada) {
+      if (!nota) return document.createElement('div');
       const div = document.createElement('div');
       div.style.cssText = `background: #111; border-left: 3px solid ${tipoEntrada === 'direto' ? 'var(--accent-yellow)' : 'var(--accent-orange)'}; padding: 10px; border-radius: 4px; font-size: 13px; line-height: 1.4; box-sizing: border-box; margin-bottom: 8px;`;
 
-      let dataBr = nota.dataAlerta ? nota.dataAlerta.split('-').reverse().join('/') : '--/--/----';
-      let caminhoFoco = tipoEntrada === 'direto' ? (nota.movimentoAtrelado || "") : (nota.pathString || "");
+      // Conversão forçada de tipos (String) para impedir que dados poluidos quebrem o loop
+      const dataAlertaStr = nota.dataAlerta ? String(nota.dataAlerta) : '';
+      let dataBr = dataAlertaStr ? dataAlertaStr.split('-').reverse().join('/') : '--/--/----';
       
-      // BLINDAGEM CRÍTICA: Garante tratamento de strings nulas para evitar que o loop crash no navegador
-      let operadorLimpo = (nota.operador || 'Desconhecido').split('@')[0];
-      let horaLimpa = nota.horaAlerta || '--:--';
-      let localLimpo = nota.local || 'Não cadastrado';
-      let textoLimpo = nota.texto || 'Sem descrição';
+      let caminhoFoco = '';
+      if (tipoEntrada === 'direto') {
+          caminhoFoco = nota.movimentoAtrelado ? String(nota.movimentoAtrelado) : '';
+      } else {
+          caminhoFoco = nota.pathString ? String(nota.pathString) : '';
+      }
+
+      let operadorLimpo = String(nota.operador || 'Desconhecido').split('@')[0];
+      let horaLimpa = nota.horaAlerta ? String(nota.horaAlerta) : '--:--';
+      let localLimpo = nota.local ? String(nota.local) : 'Não cadastrado';
+      let textoLimpo = nota.texto ? String(nota.texto) : 'Sem descrição';
+      let tituloLimpo = nota.tituloOrigem ? String(nota.tituloOrigem) : 'Evento Geral';
 
       div.innerHTML = `
           <div style="display: flex; justify-content: space-between; align-items: center; font-weight: bold; color: var(--accent-yellow);">
-              <span>🎯 ${nota.tituloOrigem || 'Evento Geral'}</span>
+              <span>🎯 ${tituloLimpo}</span>
               <div style="display: flex; gap: 5px;" onclick="event.stopPropagation();">
                   <span class="btn-editar-card" style="cursor: pointer; font-size: 11px; background: #222; padding: 2px 6px; border-radius: 4px; color: var(--accent-yellow); border: 1px solid #444;" title="Editar">✏️</span>
                   <span class="btn-excluir-card" style="cursor: pointer; font-size: 11px; background: #222; padding: 2px 6px; border-radius: 4px; color: var(--accent-red); border: 1px solid #444;" title="Excluir">🗑️</span>
@@ -716,13 +727,13 @@
           <div class="info-detalhada-card" style="display: none; margin-top: 10px; padding-top: 8px; border-top: 1px solid #222; font-size: 12px; color: #fff;">
               <div style="margin-bottom: 6px; white-space: pre-wrap; color: #ddd;">"${linkify(textoLimpo)}"</div>
               <div style="font-size: 11px; color: #aaa; margin-bottom: 3px;">📍 Local/Endereço: ${localLimpo}</div>
-              ${caminhoFoco ? `<div style="font-size: 11px; color: var(--accent-blue); font-weight: bold; cursor: pointer; text-decoration: underline;" onclick="window.focarCaminhoDireto('${caminhoFoco}')">🔗 Movimento Atrelado: ${caminhoFoco.replace("MOVIMENTOS > ", "")}</div>` : ''}
+              ${caminhoFoco ? `<div style="font-size: 11px; color: var(--accent-blue); font-weight: bold; cursor: pointer; text-decoration: underline;" onclick="window.focarCaminhoDireto('${caminhoFoco.replace(/'/g, "\\'")}')">🔗 Movimento Atrelado: ${caminhoFoco.replace("MOVIMENTOS > ", "")}</div>` : ''}
               <div style="font-size: 10px; color: #666; margin-top: 5px;">Registrado por: ${operadorLimpo} às ${nota.time || '--:--'}</div>
           </div>
       `;
 
       div.querySelector('.btn-editar-card').addEventListener('click', (e) => {
-          window.abrirModalTatico(e, keyId, nota.tituloOrigem || 'Evento Geral', tipoEntrada === 'direto' ? 'direto' : 'agenda');
+          window.abrirModalTatico(e, keyId, tituloLimpo, tipoEntrada === 'direto' ? 'direto' : 'agenda');
       });
 
       div.querySelector('.btn-excluir-card').addEventListener('click', (e) => {
@@ -756,17 +767,28 @@
       window.CURRENT_SELECTED_DAY = dataStr;
       const listaEvs = document.getElementById('cal-events-ul');
       const containerEvs = document.getElementById('calendar-event-list');
+      if (!listaEvs || !containerEvs) return;
       listaEvs.innerHTML = ""; let encontrou = false;
 
-      Object.keys(agendaMenusGlobais).forEach(key => {
-          const nota = agendaMenusGlobais[key];
-          if (nota && nota.dataAlerta === dataStr) { encontrou = true; listaEvs.appendChild(construirItemVisualEvento(nota, key, 'pasta')); }
-      });
+      if (agendaMenusGlobais) {
+          Object.keys(agendaMenusGlobais).forEach(key => {
+              const nota = agendaMenusGlobais[key];
+              if (nota && String(nota.dataAlerta) === String(dataStr)) { 
+                  encontrou = true; 
+                  listaEvs.appendChild(construirItemVisualEvento(nota, key, 'pasta')); 
+              }
+          });
+      }
 
-      Object.keys(alertasCalendarioGlobais).forEach(key => {
-          const nota = alertasCalendarioGlobais[key];
-          if (nota && nota.dataAlerta === dataStr) { encontrou = true; listaEvs.appendChild(construirItemVisualEvento(nota, key, 'direto')); }
-      });
+      if (alertasCalendarioGlobais) {
+          Object.keys(alertasCalendarioGlobais).forEach(key => {
+              const nota = alertasCalendarioGlobais[key];
+              if (nota && String(nota.dataAlerta) === String(dataStr)) { 
+                  encontrou = true; 
+                  listaEvs.appendChild(construirItemVisualEvento(nota, key, 'direto')); 
+              }
+          });
+      }
 
       containerEvs.style.display = encontrou ? 'block' : 'none';
   };
@@ -847,7 +869,7 @@
       btn.innerText = "Avançar ➔"; btn.disabled = false;
   };
 
-  window.focarCaminhoDireto = function(caminhoCompletoStr) {
+  function focarCaminhoDireto(caminhoCompletoStr) {
       if (!caminhoCompletoStr) return;
       const pastas = caminhoCompletoStr.split(' > ');
       document.querySelectorAll('.node').forEach(node => node.classList.remove('active'));
@@ -858,7 +880,8 @@
       });
       const target = document.querySelector(`.node[data-path="${caminhoCompletoStr}"]`);
       if (target) target.scrollIntoView({ behavior: 'smooth', block: 'center' });
-  };
+  }
+  window.focarCaminhoDireto = focarCaminhoDireto;
 
   window.clicarEstrela = function(e, idElemento) {
       e.preventDefault(); e.stopPropagation();
