@@ -335,7 +335,7 @@
                   
                   <button class="btn-action" onclick="window.abrirModalIAParser()" style="width: 100%; margin-top: 8px; background: #00bcd4; color: black; font-weight: bold; border: none; padding: 10px; border-radius: 6px;">🤖 Agendar Evento por IA</button>
                   
-                  <button id="btn-ia-report" class="btn-action" onclick="window.gerarRelatorioIA()" style="width: 100%; margin-top: 8px; background: #00ffaa; color: black; font-weight: bold; border: none; padding: 10px; border-radius: 6px;">🤖 Gerar Relatório IA (7 Dias)</button>
+                  <button id="btn-ia-report" class="btn-action" onclick="window.generarRelatorioIA()" style="width: 100%; margin-top: 8px; background: #00ffaa; color: black; font-weight: bold; border: none; padding: 10px; border-radius: 6px;">🤖 Gerar Relatório IA (7 Dias)</button>
 
                   <div id="calendar-event-list" style="margin-top: 15px; border-top: 1px solid #222; padding-top: 12px; display: none;">
                       <h5 style="margin: 0 0 8px 0; font-size: 11px; color: var(--accent-orange); text-transform: uppercase; letter-spacing: 0.5px;">Alertas do Dia Selecionado</h5>
@@ -518,7 +518,6 @@
   function iniciarMonitoramentoDiario() {
       document.getElementById('data-display').innerText = `Data de Referência (Brasília): ${obterDataBrasiliaBr()}`;
 
-      // MONITORAMENTO DIÁRIO (Mural e Vistos)
       onValue(ref(db, `monitoramentoDiario/${dataHojeISO}`), (snapshot) => {
         const data = snapshot.val() || {};
         vistosGlobais = data.vistos ? Object.values(data.vistos) : [];
@@ -528,7 +527,6 @@
         if (window.CURRENT_SELECTED_DAY) window.selecionarDiaCalendario(window.CURRENT_SELECTED_DAY);
       });
 
-      // ARQUITETURA GLOBAL: Agenda vinculada por Pastas
       onValue(ref(db, 'agenda_menus'), (snapshot) => {
           agendaMenusGlobais = snapshot.val() || {};
           window.renderizarCalendarioTatico();
@@ -536,7 +534,6 @@
           if (window.CURRENT_SELECTED_DAY) window.selecionarDiaCalendario(window.CURRENT_SELECTED_DAY);
       });
 
-      // ARQUITETURA GLOBAL: Eventos Diretos do Calendário
       onValue(ref(db, 'alertas_calendario'), (snapshot) => {
           alertasCalendarioGlobais = snapshot.val() || {};
           window.renderizarCalendarioTatico();
@@ -550,7 +547,7 @@
             return { titulo: alvo.titulo, count: dataFirebase[alvo.id] ? dataFirebase[alvo.id].count : 0, caminho: alvo.caminho };
         });
         estatisticasCompletas.sort((a, b) => b.count - a.count);
-        const top15 = estatisticasCompletas.filter(s => s.count > 0).slice(0, 15);
+        const top15 =  estatisticasCompletas.filter(s => s.count > 0).slice(0, 15);
         const bottom15 =  estatisticasCompletas.slice(-15).reverse();
         
         document.getElementById('list-top').innerHTML = top15.length > 0 
@@ -598,100 +595,17 @@
       });
   }
 
-  window.mudarMesCalendario = function(direcao) {
-      currentCalMonth += direcao;
-      if (currentCalMonth > 11) { currentCalMonth = 0; currentCalYear++; }
-      if (currentCalMonth < 0) { currentCalMonth = 11; currentCalYear--; }
-      window.renderizarCalendarioTatico();
-  };
-
-  /* --- DEFINIÇÃO DA FUNÇÃO DO CALENDÁRIO --- */
-  window.renderizarCalendarioTatico = function() {
-      const meses = ["Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho", "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"];
-      document.getElementById('cal-month-year').innerText = `${meses[currentCalMonth]} ${currentCalYear}`;
-      const gridDays = document.getElementById('calendar-days'); gridDays.innerHTML = "";
-      const primeiroDiaSemana = new Date(currentCalYear, currentCalMonth, 1).getDay();
-      const totalDiasMes = new Date(currentCalYear, currentCalMonth + 1, 0).getDate();
-      
-      for (let i = 0; i < primeiroDiaSemana; i++) {
-          const emptyDiv = document.createElement('div'); emptyDiv.className = 'calendar-day empty'; gridDays.appendChild(emptyDiv);
-      }
-      
-      const hojeLocal = new Date(new Date().toLocaleString("en-US", {timeZone: "America/Sao_Paulo"}));
-      for (let day = 1; day <= totalDiasMes; day++) {
-          const dateStr = `${currentCalYear}-${String(currentCalMonth+1).padStart(2,'0')}-${String(day).padStart(2,'0')}`;
-          const dayDiv = document.createElement('div'); dayDiv.innerText = day;
-          dayDiv.style.cssText = "background: #111; border: 1px solid #222; border-radius: 4px; padding: 6px 0; font-size: 11px; color: #ccc; transition: all 0.2s; user-select: none;";
-          
-          if (currentCalYear === hojeLocal.getFullYear() && currentCalMonth === hojeLocal.getMonth() && day === hojeLocal.getDate()) {
-              dayDiv.style.borderColor = "var(--accent-blue)"; dayDiv.style.color = "var(--accent-blue)";
-          }
-
-          let temAlertaNoDia = false;
-          Object.keys(agendaMenusGlobais).forEach(key => { if (agendaMenusGlobais[key] && String(agendaMenusGlobais[key].dataAlerta) === dateStr) temAlertaNoDia = true; });
-          Object.keys(alertasCalendarioGlobais).forEach(key => { if (alertasCalendarioGlobais[key] && String(alertasCalendarioGlobais[key].dataAlerta) === dateStr) temAlertaNoDia = true; });
-
-          if (temAlertaNoDia) {
-              dayDiv.style.borderColor = "var(--accent-orange)"; dayDiv.style.background = "rgba(255, 140, 0, 0.15)";
-              dayDiv.style.color = "#fff"; dayDiv.style.fontWeight = "bold"; dayDiv.style.cursor = "pointer";
-              dayDiv.onclick = () => window.selecionarDiaCalendario(dateStr);
-              dayDiv.onmouseenter = function() { this.style.background = "rgba(255, 140, 0, 0.3)"; this.style.boxShadow = "0 0 8px var(--accent-orange)"; };
-              dayDiv.onmouseleave = function() { this.style.background = "rgba(255, 140, 0, 0.15)"; this.style.boxShadow = "none"; };
-          }
-          gridDays.appendChild(dayDiv);
-      }
-  };
-
-  window.filtrarMovimentosDropdown = function() {
-      const input = document.getElementById('nota-movimento-input').value;
-      const box = document.getElementById('nota-movimento-sugestoes');
-      box.innerHTML = "";
-
-      if (input.trim().length === 0) { box.style.display = 'none'; return; }
-
-      const termoFormatado = normalizarTexto(input);
-      const filtrados = window.LISTA_MOVIMENTOS.filter(mov => normalizarTexto(mov.caminhoStr).includes(termoFormatado));
-
-      if (filtrados.length === 0) { box.style.display = 'none'; return; }
-
-      filtrados.forEach(mov => {
-          const itemDiv = document.createElement('div');
-          itemDiv.style.cssText = "padding: 8px 12px; cursor: pointer; border-bottom: 1px solid #1a1a1a; font-size: 12px; color: #ccc; transition: 0.15s; text-align: left;";
-          itemDiv.innerText = mov.caminhoStr.replace("MOVIMENTOS > ", "");
-          
-          itemDiv.onmouseenter = function() { this.style.background = "#1c1c1c"; this.style.color = "var(--accent-yellow)"; };
-          itemDiv.onmouseleave = function() { this.style.background = "transparent"; this.style.color = "#ccc"; };
-          
-          itemDiv.onclick = function() {
-              document.getElementById('nota-movimento-input').value = mov.caminhoStr;
-              box.style.display = 'none';
-          };
-          box.appendChild(itemDiv);
+  function linkify(text) {
+      if (!text) return "";
+      const urlRegex = /(https?:\/\/[^\s]+)/g;
+      return text.replace(urlRegex, function(url) {
+          return '<a href="' + url + '" target="_blank">' + url + '</a>';
       });
-      box.style.display = 'block';
-  };
+  }
 
-  window.abrirModalCalendarioDireto = function() {
-      contextoAtual = 'direto'; alvoAtualNota = "";
-      document.getElementById('nota-alvo-titulo').innerText = "Agendar Novo Evento";
-      document.getElementById('nota-textarea').value = ""; document.getElementById('nota-local').value = "";
-      document.getElementById('nota-data').value = ""; document.getElementById('nota-hora').value = "";
-      document.getElementById('nota-movimento-input').value = "";
-      document.getElementById('nota-movimento-sugestoes').style.display = 'none';
-
-      document.getElementById('container-local').style.display = 'block';
-      document.getElementById('container-tempo').style.display = 'flex';
-      document.getElementById('container-atrelar-movimento').style.display = 'block';
-      
-      document.getElementById('btn-modal-gravar').style.display = 'block';
-      document.getElementById('btn-modal-gravar').innerText = "Gravar Alerta";
-
-      document.getElementById('modal-overlay').style.display = 'block';
-      document.getElementById('nota-modal').style.display = 'block';
-      document.getElementById('nota-textarea').focus();
-  };
-
-  /* --- RENDERIZADOR DOS CARDS EMBAIXO DO CALENDÁRIO COM CONVERSÃO DE STRINGS --- */
+  /* ==========================================================
+     SISTEMA 100% BLINDADO - CONSTRUTOR DINÂMICO DE EVENTOS
+     ========================================================== */
   function construirItemVisualEvento(nota, keyId, tipoEntrada) {
       if (!nota) return document.createElement('div');
       const div = document.createElement('div');
@@ -726,11 +640,12 @@
           <div class="info-detalhada-card" style="display: none; margin-top: 10px; padding-top: 8px; border-top: 1px solid #222; font-size: 12px; color: #fff;">
               <div style="margin-bottom: 6px; white-space: pre-wrap; color: #ddd;">"${linkify(textoLimpo)}"</div>
               <div style="font-size: 11px; color: #aaa; margin-bottom: 3px;">📍 Local/Endereço: ${localLimpo}</div>
-              ${caminhoFoco ? `<div style="font-size: 11px; color: var(--accent-blue); font-weight: bold; cursor: pointer; text-decoration: underline;" onclick="window.focarCaminhoDireto('${caminhoFoco.replace(/'/g, "\\'")}')">🔗 Movimento Atrelado: ${caminhoFoco.replace("MOVIMENTOS > ", "")}</div>` : ''}
+              ${caminhoFoco ? `<div class="btn-focar-movimento" style="font-size: 11px; color: var(--accent-blue); font-weight: bold; cursor: pointer; text-decoration: underline;">🔗 Movimento Atrelado: ${caminhoFoco.replace("MOVIMENTOS > ", "")}</div>` : ''}
               <div style="font-size: 10px; color: #666; margin-top: 5px;">Registrado por: ${operadorLimpo} às ${nota.time || '--:--'}</div>
           </div>
       `;
 
+      // Escutadores Táticos Seguros contra colisão de aspas em strings
       div.querySelector('.btn-editar-card').addEventListener('click', (e) => {
           e.preventDefault(); e.stopPropagation();
           window.abrirModalTatico(e, keyId, tituloLimpo, tipoEntrada === 'direto' ? 'direto' : 'agenda');
@@ -758,6 +673,13 @@
               e.target.innerText = "🔍 + Detalhes";
           }
       });
+
+      if (caminhoFoco) {
+          div.querySelector('.btn-focar-movimento').addEventListener('click', (e) => {
+              e.preventDefault(); e.stopPropagation();
+              window.focarCaminhoDireto(caminhoFoco);
+          });
+      }
 
       return div;
   }
@@ -821,8 +743,8 @@
           const mesesMatriz = ["Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho", "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"];
           const nomeMesCorrente = mesesMatriz[tempoSistema.getMonth()];
 
-          const promptInstrucao = `Você é um robô auxiliar de triagem. Analise the raw text provided and extract structures. Responda apenas com um objeto JSON plano válido (sem blocos markdown). Se omitido, use o ano ${anoCorrente} e mês ${nomeMesCorrente}.
-          JSON Chaves: "texto", "local", "data" (YYYY-MM-DD), "hora" (HH:MM), "movimento". Text: "${txtBruto}"`;
+          const promptInstrucao = `Você é um robô auxiliar de inteligência e triagem. Analise o informe operacional fornecido e extraia os dados estruturados. Responda APENAS com um objeto JSON plano válido (sem blocos de código markdown ou texto explicativo adicional). Se omitido, use o ano ${anoCorrente} e mês de ${nomeMesCorrente}.
+          JSON Chaves obrigatórias: "texto", "local", "data" (YYYY-MM-DD), "hora" (HH:MM), "movimento". Texto original: "${txtBruto}"`;
 
           const resposta = await fetch(`https://generativelanguage.googleapis.com/v1/models/gemini-2.5-flash:generateContent?key=${apiKey}`, {
               method: "POST", headers: { "Content-Type": "application/json" },
@@ -987,7 +909,7 @@
           } else {
               set(notaRef, { 
                   texto, local, dataAlerta, horaAlerta, movimentoAtrelado, operador: user, 
-                  time: obterHoraBrasilia(), tituloOrigem: movimentoAtrelado ? movimientoAtrelado.split(' > ').pop() : "Evento Geral", isDirectCalendar: true, keyId: uniqueKey
+                  time: obterHoraBrasilia(), tituloOrigem: movimentoAtrelado ? movimentoAtrelado.split(' > ').pop() : "Evento Geral", isDirectCalendar: true, keyId: uniqueKey
               });
           }
       } else if (contextoAtual === 'postit') {
@@ -995,7 +917,6 @@
           if (texto === "") set(notaRef, null);
           else set(notaRef, { texto, operador: user, time: obterHoraBrasilia(), tituloOrigem: tituloAtualNota });
       } else if (contextoAtual === 'agenda') {
-          // CORREÇÃO DE LOGICA: Modificado para salvar na arvore unificada e persistente global
           const notaRef = ref(db, `agenda_menus/${safeKey}`);
           if (texto === "" && local === "" && dataAlerta === "" && horaAlerta === "") set(notaRef, null);
           else set(notaRef, { texto, local, dataAlerta, horaAlerta, operador: user, time: obterHoraBrasilia(), tituloOrigem: tituloAtualNota, pathString: alvoAtualNota });
@@ -1088,7 +1009,7 @@
   };
   window.esconderTooltipPreview = function() { document.getElementById('tooltip-preview').classList.remove('show'); };
   window.recolherArvoreInteira = function() { document.querySelectorAll('.node').forEach(node => { const p = node.getAttribute('data-path'); if (p !== "MOVIMENTOS" && p !== "NOTÍCIAS") node.classList.remove('active'); }); };
-  function normalizarTexto(t) { return t ? t.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase() : ""; }
+  function normalizarTexto(t) { return t.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase(); }
   
   function vasculharArvore(lista, termo, caminhoAtual = [], resultados = []) {
     const termoFormatado = normalizarTexto(termo);
@@ -1169,83 +1090,6 @@
       elementoPai.appendChild(nodeDiv);
     });
   }
-
-  /* =====================================================================
-     SISTEMA DE INTELIGÊNCIA ARTIFICIAL DYNAMIC-PROMPT (ENDPOINT OFICIAL V1)
-     ===================================================================== */
-  window.gerarRelatorioIA = async function() {
-      const btn = document.getElementById('btn-ia-report');
-      const backupText = btn.innerText;
-      btn.innerText = "🤖 Analisando Cenários...";
-      btn.disabled = true;
-
-      try {
-          const snapChave = await get(ref(db, 'config/gemini_key'));
-          if (!snapChave.exists() || snapChave.val().trim() === "") {
-              alert("A IA ainda não foi ativada.\n\nSalve sua chave no nó 'config/gemini_key'.");
-              btn.innerText = backupText; btn.disabled = false;
-              return;
-          }
-          const apiKey = snapChave.val().trim();
-
-          let promptBase = "Você é uma Inteligência Artificial analista de dados. Analise a seguinte lista de eventos e manifestações agendadas para os próximos 7 dias e crie um Relatório Sintético de Cenários Ocultando jargões desnecessários. Organize estritamente por Ordem Cronológica de Dias, resumindo os principais alvos (movimentos envolvidos), horários e os locais citados. Seja muito direto, formal e objetivo. Use tópicos claros.";
-          const snapPrompt = await get(ref(db, 'config/prompt_ia'));
-          if (snapPrompt.exists() && snapPrompt.val().trim() !== "") {
-              promptBase = snapPrompt.val().trim();
-          }
-
-          let datasAlvo = [];
-          for (let i = 0; i < 7; i++) {
-              const d = new Date(new Date().toLocaleString("en-US", {timeZone: "America/Sao_Paulo"}));
-              d.setDate(d.getDate() + i);
-              datasAlvo.push(`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`);
-          }
-
-          let pacotesEventos = [];
-          Object.values(agendaMenusGlobais).forEach(ev => { if (ev && datasAlvo.includes(ev.dataAlerta)) pacotesEventos.push(ev); });
-          Object.values(alertasCalendarioGlobais).forEach(ev => { if (ev && datasAlvo.includes(ev.dataAlerta)) pacotesEventos.push(ev); });
-
-          if (pacotesEventos.length === 0) {
-              alert("Não existem eventos ou agendas cadastrados nos próximos 7 dias.");
-              btn.innerText = backupText; btn.disabled = false;
-              return;
-          }
-
-          const promptFinal = `${promptBase}\n\nEventos para análise: ${JSON.stringify(pacotesEventos)}`;
-
-          const resposta = await fetch(`https://generativelanguage.googleapis.com/v1/models/gemini-2.5-flash:generateContent?key=${apiKey}`, {
-              method: "POST", headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ contents: [{ parts: [{ text: promptFinal }] }] })
-          });
-
-          const dataIa = await resposta.json();
-          if (!dataIa.candidates || dataIa.candidates.length === 0) { throw new Error("A IA recusou ou falhou na análise."); }
-          
-          const relatorioFormatado = dataIa.candidates[0].content.parts[0].text;
-
-          document.getElementById('nota-alvo-titulo').innerText = "🤖 Relatório Analítico IA (Próximos 7 Dias)";
-          document.getElementById('nota-textarea').value = relatorioFormatado;
-          document.getElementById('container-local').style.display = 'none';
-          document.getElementById('container-tempo').style.display = 'none';
-          document.getElementById('container-atrelar-movimento').style.display = 'none';
-          
-          const btnGravar = document.getElementById('btn-modal-gravar');
-          btnGravar.innerText = "📋 Copiar Relatório";
-          btnGravar.onclick = function() {
-              navigator.clipboard.writeText(relatorioFormatado);
-              alert("Relatório copiado!");
-          };
-
-          document.getElementById('modal-overlay').style.display = 'block';
-          document.getElementById('nota-modal').style.display = 'block';
-
-      } catch (err) {
-          alert("Falha de Processamento na IA. Verifique as credenciais no console.");
-          console.error(err);
-      }
-
-      btn.innerText = backupText; btn.disabled = false;
-  };
 
   document.addEventListener('click', (e) => { 
       if (!e.target.closest('.search-box')) document.getElementById('caixaResultados').style.display = 'none'; 
