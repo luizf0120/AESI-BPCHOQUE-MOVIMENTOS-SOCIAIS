@@ -1304,7 +1304,7 @@ const bottom15 = estatisticasCompletas.filter(s => s.caminho && s.caminho[0] !==
           const dataIa = await resposta.json();
           if (!dataIa.candidates || dataIa.candidates.length === 0) { throw new Error("A IA recusou ou falhou na análise."); }
           
-          const relatorioFormatado = dataIa.candidates[0].content.parts[0].text;
+          const relatorioFormatado = dataIa.candidates[0].content.parts[0].text.trim() + "\n\n_(relatório de eventos criado por IA🤖)_";
 
           document.getElementById('nota-alvo-titulo').innerText = "🤖 Relatório Analítico IA (Próximos 7 Dias)";
           document.getElementById('nota-textarea').value = relatorioFormatado;
