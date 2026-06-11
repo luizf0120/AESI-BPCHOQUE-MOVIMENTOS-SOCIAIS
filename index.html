@@ -581,7 +581,51 @@ const bottom15 = estatisticasCompletas.filter(s => s.caminho && s.caminho[0] !==
   }
 
 function verificarAlertasExpirados() {
-      // Mantida vazia para preservar todos os eventos passados no histórico e no calendário
+      const agoraStr = obterDataBrasiliaISO() + " " + obterHoraBrasilia();
+      
+      // 1. Varredura nos eventos por pasta (agenda)
+      Object.keys(agendaMenusGlobais).forEach(safeKey => {
+          const nota = agendaMenusGlobais[safeKey];
+          if (nota && nota.dataAlerta && nota.horaAlerta) {
+              const alvoStr = nota.dataAlerta + " " + nota.horaAlerta;
+              
+              // Se o evento passou, não foi perguntado nesta sessão e ainda não tem o número salvo
+              if (alvoStr <= agoraStr && !alertasPromptadosSessao.includes(safeKey) && !nota.numeroManifestantes) {
+                  alertasPromptadosSessao.push(safeKey); 
+                  setTimeout(() => {
+                      const quantidade = prompt(`[CONSOLIDAÇÃO DE INTELIGÊNCIA]\nO evento de "${nota.tituloOrigem}" já ocorreu.\n\nInsira o número estimado de MANIFESTANTES participantes:`);
+                      if (quantidade !== null && quantidade.trim() !== "") {
+                          set(ref(db, `monitoramentoDiario/${dataHojeISO}/agenda_menus/${safeKey}`), {
+                              ...nota,
+                              numeroManifestantes: quantidade.trim()
+                          });
+                      }
+                  }, 600);
+              }
+          }
+      });
+
+      // 2. Varredura nos agendamentos diretos do calendário
+      Object.keys(alertasCalendarioGlobais).forEach(keyId => {
+          const nota = alertasCalendarioGlobais[keyId];
+          if (nota && nota.dataAlerta && nota.horaAlerta) {
+              const alvoStr = nota.dataAlerta + " " + nota.horaAlerta;
+              
+              // Se o evento passou, não foi perguntado nesta sessão e ainda não tem o número salvo
+              if (alvoStr <= agoraStr && !alertasPromptadosSessao.includes(keyId) && !nota.numeroManifestantes) {
+                  alertasPromptadosSessao.push(keyId);
+                  setTimeout(() => {
+                      const quantidade = prompt(`[CONSOLIDAÇÃO DE INTELIGÊNCIA]\nO agendamento direto "${nota.tituloOrigem}" já ocorreu.\n\nInsira o número estimado de MANIFESTANTES participantes:`);
+                      if (quantidade !== null && quantidade.trim() !== "") {
+                          set(ref(db, `alertas_calendario/${keyId}`), {
+                              ...nota,
+                              numeroManifestantes: quantidade.trim()
+                          });
+                      }
+                  }, 600);
+              }
+          }
+      });
   }
 
   window.mudarMesCalendario = function(direcao) {
@@ -685,7 +729,7 @@ function verificarAlertasExpirados() {
       });
   }
 
-  window.abrirModalDetalhes = function(keyId, tipoEntrada) {
+ window.abrirModalDetalhes = function(keyId, tipoEntrada) {
       const nota = tipoEntrada === 'direto' ? alertasCalendarioGlobais[keyId] : agendaMenusGlobais[keyId];
       if (!nota) return;
       
@@ -699,6 +743,7 @@ function verificarAlertasExpirados() {
           <p><strong>🎯 Alvo / Pasta:</strong> ${nota.tituloOrigem || 'Evento Geral'}</p>
           <p><strong>📅 Data de Execução:</strong> ${dataBr} às ${nota.horaAlerta || '--:--'}</p>
           <p><strong>📍 Local de Concentração:</strong> ${nota.local || 'Não cadastrado'}</p>
+          ${nota.numeroManifestantes ? `<p><strong>👥 Efetivo de Manifestantes:</strong> <span style="color: var(--accent-yellow); font-weight: bold;">${nota.numeroManifestantes} participantes</span></p>` : ''}
           <p><strong>📝 Resumo Estruturado da Pauta:</strong><br><span style="color:#ddd; display:block; padding: 6px 0; white-space: pre-wrap;">"${textoProcessado}"</span></p>
           
           <div style="margin-top: 15px; background: #030303; padding: 12px; border: 1px solid #222; border-radius: 6px;">
@@ -723,7 +768,7 @@ function verificarAlertasExpirados() {
       document.getElementById('modal-overlay').style.display = 'block';
       document.getElementById('detalhes-modal').style.display = 'block';
   };
-
+  
   window.fecharModalDetalhes = function() {
       document.getElementById('modal-overlay').style.display = 'none';
       document.getElementById('detalhes-modal').style.display = 'none';
