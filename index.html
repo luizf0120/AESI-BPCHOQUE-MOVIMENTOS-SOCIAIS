@@ -132,7 +132,7 @@
 
   #tooltip-preview a, #calendar-event-list a { color: #00a2ff !important; text-decoration: underline !important; font-weight: bold; }
 
-  /* --- SISTEMA DE ESTREAS --- */
+  /* --- SISTEMA DE ESTRELAS --- */
   .star-icon {
     font-size: 20px; color: transparent; -webkit-text-stroke: 1.5px #666; cursor: pointer; transition: all 0.2s ease;
     user-select: none; display: inline-flex; align-items: center; justify-content: center; margin-right: 8px; z-index: 10;
@@ -160,9 +160,10 @@
   }
 
   /* =========================================
-     MODAL AMPLIADO (LEITURA COMPLETA)
+     MODAL AMPLIADO (LEITURA COMPLETA) E DETALHES
      ========================================= */
   #modal-overlay { display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.8); z-index: 19999; backdrop-filter: blur(2px); }
+  
   #nota-modal {
     display: none; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
     background: var(--card-bg); border: 1px solid var(--accent-yellow); border-radius: 8px;
@@ -193,7 +194,17 @@
   .btn-fechar-nota:hover { background: #333; color: #fff; }
 
   /* =========================================
-     NOVO POP-UP CENTRAL DE DETALHES APROFUNDADOS
+     CORREÇÃO: ESTILO DO POP-UP DA IA
+     ========================================= */
+  #ia-input-modal {
+    display: none; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
+    background: var(--card-bg); border: 1px solid #00bcd4; border-radius: 8px;
+    padding: 25px; z-index: 20000; width: 560px; max-width: 92%; box-shadow: 0 15px 40px rgba(0,0,0,0.9);
+  }
+  #ia-input-modal h4 { margin: 0 0 15px 0; color: #00bcd4; font-size: 16px; border-bottom: 1px solid #333; padding-bottom: 10px; }
+
+  /* =========================================
+     POP-UP CENTRAL DE DETALHES APROFUNDADOS
      ========================================= */
   #detalhes-modal {
     display: none; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
@@ -553,7 +564,7 @@
             return { titulo: alvo.titulo, count: dataFirebase[alvo.id] ? dataFirebase[alvo.id].count : 0, caminho: alvo.caminho };
         });
         estatisticasCompletas.sort((a, b) => b.count - a.count);
-        const top15 = estatisticasCompletas.filter(s => s.count > 0).slice(0, 15);
+        const top15 = templates = estatisticasCompletas.filter(s => s.count > 0).slice(0, 15);
         const bottom15 =  estatisticasCompletas.slice(-15).reverse();
         
         document.getElementById('list-top').innerHTML = top15.length > 0 
@@ -608,9 +619,6 @@
       window.renderizarCalendarioTatico();
   };
 
-  /* =========================================
-     SISTEMA DE RENDERIZAÇÃO DO CALENDÁRIO
-     ========================================= */
   window.renderizarCalendarioTatico = function() {
       const meses = ["Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho", "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"];
       document.getElementById('cal-month-year').innerText = `${meses[currentCalMonth]} ${currentCalYear}`;
@@ -678,7 +686,7 @@
 
   window.abrirModalCalendarioDireto = function() {
       contextoAtual = 'direto'; alvoAtualNota = "";
-      window.CURRENT_IA_TEXTO_BRUTO = ""; // Reseta o texto bruto
+      window.CURRENT_IA_TEXTO_BRUTO = "";
       document.getElementById('nota-alvo-titulo').innerText = "Agendar Novo Evento";
       document.getElementById('nota-textarea').value = ""; document.getElementById('nota-local').value = "";
       document.getElementById('nota-data').value = ""; document.getElementById('nota-hora').value = "";
@@ -697,7 +705,6 @@
       document.getElementById('nota-textarea').focus();
   };
 
-  /* --- SISTEMA DE RESOLUÇÃO INLINE DO LINKIFY --- */
   function linkify(text) {
       if (!text) return "";
       const urlRegex = /(https?:\/\/[^\s]+)/g;
@@ -706,7 +713,6 @@
       });
   }
 
-  /* --- NOVA JANELA POP-UP DE VISUALIZAÇÃO APROFUNDADA --- */
   window.abrirModalDetalhes = function(keyId, tipoEntrada) {
       const nota = tipoEntrada === 'direto' ? alertasCalendarioGlobais[keyId] : agendaMenusGlobais[keyId];
       if (!nota) return;
@@ -714,7 +720,6 @@
       let dataBr = nota.dataAlerta ? nota.dataAlerta.split('-').reverse().join('/') : '--/--/----';
       let caminhoFoco = tipoEntrada === 'direto' ? (nota.movimentoAtrelado || "") : (nota.pathString || "");
       
-      // Validação de segurança para renderização de dados brutos
       let textoBrutoLimpo = nota.textoBruto ? linkify(String(nota.textoBruto)) : "<span style='color: #555; font-style: italic;'>Nenhum registro bruto associado (Agendamento Manual Clássico).</span>";
       const textoProcessado = nota.texto ? linkify(String(nota.texto)) : "Sem descrição cadastrada.";
 
@@ -752,7 +757,6 @@
       document.getElementById('detalhes-modal').style.display = 'none';
   };
 
-  /* --- CONSTRUTOR DOS CARDS DO CALENDÁRIO --- */
   function construirItemVisualEvento(nota, keyId, tipoEntrada) {
       const div = document.createElement('div');
       div.style.cssText = `background: #111; border-left: 3px solid ${tipoEntrada === 'direto' ? 'var(--accent-yellow)' : 'var(--accent-orange)'}; padding: 10px; border-radius: 4px; font-size: 13px; line-height: 1.4; box-sizing: border-box; margin-bottom: 8px; text-align: left;`;
@@ -775,7 +779,6 @@
           </div>
       `;
 
-      // Escutadores de cliques isolados contra quebra de aspas
       div.querySelector('.btn-editar-card').addEventListener('click', (e) => {
           e.preventDefault(); e.stopPropagation();
           window.abrirModalTatico(e, keyId, nota.tituloOrigem || 'Evento Geral', tipoEntrada === 'direto' ? 'direto' : 'agenda');
@@ -794,7 +797,7 @@
 
       div.querySelector('.btn-toggle-info').addEventListener('click', (e) => {
           e.preventDefault(); e.stopPropagation();
-          window.abrirModalDetalhes(keyId, tipoEntrada); // Dispara o pop-up dinâmico avançado
+          window.abrirModalDetalhes(keyId, tipoEntrada);
       });
 
       return div;
@@ -833,7 +836,6 @@
       document.getElementById('ia-texto-bruto').focus();
   };
 
-  /* --- PARSER DE ENTRADA AUTOMATIZADA COMPACTA POR IA COM CONTROLE DE SUCESSO EM JSON --- */
   window.processarTextoBrutoIA = async function() {
       const txtBruto = document.getElementById('ia-texto-bruto').value.trim();
       if (!txtBruto) { alert("Cole o texto do informe antes de avançar."); return; }
@@ -850,14 +852,12 @@
 
           const tempoSistema = new Date(new Date().toLocaleString("en-US", {timeZone: "America/Sao_Paulo"}));
           const anoCorrente = tempoSistema.getFullYear();
-          const mesCorrenteNum = String(tempoSistema.getMonth() + 1).padStart(2, '0');
           const mesesMatriz = ["Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho", "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"];
           const nomeMesCorrente = mesesMatriz[tempoSistema.getMonth()];
 
           const promptInstrucao = `Você é um robô auxiliar de inteligência e triagem. Analise o informe operacional fornecido e extraia os dados estruturados. Responda APENAS com um objeto JSON plano válido. Se omitido, use o ano ${anoCorrente} e mês de ${nomeMesCorrente}.
           JSON Chaves obrigatórias: "texto", "local", "data" (YYYY-MM-DD), "hora" (HH:MM), "movimento". Texto original: "${txtBruto}"`;
 
-          // BLINDAGEM DA API: generationConfig força a trava de saída pura em application/json
           const response = await fetch(`https://generativelanguage.googleapis.com/v1/models/gemini-2.5-flash:generateContent?key=${apiKey}`, {
               method: "POST", headers: { "Content-Type": "application/json" },
               body: JSON.stringify({ 
@@ -875,7 +875,6 @@
           let cleanJsonStr = rawText.substring(inicioJson, fimJson + 1).trim();
           let dataObjeto = JSON.parse(cleanJsonStr);
 
-          // Preserva o texto bruto original na memória global para salvamento posterior
           window.CURRENT_IA_TEXTO_BRUTO = txtBruto;
 
           document.getElementById('ia-input-modal').style.display = 'none';
@@ -943,7 +942,7 @@
       window.esconderTooltipTatico();
       contextoAtual = tipo; alvoAtualNota = idUnico; tituloAtualNota = titulo;
       const safeKey = sanitizarId(idUnico);
-      window.CURRENT_IA_TEXTO_BRUTO = ""; // Reseta dados táticos de origem manual
+      window.CURRENT_IA_TEXTO_BRUTO = "";
       
       document.getElementById('container-atrelar-movimento').style.display = 'none';
       document.getElementById('btn-modal-gravar').style.display = 'block';
@@ -972,7 +971,7 @@
           document.getElementById('nota-data').value = nota.dataAlerta || "";
           document.getElementById('nota-hora').value = nota.horaAlerta || "";
           document.getElementById('nota-movimento-input').value = nota.movimentoAtrelado || "";
-          window.CURRENT_IA_TEXTO_BRUTO = nota.textoBruto || ""; // Preserva se for edição
+          window.CURRENT_IA_TEXTO_BRUTO = nota.textoBruto || "";
           
           document.getElementById('container-local').style.display = 'block';
           document.getElementById('container-tempo').style.display = 'flex';
@@ -1017,7 +1016,6 @@
       document.getElementById('detalhes-modal').style.display = 'none';
   };
 
-  /* --- GRAVAÇÃO COMPACTA UNIFICADA COM SALVAMENTO DO TEXTO BRUTO DE ORIGEM --- */
   window.salvarNotaFirebase = function() {
       const texto = document.getElementById('nota-textarea').value.trim();
       const local = document.getElementById('nota-local').value.trim();
@@ -1039,7 +1037,7 @@
               set(notaRef, { 
                   texto, local, dataAlerta, horaAlerta, movimentoAtrelado, operador: user, 
                   time: obterHoraBrasilia(), tituloOrigem: movimentoAtrelado ? movimentoAtrelado.split(' > ').pop() : "Evento Geral", isDirectCalendar: true, keyId: uniqueKey,
-                  textoBruto: window.CURRENT_IA_TEXTO_BRUTO || "" // GRAVA O TEXTO FONTE DO INFORME
+                  textoBruto: window.CURRENT_IA_TEXTO_BRUTO || ""
               });
           }
       } else if (contextoAtual === 'postit') {
@@ -1221,9 +1219,6 @@
     });
   }
 
-  /* =====================================================================
-     SISTEMA DE INTELIGÊNCIA ARTIFICIAL DYNAMIC-PROMPT WHATSAPP (V1 ESTÁVEL)
-     ===================================================================== */
   window.gerarRelatorioIA = async function() {
       const btn = document.getElementById('btn-ia-report');
       const backupText = btn.innerText;
@@ -1239,7 +1234,7 @@
           }
           const apiKey = snapChave.val().trim();
 
-          let promptBase = "Você é uma Inteligência Artificial analista de dados. Analise a seguinte lista de eventos e manifestações agendadas para os próximos 7 dias e crie um Relatório Sintético de Cenários Ocultando jargões desnecessários. Organize estritamente por Ordem Cronológica de Dias, resumindo os principais alvos (movimentos envolvidos), horários e os locais citados. Seja muito direto, formal e objetivo. Use tópicos claros.";
+          let promptBase = "Você é uma Inteligência Artificial analista de dados. Analise a seguinte lista de eventos e manifestações agendadas para os próximos 7 dias e crie um Relatório Sintético de Cenários Ocultando jargões desnecessários. Organize estritamente por Ordem Cronológica de Dias, resumindo os principais alvos (movimentos envolvidos), horários e os locais citados. Seja muito direto, formal e objective. Use tópicos claros.";
           const snapPrompt = await get(ref(db, 'config/prompt_ia'));
           if (snapPrompt.exists() && snapPrompt.val().trim() !== "") {
               promptBase = snapPrompt.val().trim();
