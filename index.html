@@ -565,7 +565,7 @@
         });
         estatisticasCompletas.sort((a, b) => b.count - a.count);
         const top15 = estatisticasCompletas.filter(s => s.count > 0).slice(0, 15);
-        const bottom15 = estatisticasCompletas.slice(-15).reverse();
+const bottom15 = estatisticasCompletas.filter(s => s.caminho && s.caminho[0] !== "NOTÍCIAS").slice(-15).reverse();
         
         document.getElementById('list-top').innerHTML = top15.length > 0 
             ? top15.map(s => `<li data-caminho="${s.caminho.join(' > ')}" onclick="window.focarCaminhoDireto(this.getAttribute('data-caminho'))"><span>${s.titulo}</span> <span class="stat-count">${s.count} cliques</span></li>`).join('')
