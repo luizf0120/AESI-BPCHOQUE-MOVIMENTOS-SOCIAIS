@@ -194,7 +194,7 @@
   .btn-fechar-nota:hover { background: #333; color: #fff; }
 
   /* =========================================
-     CORREÇÃO: ESTILO DO POP-UP DA IA
+     ESTILO DO POP-UP DA IA
      ========================================= */
   #ia-input-modal {
     display: none; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
@@ -558,18 +558,21 @@
           if (window.CURRENT_SELECTED_DAY) window.selecionarDiaCalendario(window.CURRENT_SELECTED_DAY);
       });
 
+      /* =======================================================
+         CORREÇÃO: REMOVIDO "templates =" QUE CAUSAVA O ERRO
+         ======================================================= */
       onValue(ref(db, `estatisticas_semanal/${semanaAtualISO}`), (snapshot) => {
         const dataFirebase = snapshot.val() || {};
         let estatisticasCompletas = listaTodosAlvos.map(alvo => {
             return { titulo: alvo.titulo, count: dataFirebase[alvo.id] ? dataFirebase[alvo.id].count : 0, caminho: alvo.caminho };
         });
         estatisticasCompletas.sort((a, b) => b.count - a.count);
-        const top15 = templates = estatisticasCompletas.filter(s => s.count > 0).slice(0, 15);
-        const bottom15 =  estatisticasCompletas.slice(-15).reverse();
+        const top15 = estatisticasCompletas.filter(s => s.count > 0).slice(0, 15);
+        const bottom15 = estatisticasCompletas.slice(-15).reverse();
         
         document.getElementById('list-top').innerHTML = top15.length > 0 
             ? top15.map(s => `<li data-caminho="${s.caminho.join(' > ')}" onclick="window.focarCaminhoDireto(this.getAttribute('data-caminho'))"><span>${s.titulo}</span> <span class="stat-count">${s.count} cliques</span></li>`).join('')
-            : '<li style="color: #666; justify-content: center;">Nenhum alvo accessed ainda</li>';
+            : '<li style="color: #666; justify-content: center;">Nenhum alvo acessado ainda</li>';
         document.getElementById('list-bottom').innerHTML = bottom15.map(s => `<li data-caminho="${s.caminho.join(' > ')}" onclick="window.focarCaminhoDireto(this.getAttribute('data-caminho'))"><span>${s.titulo}</span> <span class="stat-count">${s.count} cliques</span></li>`).join('');
       });
 
