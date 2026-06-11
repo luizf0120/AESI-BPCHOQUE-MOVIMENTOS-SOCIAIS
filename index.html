@@ -580,36 +580,8 @@ const bottom15 = estatisticasCompletas.filter(s => s.caminho && s.caminho[0] !==
       });
   }
 
-  function verificarAlertasExpirados() {
-      const agoraStr = obterDataBrasiliaISO() + " " + obterHoraBrasilia();
-      
-      Object.keys(agendaMenusGlobais).forEach(safeKey => {
-          const nota = agendaMenusGlobais[safeKey];
-          if (nota && nota.dataAlerta && nota.horaAlerta) {
-              const alvoStr = nota.dataAlerta + " " + nota.horaAlerta;
-              if (alvoStr <= agoraStr && !alertasPromptadosSessao.includes(safeKey)) {
-                  alertasPromptadosSessao.push(safeKey); 
-                  setTimeout(() => {
-                      const dispensar = confirm(`[AGENDA VENCIDA]\nO prazo do evento de "${nota.tituloOrigem}" no local "${nota.local || 'Não Definido'}" expirou.\n\nDeseja REMOVER este alerta da agenda de hoje?`);
-                      if (dispensar) set(ref(db, `monitoramentoDiario/${dataHojeISO}/agenda_menus/${safeKey}`), null);
-                  }, 600);
-              }
-          }
-      });
-
-      Object.keys(alertasCalendarioGlobais).forEach(keyId => {
-          const nota = alertasCalendarioGlobais[keyId];
-          if (nota && nota.dataAlerta && nota.horaAlerta) {
-              const alvoStr = nota.dataAlerta + " " + nota.horaAlerta;
-              if (alvoStr <= agoraStr && !alertasPromptadosSessao.includes(keyId)) {
-                  alertasPromptadosSessao.push(keyId);
-                  setTimeout(() => {
-                      const dispensar = confirm(`[EVENTO CALENDÁRIO VENCIDO]\nO prazo do agendamento direto "${nota.tituloOrigem}" expirou.\n\nDeseja REMOVER este registro da nuvem?`);
-                      if (dispensar) set(ref(db, `alertas_calendario/${keyId}`), null);
-                  }, 600);
-              }
-          }
-      });
+function verificarAlertasExpirados() {
+      // Mantida vazia para preservar todos os eventos passados no histórico e no calendário
   }
 
   window.mudarMesCalendario = function(direcao) {
