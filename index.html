@@ -132,7 +132,7 @@
 
   #tooltip-preview a, #calendar-event-list a { color: #00a2ff !important; text-decoration: underline !important; font-weight: bold; }
 
-  /* --- SISTEMA DE ESTRELAS --- */
+  /* --- SISTEMA DE ESTREAS --- */
   .star-icon {
     font-size: 20px; color: transparent; -webkit-text-stroke: 1.5px #666; cursor: pointer; transition: all 0.2s ease;
     user-select: none; display: inline-flex; align-items: center; justify-content: center; margin-right: 8px; z-index: 10;
@@ -564,11 +564,8 @@
             return { titulo: alvo.titulo, count: dataFirebase[alvo.id] ? dataFirebase[alvo.id].count : 0, caminho: alvo.caminho };
         });
         estatisticasCompletas.sort((a, b) => b.count - a.count);
-        const top15 = estatisticasCompletas.filter(s => s.count > 0).slice(0, 15);
+        const top15 = templates = estatisticasCompletas.filter(s => s.count > 0).slice(0, 15);
         
-        /* =======================================================================
-           CORREÇÃO: FILTRANDO PARA QUE NOTÍCIAS NÃO APAREÇAM NOS MENOS MONITORADOS
-           ======================================================================= */
         const bottom15 = estatisticasCompletas.filter(s => s.caminho && s.caminho[0] !== "NOTÍCIAS").slice(-15).reverse();
         
         document.getElementById('list-top').innerHTML = top15.length > 0 
@@ -859,7 +856,7 @@
           const mesesMatriz = ["Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho", "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"];
           const nomeMesCorrente = mesesMatriz[tempoSistema.getMonth()];
 
-          const promptInstrucao = `Você é um robô auxiliar de inteligência e triagem operacional. Analise o informe fornecido e extraia os dados. 
+          const promptInstrucao = `Você é um robô auxiliar de inteligência e triagem operacional. Analise the informe fornecido e extraia os dados. 
           Responda OBRIGATORIAMENTE com um objeto JSON plano válido. Se omitido no texto, use o ano ${anoCorrente} e mês de ${nomeMesCorrente}.
           JSON Chaves estruturais obrigatórias: "texto", "local", "data" (no formato YYYY-MM-DD), "hora" (no formato HH:MM), "movimento". 
           Texto original para análise: "${txtBruto}"`;
@@ -1267,7 +1264,11 @@
 
           let pacotesEventos = [];
           Object.values(agendaMenusGlobais).forEach(ev => { if (ev && datasAlvo.includes(ev.dataAlerta)) pacotesEventos.push(ev); });
-          Object.values(alertasCalendarioGlobais).forEach(ev => { if (ev && datasAlvo.includes(ev.dataAlerta)) pacotesEventEventos.push(ev); });
+          
+          /* =======================================================
+             CORREÇÃO: CORRIGIDO O ERRO DE DIGITAÇÃO pacotesEventEventos -> pacotesEventos
+             ======================================================= */
+          Object.values(alertasCalendarioGlobais).forEach(ev => { if (ev && datasAlvo.includes(ev.dataAlerta)) pacotesEventos.push(ev); });
 
           if (pacotesEventos.length === 0) {
               alert("Não existem eventos ou agendas cadastrados nos próximos 7 dias.");
@@ -1303,9 +1304,6 @@
           const dataIa = await resposta.json();
           if (!dataIa.candidates || dataIa.candidates.length === 0) { throw new Error("A IA recusou ou falhou na análise."); }
           
-          /* =======================================================================
-             CORREÇÃO: ADICIONANDO UMA LINHA EM BRANCO E TEXTO DO RODAPÉ EM ITÁLICO
-             ======================================================================= */
           const relatorioFormatado = dataIa.candidates[0].content.parts[0].text.trim() + "\n\n_(relatório de eventos gerado por IA🤖)_";
 
           document.getElementById('nota-alvo-titulo').innerText = "🤖 Relatório Analítico IA (Próximos 7 Dias)";
