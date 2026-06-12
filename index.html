@@ -487,6 +487,7 @@
               raiz.innerHTML = "";
               desenhavelArvore(window.DADOS_TOTAIS, raiz, []);
               iniciarMonitoramentoDiario();
+            iniciarControleDeAtualizacao();
           } else {
               document.getElementById('data-display').innerText = "Erro ao carregar os nós da nuvem.";
           }
@@ -1347,6 +1348,71 @@ A estrutura da mensagem DEVE seguir estritamente o modelo abaixo. Não coloque l
       btn.innerText = backupText; btn.disabled = false;
   };
 
+ /* =====================================================================
+     SISTEMA DE SINCRONIZAÇÃO FORÇADA DE CACHE (ANTI-VERSÃO ANTIGA)
+     ===================================================================== */
+  function iniciarControleDeAtualizacao() {
+      // 1. Verifica a cada 5 segundos se bateu o horário exato de 12:00 ou 00:00
+      setInterval(() => {
+          const agora = new Date(new Date().toLocaleString("en-US", {timeZone: "America/Sao_Paulo"}));
+          const hora = agora.getHours();
+          const minuto = agora.getMinutes();
+          const dataStr = `${agora.getFullYear()}-${agora.getMonth()+1}-${agora.getDate()}`;
+          
+          const chaveMeioDia = `${dataStr}_12_00`;
+          const chaveMeiaNoite = `${dataStr}_00_00`;
+          
+          if (hora === 12 && minuto === 0 && localStorage.getItem('last_forced_reload') !== chaveMeioDia) {
+              localStorage.setItem('last_forced_reload', chaveMeioDia);
+              forçarRecarregamentoGeral();
+          }
+          if (hora === 0 && minuto === 0 && localStorage.getItem('last_forced_reload') !== chaveMeiaNoite) {
+              localStorage.setItem('last_forced_reload', chaveMeiaNoite);
+              forçarRecarregamentoGeral();
+          }
+      }, 5000);
+
+      // 2. Monitoramento de Suspensão (Se o PC dormir/hibernar e acordar)
+      let ultimoCheck = Date.now();
+      
+      document.addEventListener('visibilitychange', () => {
+          if (document.visibilityState === 'visible') {
+              verificarJanelasPerdidas();
+          }
+      });
+
+      setInterval(() => {
+          const agoraRef = Date.now();
+          if (agoraRef - ultimoCheck > 15000) { 
+              verificarJanelasPerdidas();
+          }
+          ultimoCheck = agoraRef;
+      }, 5000);
+  }
+
+  function verificarJanelasPerdidas() {
+      const agora = new Date(new Date().toLocaleString("en-US", {timeZone: "America/Sao_Paulo"}));
+      const hora = agora.getHours();
+      const dataStr = `${agora.getFullYear()}-${agora.getMonth()+1}-${agora.getDate()}`;
+      
+      const chaveMeioDia = `${dataStr}_12_00`;
+      const chaveMeiaNoite = `${dataStr}_00_00`;
+
+      if (hora >= 12 && localStorage.getItem('last_forced_reload') !== chaveMeioDia) {
+          localStorage.setItem('last_forced_reload', chaveMeioDia);
+          forçarRecarregamentoGeral();
+      }
+      if (hora >= 0 && hora < 12 && localStorage.getItem('last_forced_reload') !== chaveMeiaNoite) {
+          localStorage.setItem('last_forced_reload', chaveMeiaNoite);
+          forçarRecarregamentoGeral();
+      }
+  }
+
+  function forçarRecarregamentoGeral() {
+      window.location.href = window.location.origin + window.location.pathname + '?cacheBuster=' + Date.now();
+  }
+
+  // Mantém o escutador de cliques original do seu site funcionando abaixo:
   document.addEventListener('click', (e) => { 
       if (!e.target.closest('.search-box')) document.getElementById('caixaResultados').style.display = 'none'; 
       if (!e.target.closest('#container-atrelar-movimento')) {
