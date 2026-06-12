@@ -1337,7 +1337,7 @@ A estrutura da mensagem DEVE seguir estritamente o modelo abaixo. Não coloque l
               alert("Relatório formatado copiado para a área de transferência!");
           };
 
-          document.getElementById('modal-overlay').style.display = 'block';
+       document.getElementById('modal-overlay').style.display = 'block';
           document.getElementById('nota-modal').style.display = 'block';
       } catch (err) {
           alert("Falha de Processamento na IA. Verifique as credenciais no console.");
@@ -1346,6 +1346,110 @@ A estrutura da mensagem DEVE seguir estritamente o modelo abaixo. Não coloque l
 
       btn.innerText = backupText; btn.disabled = false;
   };
+
+  /* =====================================================================
+     MÓDULO DE INTELIGÊNCIA: PROJEÇÃO E ESTIMATIVA DE PÚBLICO (FASE 1)
+     ===================================================================== */
+  window.gerarEstimativaPublico = async function() {
+      const btn = document.getElementById('btn-ia-publico');
+      const backupText = btn.innerText;
+      btn.innerText = "🤖 Calculando Estimativas...";
+      btn.disabled = true;
+
+      try {
+          const snapChave = await get(ref(db, 'config/gemini_public_key'));
+          if (!snapChave.exists() || snapChave.val().trim() === "") {
+              alert("A IA de Estimativa de Público não está configurada.\n\nSalve a chave secundária no nó 'config/gemini_public_key' via Firebase.");
+              btn.innerText = backupText; btn.disabled = false;
+              return;
+          }
+          const apiKey = snapChave.val().trim();
+
+          let metodoCalculo = "Considere variáveis locais, pauta e histórico simplificado para projetar o público.";
+          const snapMetodo = await get(ref(db, 'config/metodo_estimativa'));
+          if (snapMetodo.exists() && snapMetodo.val().trim() !== "") {
+              metodoCalculo = snapMetodo.val().trim();
+          }
+
+          let datasAlvo = [];
+          for (let i = 0; i < 7; i++) {
+              const d = new Date(new Date().toLocaleString("en-US", {timeZone: "America/Sao_Paulo"}));
+              d.setDate(d.getDate() + i);
+              datasAlvo.push(`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`);
+          }
+
+          let pacotesEventos = [];
+          Object.values(agendaMenusGlobais).forEach(ev => { if (ev && datasAlvo.includes(ev.dataAlerta)) pacotesEventos.push(ev); });
+          Object.values(alertasCalendarioGlobais).forEach(ev => { if (ev && datasAlvo.includes(ev.dataAlerta)) pacotesEventos.push(ev); });
+
+          if (pacotesEventos.length === 0) {
+              alert("Não existem eventos ou agendas cadastrados nos próximos 7 dias para realizar a projeção.");
+              btn.innerText = backupText; btn.disabled = false;
+              return;
+          }
+
+          const promptFinal = `Você é uma Inteligência Artificial analista de dados preditivos de segurança pública. 
+          Sua missão é gerar uma estimativa de público esperado para as manifestações dos próximos 7 dias baseando-se estritamente nas regras do método fornecido.
+
+          DIRETRIZES DO MÉTODO DE CÁLCULO:
+          ${metodoCalculo}
+
+          Formate a resposta rigorosamente para leitura direta no WhatsApp seguindo o modelo abaixo:
+
+          *PMPR / BPCHOQUE / AESI*
+          *PROJEÇÃO ESTIMADA DE PÚBLICO*
+
+          • *[Data]* - *[Título/Nome do Evento]*
+          📍 Concentração: [Local cadastrado]
+          👥 Estimativa de Efetivo: [Indicar variação numérica provável, ex: 150 a 200 pessoas]
+          📊 Justificativa Técnico-Métodica: [Resumo muito direto explicando o cálculo com base nas regras do método]
+          ----------------------------
+
+          Eventos cadastrados para análise: ${JSON.stringify(pacotesEventos)}`;
+
+          const resposta = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`, {
+              method: "POST", headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ contents: [{ parts: [{ text: promptFinal }] }] })
+          });
+
+          const dataIa = await resposta.json();
+
+          if (!resposta.ok) {
+              if (resposta.status === 429) throw new Error("Limite de uso atingido (Erro 429). Aguarde 60 segundos.");
+              throw new Error(dataIa.error?.message || "Erro HTTP na API da Google.");
+          }
+
+          if (!dataIa.candidates || dataIa.candidates.length === 0) throw new Error("A IA não retornou dados válidos.");
+          
+          const resultadoFormatado = dataIa.candidates[0].content.parts[0].text.trim() + "\n\n_(projeção estatística calculada por IA🤖)_";
+
+          document.getElementById('nota-alvo-titulo').innerText = "🤖 Projeção Qualitativa de Público (Próximos 7 Dias)";
+          document.getElementById('nota-textarea').value = resultadoFormatado;
+          document.getElementById('container-local').style.display = 'none';
+          document.getElementById('container-tempo').style.display = 'none';
+          document.getElementById('container-atrelar-movimento').style.display = 'none';
+          
+          const btnGravar = document.getElementById('btn-modal-gravar');
+          btnGravar.innerText = "📋 Copiar Projeções";
+          btnGravar.onclick = function() {
+              navigator.clipboard.writeText(resultadoFormatado);
+              alert("Projeções de público copiadas com sucesso!");
+          };
+
+          document.getElementById('modal-overlay').style.display = 'block';
+          document.getElementById('nota-modal').style.display = 'block';
+
+      } catch (err) {
+          alert(`Falha no cálculo preditivo: ${err.message}`);
+          console.error(err);
+      }
+
+      btn.innerText = backupText; btn.disabled = false;
+  };
+
+  /* =====================================================================
+     SISTEMA DE SINCRONIZAÇÃO FORÇADA DE CACHE (ANTI-VERSÃO ANTIGA)
+     ===================================================================== */
 
  /* =====================================================================
      SISTEMA DE SINCRONIZAÇÃO FORÇADA DE CACHE (ANTI-VERSÃO ANTIGA)
