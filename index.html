@@ -1348,29 +1348,45 @@ A estrutura da mensagem DEVE seguir estritamente o modelo abaixo. Não coloque l
   };
 
   /* =====================================================================
-     MÓDULO DE INTELIGÊNCIA: PROJEÇÃO E ESTIMATIVA DE PÚBLICO (FASE 1)
+     MÓDULO DE INTELIGÊNCIA: PROJEÇÃO DE PÚBLICO (VERSÃO UNIFICADA)
      ===================================================================== */
   window.gerarEstimativaPublico = async function() {
       const btn = document.getElementById('btn-ia-publico');
       const backupText = btn.innerText;
-      btn.innerText = "🤖 Calculando Estimativas...";
+      btn.innerText = "🤖 Baixando Base Unificada...";
       btn.disabled = true;
 
       try {
+          // 1. Busca a chave distinta exclusiva para público
           const snapChave = await get(ref(db, 'config/gemini_public_key'));
           if (!snapChave.exists() || snapChave.val().trim() === "") {
-              alert("A IA de Estimativa de Público não está configurada.\n\nSalve a chave secundária no nó 'config/gemini_public_key' via Firebase.");
+              alert("Chave 'config/gemini_public_key' não encontrada no Firebase.");
               btn.innerText = backupText; btn.disabled = false;
               return;
           }
           const apiKey = snapChave.val().trim();
 
+          // 2. Busca e baixa o link único da planilha unificada
+          const snapPlanilha = await get(ref(db, 'config/planilha_publico_url'));
+          let dadosPlanilha = "Nenhum dado histórico disponível na base unificada.";
+          
+          if (snapPlanilha.exists() && snapPlanilha.val().trim() !== "") {
+              try {
+                  const resCsv = await fetch(snapPlanilha.val().trim());
+                  if (resCsv.ok) dadosPlanilha = await resCsv.text();
+              } catch (e) {
+                  console.warn("Falha ao baixar a planilha unificada do Drive:", e);
+              }
+          }
+
+          // 3. Busca o método estruturado de cálculo salvo no Firebase
           let metodoCalculo = "Considere variáveis locais, pauta e histórico simplificado para projetar o público.";
           const snapMetodo = await get(ref(db, 'config/metodo_estimativa'));
           if (snapMetodo.exists() && snapMetodo.val().trim() !== "") {
               metodoCalculo = snapMetodo.val().trim();
           }
 
+          // 4. Filtra e agrupa os eventos dos próximos 7 dias
           let datasAlvo = [];
           for (let i = 0; i < 7; i++) {
               const d = new Date(new Date().toLocaleString("en-US", {timeZone: "America/Sao_Paulo"}));
@@ -1383,16 +1399,22 @@ A estrutura da mensagem DEVE seguir estritamente o modelo abaixo. Não coloque l
           Object.values(alertasCalendarioGlobais).forEach(ev => { if (ev && datasAlvo.includes(ev.dataAlerta)) pacotesEventos.push(ev); });
 
           if (pacotesEventos.length === 0) {
-              alert("Não existem eventos ou agendas cadastrados nos próximos 7 dias para realizar a projeção.");
+              alert("Não existem eventos cadastrados nos próximos 7 dias para realizar a análise.");
               btn.innerText = backupText; btn.disabled = false;
               return;
           }
 
-          const promptFinal = `Você é uma Inteligência Artificial analista de dados preditivos de segurança pública. 
-          Sua missão é gerar uma estimativa de público esperado para as manifestações dos próximos 7 dias baseando-se estritamente nas regras do método fornecido.
+          btn.innerText = "🤖 Processando Estimativas...";
 
-          DIRETRIZES DO MÉTODO DE CÁLCULO:
+          // 5. Monta o Prompt com foco na base de dados limpa e unificada
+          const promptFinal = `Você é uma Inteligência Artificial analista de dados preditivos de segurança pública. 
+          Sua missão é gerar uma estimativa de público esperado para as manifestações dos próximos 7 dias baseando-se no método de cálculo fornecido e cruzando com a base de dados históricos unificada trazida do Google Drive.
+
+          DIRETRIZES DO SEU MÉTODO DE CÁLCULO:
           ${metodoCalculo}
+
+          BASE DE DADOS HISTÓRICOS UNIFICADA (FORMATO CSV):
+          ${dadosPlanilha}
 
           Formate a resposta rigorosamente para leitura direta no WhatsApp seguindo o modelo abaixo:
 
@@ -1401,12 +1423,13 @@ A estrutura da mensagem DEVE seguir estritamente o modelo abaixo. Não coloque l
 
           • *[Data]* - *[Título/Nome do Evento]*
           📍 Concentração: [Local cadastrado]
-          👥 Estimativa de Efetivo: [Indicar variação numérica provável, ex: 150 a 200 pessoas]
-          📊 Justificativa Técnico-Métodica: [Resumo muito direto explicando o cálculo com base nas regras do método]
+          👥 Estimativa de Público: [Indicar variação numérica provável com base nas métricas, ex: 150 a 200 pessoas]
+          📊 Justificativa Técnico-Métodica: [Explique de forma resumida e direta como os dados da planilha e as regras do método justificam essa estimativa]
           ----------------------------
 
-          Eventos cadastrados para análise: ${JSON.stringify(pacotesEventos)}`;
+          Eventos cadastrados para análise atual: ${JSON.stringify(pacotesEventos)}`;
 
+          // Chamada para o Gemini
           const resposta = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`, {
               method: "POST", headers: { "Content-Type": "application/json" },
               body: JSON.stringify({ contents: [{ parts: [{ text: promptFinal }] }] })
@@ -1423,6 +1446,7 @@ A estrutura da mensagem DEVE seguir estritamente o modelo abaixo. Não coloque l
           
           const resultadoFormatado = dataIa.candidates[0].content.parts[0].text.trim() + "\n\n_(projeção estatística calculada por IA🤖)_";
 
+          // Exibe no modal padrão do site
           document.getElementById('nota-alvo-titulo').innerText = "🤖 Projeção Qualitativa de Público (Próximos 7 Dias)";
           document.getElementById('nota-textarea').value = resultadoFormatado;
           document.getElementById('container-local').style.display = 'none';
@@ -1448,10 +1472,6 @@ A estrutura da mensagem DEVE seguir estritamente o modelo abaixo. Não coloque l
   };
 
   /* =====================================================================
-     SISTEMA DE SINCRONIZAÇÃO FORÇADA DE CACHE (ANTI-VERSÃO ANTIGA)
-     ===================================================================== */
-
- /* =====================================================================
      SISTEMA DE SINCRONIZAÇÃO FORÇADA DE CACHE (ANTI-VERSÃO ANTIGA)
      ===================================================================== */
   function iniciarControleDeAtualizacao() {
