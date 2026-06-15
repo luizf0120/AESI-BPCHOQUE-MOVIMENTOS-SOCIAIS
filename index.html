@@ -1257,6 +1257,100 @@ function verificarAlertasExpirados() {
     });
   }
 
+  // =====================================================================
+  // NOVA FUNÇÃO INSERIDA AQUI:
+  // =====================================================================
+  window.gerarRelatorioDiarioIA = async function() {
+      const btn = document.getElementById('btn-ia-diario');
+      const backupText = btn.innerText;
+      btn.innerText = "🤖 Compilando Diário...";
+      btn.disabled = true;
+
+      try {
+          const snapChave = await get(ref(db, 'config/gemini_daily_key'));
+          if (!snapChave.exists() || snapChave.val().trim() === "") {
+              alert("A chave tática 'config/gemini_daily_key' não foi configurada no Firebase.");
+              btn.innerText = backupText; btn.disabled = false;
+              return;
+          }
+          const apiKey = snapChave.val().trim();
+
+          const dataAlertaAlvo = window.CURRENT_SELECTED_DAY || dataHojeISO;
+          
+          let pacotesEventos = [];
+          Object.values(agendaMenusGlobais || {}).forEach(ev => { if (ev && ev.dataAlerta === dataAlertaAlvo) pacotesEventos.push(ev); });
+          Object.values(alertasCalendarioGlobais || {}).forEach(ev => { if (ev && ev.dataAlerta === dataAlertaAlvo) pacotesEventos.push(ev); });
+
+          if (pacotesEventos.length === 0) {
+              const dataFormatadaExibir = dataAlertaAlvo.split('-').reverse().join('/');
+              alert(`Não existem eventos cadastrados para o dia ${dataFormatadaExibir}.`);
+              btn.innerText = backupText; btn.disabled = false;
+              return;
+          }
+
+          const partes = dataAlertaAlvo.split('-');
+          const dataObj = new Date(partes[0], partes[1] - 1, partes[2]);
+          const diasSemanaMatriz = ['dom', 'seg', 'ter', 'qua', 'qui', 'sex', 'sab'];
+          const diaSemanaStr = diasSemanaMatriz[dataObj.getDay()];
+          const dataFormatadaBr = dataAlertaAlvo.split('-').reverse().join('/');
+
+          const promptFinal = `Você é um robô analista de inteligência. Pegue a lista de eventos fornecida e monte um relatório operacional diário seguindo RIGOROSAMENTE a estrutura e os recuos do modelo abaixo.
+          
+          Regras Absolutas:
+          - O cabeçalho institucional (PMPR, CME, BPCHOQUE, AESI) deve vir limpo no topo, sem asteriscos ou formatações markdown.
+          - Deixe obrigatoriamente uma linha em branco após AESI.
+          - Siga a linha de Data no formato "Data: [dia_da_semana], DD/MM/YYYY".
+          - Para cada evento, use o recuo exato de espaços, o caractere "•", o emoji "🕒", horário, título, emoji "📍" para endereço e emoji "📝" para detalhes.
+          - Ordene todos os eventos cronologicamente pelo horário.
+          - Não adicione markdown de bloco de código (como \`\`\`), saudações ou comentários. Apenas o texto puro formatado.
+
+          Modelo Exato de Saída esperado:
+          PMPR
+          CME
+          BPCHOQUE
+          AESI
+
+          Data: ${diaSemanaStr}, ${dataFormatadaBr}
+                   • 🕒 [Horário HH:MM] - [Título do Evento]
+                   📍 Endereço: [Local ou Endereço]
+                   📝 Detalhes: [Resumo e pauta sintetizada do evento]
+
+          Lista de eventos para processar: ${JSON.stringify(pacotesEventos)}`;
+
+          const resposta = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`, {
+              method: "POST", headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ contents: [{ parts: [{ text: promptFinal }] }] })
+          });
+
+          const dataIa = await resposta.json();
+          if (!dataIa.candidates || dataIa.candidates.length === 0) { throw new Error("A IA recusou a geração dos dados."); }
+          
+          const relatorioDiarioLimpo = dataIa.candidates[0].content.parts[0].text.trim() + "\n\n(relatório de eventos criado por IA🤖)";
+
+          document.getElementById('nota-alvo-titulo').innerText = `🤖 Relatório Diário Operacional (${dataFormatadaBr})`;
+          document.getElementById('nota-textarea').value = relatorioDiarioLimpo;
+          document.getElementById('container-local').style.display = 'none';
+          document.getElementById('container-tempo').style.display = 'none';
+          document.getElementById('container-atrelar-movimento').style.display = 'none';
+          
+          const btnGravar = document.getElementById('btn-modal-gravar');
+          btnGravar.innerText = "📋 Copiar Relatório Diário";
+          btnGravar.onclick = function() {
+              navigator.clipboard.writeText(relatorioDiarioLimpo);
+              alert("Relatório diário copiado para a área de transferência!");
+          };
+
+          document.getElementById('modal-overlay').style.display = 'block';
+          document.getElementById('nota-modal').style.display = 'block';
+
+      } catch (err) {
+          alert(`Falha na compilação do diário: ${err.message}`);
+          console.error(err);
+      }
+
+      btn.innerText = backupText; btn.disabled = false;
+  };
+
   window.gerarRelatorioIA = async function() {
       const btn = document.getElementById('btn-ia-report');
       const backupText = btn.innerText;
