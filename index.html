@@ -583,53 +583,100 @@ const bottom15 = estatisticasCompletas.filter(s => s.caminho && s.caminho[0] !==
   }
 
 function verificarAlertasExpirados() {
-      const agoraStr = obterDataBrasiliaISO() + " " + obterHoraBrasilia();
+      // Comparação baseada estritamente no avanço dos dias (ISO: YYYY-MM-DD)
       
       // 1. Varredura nos eventos por pasta (agenda)
-      Object.keys(agendaMenusGlobais).forEach(safeKey => {
+      Object.keys(agendaMenusGlobais || {}).forEach(safeKey => {
           const nota = agendaMenusGlobais[safeKey];
-          if (nota && nota.dataAlerta && nota.horaAlerta) {
-              const alvoStr = nota.dataAlerta + " " + nota.horaAlerta;
-              
-              // Se o evento passou, não foi perguntado nesta sessão e ainda não tem o número salvo
-              if (alvoStr <= agoraStr && !alertasPromptadosSessao.includes(safeKey) && !nota.numeroManifestantes) {
+          if (nota && nota.dataAlerta) {
+              // Condição: Ativa apenas no dia seguinte ao evento
+              if (dataHojeISO > nota.dataAlerta && !alertasPromptadosSessao.includes(safeKey) && !nota.numeroManifestantes) {
                   alertasPromptadosSessao.push(safeKey); 
                   setTimeout(() => {
-                      const quantidade = prompt(`[CONSOLIDAÇÃO DE INTELIGÊNCIA]\nO evento de "${nota.tituloOrigem}" já ocorreu.\n\nInsira o número estimado de MANIFESTANTES participantes:`);
-                      if (quantidade !== null && quantidade.trim() !== "") {
-                          set(ref(db, `monitoramentoDiario/${dataHojeISO}/agenda_menus/${safeKey}`), {
-                              ...nota,
-                              numeroManifestantes: quantidade.trim()
-                          });
-                      }
+                      window.abrirModalConsolidacao(safeKey, nota, 'agenda');
                   }, 600);
               }
           }
       });
 
       // 2. Varredura nos agendamentos diretos do calendário
-      Object.keys(alertasCalendarioGlobais).forEach(keyId => {
+      Object.keys(alertasCalendarioGlobais || {}).forEach(keyId => {
           const nota = alertasCalendarioGlobais[keyId];
-          if (nota && nota.dataAlerta && nota.horaAlerta) {
-              const alvoStr = nota.dataAlerta + " " + nota.horaAlerta;
-              
-              // Se o evento passou, não foi perguntado nesta sessão e ainda não tem o número salvo
-              if (alvoStr <= agoraStr && !alertasPromptadosSessao.includes(keyId) && !nota.numeroManifestantes) {
+          if (nota && nota.dataAlerta) {
+              // Condição: Ativa apenas no dia seguinte ao evento
+              if (dataHojeISO > nota.dataAlerta && !alertasPromptadosSessao.includes(keyId) && !nota.numeroManifestantes) {
                   alertasPromptadosSessao.push(keyId);
                   setTimeout(() => {
-                      const quantidade = prompt(`[CONSOLIDAÇÃO DE INTELIGÊNCIA]\nO agendamento direto "${nota.tituloOrigem}" já ocorreu.\n\nInsira o número estimado de MANIFESTANTES participantes:`);
-                      if (quantidade !== null && quantidade.trim() !== "") {
-                          set(ref(db, `alertas_calendario/${keyId}`), {
-                              ...nota,
-                              numeroManifestantes: quantidade.trim()
-                          });
-                      }
+                      window.abrirModalConsolidacao(keyId, nota, 'direto');
                   }, 600);
               }
           }
       });
   }
 
+  // =====================================================================
+  // INTERFACE TÁTICA DE CONSOLIDAÇÃO DE PÚBLICO (MODAL DINÂMICO)
+  // =====================================================================
+  window.abrirModalConsolidacao = function(id, nota, tipo) {
+      if (document.getElementById('modal-consolidacao-pmpr')) return;
+
+      const overlay = document.createElement('div');
+      overlay.id = 'modal-consolidacao-pmpr';
+      overlay.style.cssText = 'position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.85); z-index:99999; display:flex; align-items:center; justify-content:center;';
+
+      const box = document.createElement('div');
+      box.style.cssText = 'background:#0a0a0a; color:#fff; border:1px solid var(--accent-orange); border-radius:8px; width:90%; max-width:410px; padding:25px; box-shadow:0 10px 30px rgba(0,0,0,0.9); text-align:center; font-family:inherit;';
+
+      let dataBr = nota.dataAlerta ? nota.dataAlerta.split('-').reverse().join('/') : '--/--/----';
+
+      box.innerHTML = `
+          <h4 style="margin:0 0 12px 0; color:var(--accent-orange); font-size:14px; letter-spacing:0.5px; border-bottom:1px solid #222; padding-bottom:10px; text-transform:uppercase;">📋 Consolidação de Inteligência</h4>
+          <p style="font-size:13px; color:#ccc; margin-bottom:18px; line-height:1.4; text-align:left;">
+              O evento registrado em <strong>"${nota.tituloOrigem || 'Geral'}"</strong> agendado para o dia ${dataBr} já foi concluído.
+          </p>
+          <label style="display:block; font-size:11px; color:#888; text-align:left; margin-bottom:6px;">Insira a estimativa final de participantes:</label>
+          <input type="number" id="input-qtd-manifestantes" placeholder="Ex: 250" style="width:100%; padding:11px; background:#111; border:1px solid #333; color:#fff; border-radius:6px; box-sizing:border-box; font-size:14px; outline:none; margin-bottom:20px; color-scheme:dark;">
+          
+          <div style="display:flex; gap:10px;">
+              <button id="btn-consolidar-postpone" style="flex:1; background:transparent; color:#888; border:1px solid #444; padding:10px; border-radius:4px; cursor:pointer; font-size:12px; font-weight:bold; transition:0.2s;">Responder mais tarde</button>
+              <button id="btn-consolidar-ok" style="flex:1; background:var(--accent-orange); color:#000; border:none; padding:10px; border-radius:4px; cursor:pointer; font-size:12px; font-weight:bold; transition:0.2s;">OK</button>
+          </div>
+      `;
+
+      overlay.appendChild(box);
+      document.body.appendChild(overlay);
+
+      const inputField = document.getElementById('input-qtd-manifestantes');
+      inputField.focus();
+
+      // Ação: Adiar preenchimento (Mantém bloqueado apenas nesta sessão)
+      document.getElementById('btn-consolidar-postpone').onclick = function() {
+          overlay.remove();
+      };
+
+      // Ação: Confirmar dados e gravar permanentemente
+      document.getElementById('btn-consolidar-ok').onclick = function() {
+          const qtd = inputField.value.trim();
+          if (qtd === "" || isNaN(qtd)) {
+              alert("Por favor, digite um valor numérico válido ou selecione 'Responder mais tarde'.");
+              return;
+          }
+
+          const caminhoRef = tipo === 'agenda' 
+              ? `monitoramentoDiario/${dataHojeISO}/agenda_menus/${id}` 
+              : `alertas_calendario/${id}`;
+
+          set(ref(db, caminhoRef), {
+              ...nota,
+              numeroManifestantes: qtd
+          }).then(() => {
+              overlay.remove();
+          }).catch(err => {
+              alert("Erro operacional ao atualizar base de dados.");
+              console.error(err);
+          });
+      };
+  };
   window.mudarMesCalendario = function(direcao) {
       currentCalMonth += direcao;
       if (currentCalMonth > 11) { currentCalMonth = 0; currentCalYear++; }
