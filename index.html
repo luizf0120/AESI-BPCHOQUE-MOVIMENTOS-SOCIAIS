@@ -1113,41 +1113,66 @@ window.abrirModalTatico = function(e, idUnico, titulo, tipo) {
       document.getElementById('detalhes-modal').style.display = 'none';
   };
 
-  window.salvarNotaFirebase = function() {
-      const texto = document.getElementById('nota-textarea').value.trim();
-      const local = document.getElementById('nota-local').value.trim();
-      const dataAlerta = document.getElementById('nota-data').value;
-      const horaAlerta = document.getElementById('nota-hora').value;
-      const safeKey = sanitizarId(alvoAtualNota);
-      const user = auth.currentUser ? auth.currentUser.email : 'Desconhecido';
-      
-      const elMov = document.getElementById('nota-movimento-input');
-      let movimentoAtrelado = elMov ? elMov.value.trim() : "";
+window.salvarNotaFirebase = function() {
+    const texto = document.getElementById('nota-textarea').value.trim();
+    const local = document.getElementById('nota-local').value.trim();
+    const dataAlerta = document.getElementById('nota-data').value;
+    const horaAlerta = document.getElementById('nota-hora').value;
+    const safeKey = sanitizarId(alvoAtualNota);
+    const user = auth.currentUser ? auth.currentUser.email : 'Desconhecido';
+    
+    // 1. Captura TODOS os novos campos dinâmicos de movimentos preenchidos
+    const inputsMov = document.querySelectorAll('.nota-movimento-input-dinamico');
+    let movimentosAtrelados = [];
+    
+    inputsMov.forEach(inp => {
+        if (inp.value.trim() !== "") {
+            movimentosAtrelados.push(inp.value.trim());
+        }
+    });
+    
+    // 2. Define o movimento principal (o primeiro da lista) para manter compatibilidade
+    let movimentoAtreladoOriginal = movimentosAtrelados.length > 0 ? movimentosAtrelados[0] : "";
+    
+    // 3. Define dinamicamente o título que vai aparecer no card do calendário
+    let tituloDefinido = "Evento Geral";
+    if (movimentoAtreladoOriginal) {
+        tituloDefinido = movimentoAtreladoOriginal.split(' > ').pop();
+    }
 
-      if (contextoAtual === 'direto') {
-          const uniqueKey = alvoAtualNota || ("CAL_" + Date.now()); 
-          const notaRef = ref(db, `alertas_calendario/${uniqueKey}`);
-          
-          if (texto === "" && local === "" && dataAlerta === "" && horaAlerta === "") {
-              set(notaRef, null);
-          } else {
-              set(notaRef, { 
-                  texto, local, dataAlerta, horaAlerta, movimentoAtrelado, operador: user, 
-                  time: obterHoraBrasilia(), tituloOrigem: movimentoAtrelado ? movimentoAtrelado.split(' > ').pop() : "Evento Geral", isDirectCalendar: true, keyId: uniqueKey,
-                  textoBruto: window.CURRENT_IA_TEXTO_BRUTO || ""
-              });
-          }
-      } else if (contextoAtual === 'postit') {
-          const notaRef = ref(db, `monitoramentoDiario/${dataHojeISO}/anotacoes/${safeKey}`);
-          if (texto === "") set(notaRef, null);
-          else set(notaRef, { texto, operador: user, time: obterHoraBrasilia(), tituloOrigem: tituloAtualNota });
-      } else if (contextoAtual === 'agenda') {
-          const notaRef = ref(db, `monitoramentoDiario/${dataHojeISO}/agenda_menus/${safeKey}`);
-          if (texto === "" && local === "" && dataAlerta === "" && horaAlerta === "") set(notaRef, null);
-          else set(notaRef, { texto, local, dataAlerta, horaAlerta, operador: user, time: obterHoraBrasilia(), tituloOrigem: tituloAtualNota, pathString: alvoAtualNota, textoBruto: window.CURRENT_IA_TEXTO_BRUTO || "" });
-      }
-      window.fecharModalNota();
-  };
+    if (contextoAtual === 'direto') {
+        const uniqueKey = alvoAtualNota || ("CAL_" + Date.now()); 
+        const notaRef = ref(db, `alertas_calendario/${uniqueKey}`);
+        
+        if (texto === "" && local === "" && dataAlerta === "" && horaAlerta === "") {
+            set(notaRef, null);
+        } else {
+            set(notaRef, { 
+                texto, 
+                local, 
+                dataAlerta, 
+                horaAlerta, 
+                movimentoAtrelado: movimentoAtreladoOriginal, // Fallback para sistemas legados
+                movimentosAtrelados: movimentosAtrelados,     // Lista completa com todos os alvos
+                operador: user, 
+                time: obterHoraBrasilia(), 
+                tituloOrigem: tituloDefinido,                 // Nome do movimento que aparecerá no card
+                isDirectCalendar: true, 
+                keyId: uniqueKey,
+                textoBruto: window.CURRENT_IA_TEXTO_BRUTO || ""
+            });
+        }
+    } else if (contextoAtual === 'postit') {
+        const notaRef = ref(db, `monitoramentoDiario/${dataHojeISO}/anotacoes/${safeKey}`);
+        if (texto === "") set(notaRef, null);
+        else set(notaRef, { texto, operador: user, time: obterHoraBrasilia(), tituloOrigem: tituloAtualNota });
+    } else if (contextoAtual === 'agenda') {
+        const notaRef = ref(db, `monitoramentoDiario/${dataHojeISO}/agenda_menus/${safeKey}`);
+        if (texto === "" && local === "" && dataAlerta === "" && horaAlerta === "") set(notaRef, null);
+        else set(notaRef, { texto, local, dataAlerta, horaAlerta, operador: user, time: obterHoraBrasilia(), tituloOrigem: tituloAtualNota, pathString: alvoAtualNota, textoBruto: window.CURRENT_IA_TEXTO_BRUTO || "" });
+    }
+    window.fecharModalNota();
+};
 
   function atualizarUiComVistos() {
     document.querySelectorAll('.link-card').forEach(el => {
