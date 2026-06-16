@@ -406,11 +406,14 @@
         </div>
     </div>
 
-    <div id="container-atrelar-movimento" style="margin-bottom: 15px; display: none; position: relative;">
-        <label style="font-size: 11px; color: #888; display: block; margin-bottom: 4px;">🔗 Atrelar a um Movimento (Opcional):</label>
-        <input type="text" id="nota-movimento-input" placeholder="Comece a digitar o nome do movimento..." style="width: 100%; background: #111; color: #fff; border: 1px solid #333; padding: 8px; border-radius: 6px; outline: none; font-size: 13px; font-weight: bold;" oninput="window.filtrarMovimentosDropdown()">
-        <div id="nota-movimento-sugestoes" style="max-height: 140px; overflow-y: auto; background: #0e0e0e; border: 1px solid #333; margin-top: 4px; border-radius: 6px; display: none; position: absolute; left: 0; right: 0; z-index: 30000; box-shadow: 0 5px 15px rgba(0,0,0,0.8);"></div>
+<div id="container-atrelar-movimento" style="margin-bottom: 15px; display: none;">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+        <label style="font-size: 11px; color: #888; font-weight: bold;">🔗 Atrelar a Movimentos (Opcional):</label>
+        <button type="button" onclick="window.adicionarLinhaMovimento()" style="background: var(--accent-blue); color: white; border: none; padding: 4px 10px; border-radius: 4px; font-size: 11px; cursor: pointer; font-weight: bold; transition: 0.2s;">＋ Adicionar</button>
     </div>
+    <!-- Elemento container onde as linhas de movimentos entrarão dinamicamente -->
+    <div id="lista-movimentos-dinamicos" style="display: flex; flex-direction: column; gap: 8px;"></div>
+</div>
 
     <div class="nota-actions">
         <button class="btn-fechar-nota" onclick="window.fecharModalNota()">Cancelar</button>
@@ -673,43 +676,94 @@ function verificarAlertasExpirados() {
       }
   };
 
-  window.filtrarMovimentosDropdown = function() {
-      const input = document.getElementById('nota-movimento-input').value;
-      const box = document.getElementById('nota-movimento-sugestoes');
-      box.innerHTML = "";
+// Removemos a antiga e injetamos o novo sistema modular dinâmico
+window.adicionarLinhaMovimento = function(valorInicial = "") {
+    const container = document.getElementById('lista-movimentos-dinamicos');
+    
+    // Criação do wrapper da linha
+    const rowDiv = document.createElement('div');
+    rowDiv.className = "movimento-wrapper-dinamico";
+    rowDiv.style.cssText = "position: relative; display: flex; gap: 6px; align-items: center;";
+    
+    rowDiv.innerHTML = `
+        <div style="flex: 1; position: relative;">
+            <input type="text" class="nota-movimento-input-dinamico" placeholder="Comece a digitar o nome do movimento..." value="${valorInicial}" style="width: 100%; background: #111; color: #fff; border: 1px solid #333; padding: 8px; border-radius: 6px; outline: none; font-size: 13px; font-weight: bold; box-sizing: border-box;">
+            <div class="nota-movimento-sugestoes-dinamica" style="max-height: 140px; overflow-y: auto; background: #0e0e0e; border: 1px solid #333; margin-top: 4px; border-radius: 6px; display: none; position: absolute; left: 0; right: 0; z-index: 30000; box-shadow: 0 5px 15px rgba(0,0,0,0.8);"></div>
+        </div>
+        <button type="button" class="btn-remover-movimento" style="background: var(--accent-red); color: white; border: none; padding: 8px 12px; border-radius: 6px; cursor: pointer; font-size: 12px; font-weight: bold; display: none; transition: 0.2s;">✕</button>
+    `;
+    
+    container.appendChild(rowDiv);
+    
+    const input = rowDiv.querySelector('.nota-movimento-input-dinamico');
+    const box = rowDiv.querySelector('.nota-movimento-sugestoes-dinamica');
+    const btnRemover = rowDiv.querySelector('.btn-remover-movimento');
+    
+    // Escutadores locais por linha
+    input.addEventListener('input', () => window.filtrarMovimentosDropdownDinamico(input, box));
+    btnRemover.addEventListener('click', () => {
+        rowDiv.remove();
+        window.atualizarBotoesRemoverMovimento();
+    });
+    
+    window.atualizarBotoesRemoverMovimento();
+};
 
-      if (input.trim().length === 0) { box.style.display = 'none'; return; }
+window.atualizarBotoesRemoverMovimento = function() {
+    const rows = document.querySelectorAll('.movimento-wrapper-dinamico');
+    rows.forEach(row => {
+        const btn = row.querySelector('.btn-remover-movimento');
+        btn.style.display = rows.length > 1 ? 'block' : 'none';
+    });
+};
 
-      const termoFormatado = normalizarTexto(input);
-      const filtrados = window.LISTA_MOVIMENTOS.filter(mov => normalizarTexto(mov.caminhoStr).includes(termoFormatado));
+window.filtrarMovimentosDropdownDinamico = function(inputEl, boxEl) {
+    boxEl.innerHTML = "";
+    const input = inputEl.value;
 
-      if (filtrados.length === 0) { box.style.display = 'none'; return; }
+    if (input.trim().length === 0) { boxEl.style.display = 'none'; return; }
 
-      filtrados.forEach(mov => {
-          const itemDiv = document.createElement('div');
-          itemDiv.style.cssText = "padding: 8px 12px; cursor: pointer; border-bottom: 1px solid #1a1a1a; font-size: 12px; color: #ccc; transition: 0.15s; text-align: left;";
-          itemDiv.innerText = mov.caminhoStr.replace("MOVIMENTOS > ", "");
-          
-          itemDiv.onmouseenter = function() { this.style.background = "#1c1c1c"; this.style.color = "var(--accent-yellow)"; };
-          itemDiv.onmouseleave = function() { this.style.background = "transparent"; this.style.color = "#ccc"; };
-          
-          itemDiv.onclick = function() {
-              document.getElementById('nota-movimento-input').value = mov.caminhoStr;
-              box.style.display = 'none';
-          };
-          box.appendChild(itemDiv);
-      });
-      box.style.display = 'block';
-  };
+    const termoFormatado = normalizarTexto(input);
+    const filtrados = window.LISTA_MOVIMENTOS.filter(mov => normalizarTexto(mov.caminhoStr).includes(termoFormatado));
 
-  window.abrirModalCalendarioDireto = function() {
+    if (filtrados.length === 0) { boxEl.style.display = 'none'; return; }
+
+    filtrados.forEach(mov => {
+        const itemDiv = document.createElement('div');
+        itemDiv.style.cssText = "padding: 8px 12px; cursor: pointer; border-bottom: 1px solid #1a1a1a; font-size: 12px; color: #ccc; transition: 0.15s; text-align: left;";
+        itemDiv.innerText = mov.caminhoStr.replace("MOVIMENTOS > ", "");
+        
+        itemDiv.onmouseenter = function() { this.style.background = "#1c1c1c"; this.style.color = "var(--accent-yellow)"; };
+        itemDiv.onmouseleave = function() { this.style.background = "transparent"; this.style.color = "#ccc"; };
+        
+        itemDiv.onclick = function() {
+            inputEl.value = mov.caminhoStr;
+            boxEl.style.display = 'none';
+        };
+        boxEl.appendChild(itemDiv);
+    });
+    boxEl.style.display = 'block';
+};
+
+window.inicializarCamposMovimento = function(listaMovimentos = []) {
+    const container = document.getElementById('lista-movimentos-dinamicos');
+    container.innerHTML = "";
+    if (listaMovimentos.length === 0) {
+        window.adicionarLinhaMovimento("");
+    } else {
+        listaMovimentos.forEach(mov => window.adicionarLinhaMovimento(mov));
+    }
+};
+
+ window.abrirModalCalendarioDireto = function() {
       contextoAtual = 'direto'; alvoAtualNota = "";
       window.CURRENT_IA_TEXTO_BRUTO = "";
       document.getElementById('nota-alvo-titulo').innerText = "Agendar Novo Evento";
       document.getElementById('nota-textarea').value = ""; document.getElementById('nota-local').value = "";
       document.getElementById('nota-data').value = ""; document.getElementById('nota-hora').value = "";
-      document.getElementById('nota-movimento-input').value = "";
-      document.getElementById('nota-movimento-sugestoes').style.display = 'none';
+      
+      // Nova função que limpa e cria a primeira linha em branco
+      window.inicializarCamposMovimento([]); 
 
       document.getElementById('container-local').style.display = 'block';
       document.getElementById('container-tempo').style.display = 'flex';
@@ -918,11 +972,11 @@ function verificarAlertasExpirados() {
 
           contextoAtual = 'direto'; alvoAtualNota = "";
           document.getElementById('nota-alvo-titulo').innerText = "Conferir Agendamento por IA";
-          document.getElementById('nota-textarea').value = dataObjeto.texto || "";
+         document.getElementById('nota-textarea').value = dataObjeto.texto || "";
           document.getElementById('nota-local').value = dataObjeto.local || "";
           document.getElementById('nota-data').value = dataObjeto.data || "";
           document.getElementById('nota-hora').value = dataObjeto.hora || "";
-          document.getElementById('nota-movimento-input').value = dataObjeto.movimento || "";
+          document.getElementById('nota-movimento-input').value = dataObjeto.movimento || ""; // <- APAGAR
 
           document.getElementById('container-local').style.display = 'block';
           document.getElementById('container-tempo').style.display = 'flex';
@@ -1001,15 +1055,23 @@ function verificarAlertasExpirados() {
           document.getElementById('nota-hora').value = nota.horaAlerta || "";
           document.getElementById('container-local').style.display = 'block';
           document.getElementById('container-tempo').style.display = 'flex';
-      } else if (tipo === 'direto') {
+     } else if (tipo === 'direto') {
           document.getElementById('nota-alvo-titulo').innerText = "Editar Evento";
           const nota = alertasCalendarioGlobais[idUnico] || {};
           document.getElementById('nota-textarea').value = nota.texto || "";
           document.getElementById('nota-local').value = nota.local || "";
           document.getElementById('nota-data').value = nota.dataAlerta || "";
           document.getElementById('nota-hora').value = nota.horaAlerta || "";
-          document.getElementById('nota-movimento-input').value = nota.movimentoAtrelado || "";
           window.CURRENT_IA_TEXTO_BRUTO = nota.textoBruto || "";
+          
+          // Bloco inteligente que lê a nova lista de movimentos ou aceita o formato antigo antigo caso exista
+          let listaMovs = [];
+          if (nota.movimentosAtrelados && Array.isArray(nota.movimentosAtrelados)) {
+              listaMovs = nota.movimentosAtrelados;
+          } else if (nota.movimentoAtrelado) {
+              listaMovs = [nota.movimentoAtrelado];
+          }
+          window.inicializarCamposMovimento(listaMovs);
           
           document.getElementById('container-local').style.display = 'block';
           document.getElementById('container-tempo').style.display = 'flex';
