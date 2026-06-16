@@ -768,23 +768,7 @@ function verificarAlertasExpirados() {
       document.getElementById('btn-modal-gravar').style.display = 'block';
       document.getElementById('btn-modal-gravar').innerText = "Gravar Alerta";
 
-    window.abrirModalHistorico = function() {
-            contextoAtual = 'historico'; alvoAtualNota = "";
-            window.CURRENT_IA_TEXTO_BRUTO = "";
-            document.getElementById('nota-alvo-titulo').innerText = "⏳ Registrar Evento Histórico (Passado)";
-            document.getElementById('nota-textarea').value = ""; document.getElementById('nota-local').value = "";
-            document.getElementById('nota-data').value = ""; document.getElementById('nota-hora').value = "";
-            document.getElementById('nota-movimento-input').value = "";
-            document.getElementById('nota-movimento-sugestoes').style.display = 'none';
-
-            document.getElementById('container-local').style.display = 'block';
-            document.getElementById('container-tempo').style.display = 'flex';
-            document.getElementById('container-atrelar-movimento').style.display = 'block';
-            
-            document.getElementById('btn-modal-gravar').style.display = 'block';
-            document.getElementById('btn-modal-gravar').innerText = "Gravar Registro Histórico";
-
-            document.getElementById('modal-overlay').style.display = 'block';
+document.getElementById('modal-overlay').style.display = 'block';
             document.getElementById('nota-modal').style.display = 'block';
             document.getElementById('nota-textarea').focus();
         };
