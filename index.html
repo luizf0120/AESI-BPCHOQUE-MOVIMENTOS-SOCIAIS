@@ -132,7 +132,7 @@
 
   #tooltip-preview a, #calendar-event-list a { color: #00a2ff !important; text-decoration: underline !important; font-weight: bold; }
 
-  /* --- SISTEMA DE ESTREAS --- */
+  /* --- SISTEMA DE ESTRELAS --- */
   .star-icon {
     font-size: 20px; color: transparent; -webkit-text-stroke: 1.5px #666; cursor: pointer; transition: all 0.2s ease;
     user-select: none; display: inline-flex; align-items: center; justify-content: center; margin-right: 8px; z-index: 10;
@@ -160,9 +160,10 @@
   }
 
   /* =========================================
-     MODAL AMPLIADO (LEITURA COMPLETA)
+     MODAL AMPLIADO (LEITURA COMPLETA) E DETALHES
      ========================================= */
   #modal-overlay { display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.8); z-index: 19999; backdrop-filter: blur(2px); }
+  
   #nota-modal {
     display: none; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
     background: var(--card-bg); border: 1px solid var(--accent-yellow); border-radius: 8px;
@@ -193,7 +194,17 @@
   .btn-fechar-nota:hover { background: #333; color: #fff; }
 
   /* =========================================
-     NOVO POP-UP CENTRAL DE DETALHES APROFUNDADOS
+     ESTILO DO POP-UP DA IA
+     ========================================= */
+  #ia-input-modal {
+    display: none; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
+    background: var(--card-bg); border: 1px solid #00bcd4; border-radius: 8px;
+    padding: 25px; z-index: 20000; width: 560px; max-width: 92%; box-shadow: 0 15px 40px rgba(0,0,0,0.9);
+  }
+  #ia-input-modal h4 { margin: 0 0 15px 0; color: #00bcd4; font-size: 16px; border-bottom: 1px solid #333; padding-bottom: 10px; }
+
+  /* =========================================
+     POP-UP CENTRAL DE DETALHES APROFUNDADOS
      ========================================= */
   #detalhes-modal {
     display: none; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
@@ -337,9 +348,10 @@
                   <button class="btn-action" onclick="window.abrirModalCalendarioDireto()" style="width: 100%; margin-top: 15px; background: var(--accent-orange); color: black; font-weight: bold; border: none; padding: 10px; border-radius: 6px;">➕ Agendar Evento</button>
                   
                   <button class="btn-action" onclick="window.abrirModalIAParser()" style="width: 100%; margin-top: 8px; background: #00bcd4; color: black; font-weight: bold; border: none; padding: 10px; border-radius: 6px;">🤖 Agendar Evento por IA</button>
-                  
+<button id="btn-ia-diario" class="btn-action" onclick="window.gerarRelatorioDiarioIA()" style="width: 100%; margin-top: 8px; background: #fffb00; color: black; font-weight: bold; border: none; padding: 10px; border-radius: 6px;">🤖 Gerar Relatório Diário IA</button>
+                
                   <button id="btn-ia-report" class="btn-action" onclick="window.gerarRelatorioIA()" style="width: 100%; margin-top: 8px; background: #00ffaa; color: black; font-weight: bold; border: none; padding: 10px; border-radius: 6px;">🤖 Gerar Relatório IA (7 Dias)</button>
-
+<button id="btn-ia-publico" class="btn-action" onclick="window.gerarEstimativaPublico()" style="width: 100%; margin-top: 8px; background: #ea80fc; color: black; font-weight: bold; border: none; padding: 10px; border-radius: 6px;">🤖 Gerar Estimativa de Público (7 Dias)</button>                
                   <div id="calendar-event-list" style="margin-top: 15px; border-top: 1px solid #222; padding-top: 12px; display: none;">
                       <h5 style="margin: 0 0 8px 0; font-size: 11px; color: var(--accent-orange); text-transform: uppercase; letter-spacing: 0.5px;">Alertas do Dia Selecionado</h5>
                       <div id="cal-events-ul" style="display: flex; flex-direction: column; gap: 6px; max-height: 180px; overflow-y: auto; padding-right: 4px;"></div>
@@ -475,6 +487,7 @@
               raiz.innerHTML = "";
               desenhavelArvore(window.DADOS_TOTAIS, raiz, []);
               iniciarMonitoramentoDiario();
+            iniciarControleDeAtualizacao();
           } else {
               document.getElementById('data-display').innerText = "Erro ao carregar os nós da nuvem.";
           }
@@ -554,11 +567,11 @@
         });
         estatisticasCompletas.sort((a, b) => b.count - a.count);
         const top15 = estatisticasCompletas.filter(s => s.count > 0).slice(0, 15);
-        const bottom15 =  estatisticasCompletas.slice(-15).reverse();
+const bottom15 = estatisticasCompletas.filter(s => s.caminho && s.caminho[0] !== "NOTÍCIAS").slice(-15).reverse();
         
         document.getElementById('list-top').innerHTML = top15.length > 0 
             ? top15.map(s => `<li data-caminho="${s.caminho.join(' > ')}" onclick="window.focarCaminhoDireto(this.getAttribute('data-caminho'))"><span>${s.titulo}</span> <span class="stat-count">${s.count} cliques</span></li>`).join('')
-            : '<li style="color: #666; justify-content: center;">Nenhum alvo accessed ainda</li>';
+            : '<li style="color: #666; justify-content: center;">Nenhum alvo acessado ainda</li>';
         document.getElementById('list-bottom').innerHTML = bottom15.map(s => `<li data-caminho="${s.caminho.join(' > ')}" onclick="window.focarCaminhoDireto(this.getAttribute('data-caminho'))"><span>${s.titulo}</span> <span class="stat-count">${s.count} cliques</span></li>`).join('');
       });
 
@@ -569,32 +582,48 @@
       });
   }
 
-  function verificarAlertasExpirados() {
+function verificarAlertasExpirados() {
       const agoraStr = obterDataBrasiliaISO() + " " + obterHoraBrasilia();
       
+      // 1. Varredura nos eventos por pasta (agenda)
       Object.keys(agendaMenusGlobais).forEach(safeKey => {
           const nota = agendaMenusGlobais[safeKey];
           if (nota && nota.dataAlerta && nota.horaAlerta) {
               const alvoStr = nota.dataAlerta + " " + nota.horaAlerta;
-              if (alvoStr <= agoraStr && !alertasPromptadosSessao.includes(safeKey)) {
+              
+              // Se o evento passou, não foi perguntado nesta sessão e ainda não tem o número salvo
+              if (alvoStr <= agoraStr && !alertasPromptadosSessao.includes(safeKey) && !nota.numeroManifestantes) {
                   alertasPromptadosSessao.push(safeKey); 
                   setTimeout(() => {
-                      const dispensar = confirm(`[AGENDA VENCIDA]\nO prazo do evento de "${nota.tituloOrigem}" no local "${nota.local || 'Não Definido'}" expirou.\n\nDeseja REMOVER este alerta da agenda de hoje?`);
-                      if (dispensar) set(ref(db, `monitoramentoDiario/${dataHojeISO}/agenda_menus/${safeKey}`), null);
+                      const quantidade = prompt(`[CONSOLIDAÇÃO DE INTELIGÊNCIA]\nO evento de "${nota.tituloOrigem}" já ocorreu.\n\nInsira o número estimado de MANIFESTANTES participantes:`);
+                      if (quantidade !== null && quantidade.trim() !== "") {
+                          set(ref(db, `monitoramentoDiario/${dataHojeISO}/agenda_menus/${safeKey}`), {
+                              ...nota,
+                              numeroManifestantes: quantidade.trim()
+                          });
+                      }
                   }, 600);
               }
           }
       });
 
+      // 2. Varredura nos agendamentos diretos do calendário
       Object.keys(alertasCalendarioGlobais).forEach(keyId => {
           const nota = alertasCalendarioGlobais[keyId];
           if (nota && nota.dataAlerta && nota.horaAlerta) {
               const alvoStr = nota.dataAlerta + " " + nota.horaAlerta;
-              if (alvoStr <= agoraStr && !alertasPromptadosSessao.includes(keyId)) {
+              
+              // Se o evento passou, não foi perguntado nesta sessão e ainda não tem o número salvo
+              if (alvoStr <= agoraStr && !alertasPromptadosSessao.includes(keyId) && !nota.numeroManifestantes) {
                   alertasPromptadosSessao.push(keyId);
                   setTimeout(() => {
-                      const dispensar = confirm(`[EVENTO CALENDÁRIO VENCIDO]\nO prazo do agendamento direto "${nota.tituloOrigem}" expirou.\n\nDeseja REMOVER este registro da nuvem?`);
-                      if (dispensar) set(ref(db, `alertas_calendario/${keyId}`), null);
+                      const quantidade = prompt(`[CONSOLIDAÇÃO DE INTELIGÊNCIA]\nO agendamento direto "${nota.tituloOrigem}" já ocorreu.\n\nInsira o número estimado de MANIFESTANTES participantes:`);
+                      if (quantidade !== null && quantidade.trim() !== "") {
+                          set(ref(db, `alertas_calendario/${keyId}`), {
+                              ...nota,
+                              numeroManifestantes: quantidade.trim()
+                          });
+                      }
                   }, 600);
               }
           }
@@ -608,9 +637,6 @@
       window.renderizarCalendarioTatico();
   };
 
-  /* =========================================
-     SISTEMA DE RENDERIZAÇÃO DO CALENDÁRIO
-     ========================================= */
   window.renderizarCalendarioTatico = function() {
       const meses = ["Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho", "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"];
       document.getElementById('cal-month-year').innerText = `${meses[currentCalMonth]} ${currentCalYear}`;
@@ -678,7 +704,7 @@
 
   window.abrirModalCalendarioDireto = function() {
       contextoAtual = 'direto'; alvoAtualNota = "";
-      window.CURRENT_IA_TEXTO_BRUTO = ""; // Reseta o texto bruto
+      window.CURRENT_IA_TEXTO_BRUTO = "";
       document.getElementById('nota-alvo-titulo').innerText = "Agendar Novo Evento";
       document.getElementById('nota-textarea').value = ""; document.getElementById('nota-local').value = "";
       document.getElementById('nota-data').value = ""; document.getElementById('nota-hora').value = "";
@@ -697,7 +723,6 @@
       document.getElementById('nota-textarea').focus();
   };
 
-  /* --- SISTEMA DE RESOLUÇÃO INLINE DO LINKIFY --- */
   function linkify(text) {
       if (!text) return "";
       const urlRegex = /(https?:\/\/[^\s]+)/g;
@@ -706,22 +731,21 @@
       });
   }
 
-  /* --- NOVA JANELA POP-UP DE VISUALIZAÇÃO APROFUNDADA --- */
-  window.abrirModalDetalhes = function(keyId, tipoEntrada) {
+ window.abrirModalDetalhes = function(keyId, tipoEntrada) {
       const nota = tipoEntrada === 'direto' ? alertasCalendarioGlobais[keyId] : agendaMenusGlobais[keyId];
       if (!nota) return;
       
       let dataBr = nota.dataAlerta ? nota.dataAlerta.split('-').reverse().join('/') : '--/--/----';
       let caminhoFoco = tipoEntrada === 'direto' ? (nota.movimentoAtrelado || "") : (nota.pathString || "");
       
-      // Validação de segurança para renderização de dados brutos
       let textoBrutoLimpo = nota.textoBruto ? linkify(String(nota.textoBruto)) : "<span style='color: #555; font-style: italic;'>Nenhum registro bruto associado (Agendamento Manual Clássico).</span>";
       const textoProcessado = nota.texto ? linkify(String(nota.texto)) : "Sem descrição cadastrada.";
 
       document.getElementById('detalhes-conteudo').innerHTML = `
-          <p><strong>🎯 Alvo / Pasta:</strong> ${nota.tituloOrigem || 'Evento Geral'}</p>
+          <p><strong>🎯 Movimento:</strong> ${nota.tituloOrigem || 'Evento Geral'}</p>
           <p><strong>📅 Data de Execução:</strong> ${dataBr} às ${nota.horaAlerta || '--:--'}</p>
           <p><strong>📍 Local de Concentração:</strong> ${nota.local || 'Não cadastrado'}</p>
+          ${nota.numeroManifestantes ? `<p><strong>👥 Efetivo de Manifestantes:</strong> <span style="color: var(--accent-yellow); font-weight: bold;">${nota.numeroManifestantes} participantes</span></p>` : ''}
           <p><strong>📝 Resumo Estruturado da Pauta:</strong><br><span style="color:#ddd; display:block; padding: 6px 0; white-space: pre-wrap;">"${textoProcessado}"</span></p>
           
           <div style="margin-top: 15px; background: #030303; padding: 12px; border: 1px solid #222; border-radius: 6px;">
@@ -729,7 +753,7 @@
               <div style="white-space: pre-wrap; font-size: 12px; color: #888; line-height: 1.4; max-height: 160px; overflow-y: auto; padding-right: 4px;">${textoBrutoLimpo}</div>
           </div>
           
-          ${caminhoFoco ? `<p style="margin-top:12px;"><span style="color: var(--accent-blue); font-weight: bold; cursor: pointer; text-decoration: underline;" id="btn-focar-popup">🔗 Rastrear e Focar na Árvore Tática</span></p>` : ''}
+          ${caminhoFoco ? `<p style="margin-top:12px;"><span style="color: var(--accent-blue); font-weight: bold; cursor: pointer; text-decoration: underline;" id="btn-focar-popup">🔗 Encontrar movimento na árvore</span></p>` : ''}
           
           <p style="font-size: 11px; color: #555; margin-top: 15px; border-top: 1px solid #222; padding-top: 8px;">
               👤 Operador: ${nota.operador ? nota.operador.split('@')[0] : 'Desconhecido'} | ⏰ Registro: ${nota.time || '--:--'}
@@ -746,13 +770,12 @@
       document.getElementById('modal-overlay').style.display = 'block';
       document.getElementById('detalhes-modal').style.display = 'block';
   };
-
+  
   window.fecharModalDetalhes = function() {
       document.getElementById('modal-overlay').style.display = 'none';
       document.getElementById('detalhes-modal').style.display = 'none';
   };
 
-  /* --- CONSTRUTOR DOS CARDS DO CALENDÁRIO --- */
   function construirItemVisualEvento(nota, keyId, tipoEntrada) {
       const div = document.createElement('div');
       div.style.cssText = `background: #111; border-left: 3px solid ${tipoEntrada === 'direto' ? 'var(--accent-yellow)' : 'var(--accent-orange)'}; padding: 10px; border-radius: 4px; font-size: 13px; line-height: 1.4; box-sizing: border-box; margin-bottom: 8px; text-align: left;`;
@@ -775,7 +798,6 @@
           </div>
       `;
 
-      // Escutadores de cliques isolados contra quebra de aspas
       div.querySelector('.btn-editar-card').addEventListener('click', (e) => {
           e.preventDefault(); e.stopPropagation();
           window.abrirModalTatico(e, keyId, nota.tituloOrigem || 'Evento Geral', tipoEntrada === 'direto' ? 'direto' : 'agenda');
@@ -788,13 +810,13 @@
           if (tipoEntrada === 'direto') {
               set(ref(db, `alertas_calendario/${keyId}`), null);
           } else {
-              set(ref(db, `monitoramentoDiario/${dataHojeISO}/agenda_menus/${keyId}`), null);
+              set(ref(db, `monitorementDiario/${dataHojeISO}/agenda_menus/${keyId}`), null);
           }
       });
 
       div.querySelector('.btn-toggle-info').addEventListener('click', (e) => {
           e.preventDefault(); e.stopPropagation();
-          window.abrirModalDetalhes(keyId, tipoEntrada); // Dispara o pop-up dinâmico avançado
+          window.abrirModalDetalhes(keyId, tipoEntrada);
       });
 
       return div;
@@ -833,7 +855,9 @@
       document.getElementById('ia-texto-bruto').focus();
   };
 
-  /* --- PARSER DE ENTRADA AUTOMATIZADA COMPACTA POR IA COM CONTROLE DE SUCESSO EM JSON --- */
+  /* =====================================================================
+     CORREÇÃO DA IA: IMPLEMENTADO ENDPOINT v1beta + VALIDAÇÃO ANTI-CRASH
+     ===================================================================== */
   window.processarTextoBrutoIA = async function() {
       const txtBruto = document.getElementById('ia-texto-bruto').value.trim();
       if (!txtBruto) { alert("Cole o texto do informe antes de avançar."); return; }
@@ -850,16 +874,18 @@
 
           const tempoSistema = new Date(new Date().toLocaleString("en-US", {timeZone: "America/Sao_Paulo"}));
           const anoCorrente = tempoSistema.getFullYear();
-          const mesCorrenteNum = String(tempoSistema.getMonth() + 1).padStart(2, '0');
           const mesesMatriz = ["Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho", "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"];
           const nomeMesCorrente = mesesMatriz[tempoSistema.getMonth()];
 
-          const promptInstrucao = `Você é um robô auxiliar de inteligência e triagem. Analise o informe operacional fornecido e extraia os dados estruturados. Responda APENAS com um objeto JSON plano válido. Se omitido, use o ano ${anoCorrente} e mês de ${nomeMesCorrente}.
-          JSON Chaves obrigatórias: "texto", "local", "data" (YYYY-MM-DD), "hora" (HH:MM), "movimento". Texto original: "${txtBruto}"`;
+          const promptInstrucao = `Você é um robô auxiliar de inteligência e triagem operacional. Analise o informe fornecido e extraia os dados. 
+          Responda OBRIGATORIAMENTE com um objeto JSON plano válido. Se omitido no texto, use o ano ${anoCorrente} e mês de ${nomeMesCorrente}.
+          JSON Chaves estruturais obrigatórias: "texto", "local", "data" (no formato YYYY-MM-DD), "hora" (no formato HH:MM), "movimento". 
+          Texto original para análise: "${txtBruto}"`;
 
-          // BLINDAGEM DA API: generationConfig força a trava de saída pura em application/json
-          const response = await fetch(`https://generativelanguage.googleapis.com/v1/models/gemini-2.5-flash:generateContent?key=${apiKey}`, {
-              method: "POST", headers: { "Content-Type": "application/json" },
+          // Alterado para a rota v1beta (Estabiliza o uso de responseMimeType estruturado)
+          const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`, {
+              method: "POST", 
+              headers: { "Content-Type": "application/json" },
               body: JSON.stringify({ 
                   contents: [{ parts: [{ text: promptInstrucao }] }],
                   generationConfig: { responseMimeType: "application/json" }
@@ -867,15 +893,25 @@
           });
 
           const dataIa = await response.json();
+          
+          // BLINDAGEM OPERACIONAL: Valida se o servidor respondeu com sucesso antes de processar
+          if (!response.ok) {
+              console.error("Erro retornado pela API da Google:", dataIa);
+              throw new Error(dataIa.error?.message || "Erro HTTP do servidor da Google.");
+          }
+
+          if (!dataIa.candidates || dataIa.candidates.length === 0) {
+              throw new Error("A API respondeu com sucesso, mas não gerou candidatos de texto.");
+          }
+
           let rawText = dataIa.candidates[0].content.parts[0].text;
           
           let inicioJson = rawText.indexOf('{');
           let fimJson = rawText.lastIndexOf('}');
-          if (inicioJson === -1 || fimJson === -1) { throw new Error("JSON inválido na resposta."); }
+          if (inicioJson === -1 || fimJson === -1) { throw new Error("JSON inválido ou incompleto na resposta da IA."); }
           let cleanJsonStr = rawText.substring(inicioJson, fimJson + 1).trim();
           let dataObjeto = JSON.parse(cleanJsonStr);
 
-          // Preserva o texto bruto original na memória global para salvamento posterior
           window.CURRENT_IA_TEXTO_BRUTO = txtBruto;
 
           document.getElementById('ia-input-modal').style.display = 'none';
@@ -894,9 +930,10 @@
           document.getElementById('nota-movimento-sugestoes').style.display = 'none';
           document.getElementById('btn-modal-gravar').innerText = "Confirmar e Gravar Alerta";
           document.getElementById('nota-modal').style.display = 'block';
+
       } catch (err) {
-          alert("A IA falhou em estruturar as informações.");
-          console.error(err);
+          alert(`Falha no Processamento: ${err.message}\n\nAbra o Console do Navegador (F12) para inspecionar os detalhes táticos.`);
+          console.error("Erro detalhado do fluxo de IA:", err);
       }
       btn.innerText = "Avançar ➔"; btn.disabled = false;
   };
@@ -943,7 +980,7 @@
       window.esconderTooltipTatico();
       contextoAtual = tipo; alvoAtualNota = idUnico; tituloAtualNota = titulo;
       const safeKey = sanitizarId(idUnico);
-      window.CURRENT_IA_TEXTO_BRUTO = ""; // Reseta dados táticos de origem manual
+      window.CURRENT_IA_TEXTO_BRUTO = "";
       
       document.getElementById('container-atrelar-movimento').style.display = 'none';
       document.getElementById('btn-modal-gravar').style.display = 'block';
@@ -972,7 +1009,7 @@
           document.getElementById('nota-data').value = nota.dataAlerta || "";
           document.getElementById('nota-hora').value = nota.horaAlerta || "";
           document.getElementById('nota-movimento-input').value = nota.movimentoAtrelado || "";
-          window.CURRENT_IA_TEXTO_BRUTO = nota.textoBruto || ""; // Preserva se for edição
+          window.CURRENT_IA_TEXTO_BRUTO = nota.textoBruto || "";
           
           document.getElementById('container-local').style.display = 'block';
           document.getElementById('container-tempo').style.display = 'flex';
@@ -1017,7 +1054,6 @@
       document.getElementById('detalhes-modal').style.display = 'none';
   };
 
-  /* --- GRAVAÇÃO COMPACTA UNIFICADA COM SALVAMENTO DO TEXTO BRUTO DE ORIGEM --- */
   window.salvarNotaFirebase = function() {
       const texto = document.getElementById('nota-textarea').value.trim();
       const local = document.getElementById('nota-local').value.trim();
@@ -1039,7 +1075,7 @@
               set(notaRef, { 
                   texto, local, dataAlerta, horaAlerta, movimentoAtrelado, operador: user, 
                   time: obterHoraBrasilia(), tituloOrigem: movimentoAtrelado ? movimentoAtrelado.split(' > ').pop() : "Evento Geral", isDirectCalendar: true, keyId: uniqueKey,
-                  textoBruto: window.CURRENT_IA_TEXTO_BRUTO || "" // GRAVA O TEXTO FONTE DO INFORME
+                  textoBruto: window.CURRENT_IA_TEXTO_BRUTO || ""
               });
           }
       } else if (contextoAtual === 'postit') {
@@ -1221,9 +1257,100 @@
     });
   }
 
-  /* =====================================================================
-     SISTEMA DE INTELIGÊNCIA ARTIFICIAL DYNAMIC-PROMPT WHATSAPP (V1 ESTÁVEL)
-     ===================================================================== */
+  // =====================================================================
+  // NOVA FUNÇÃO INSERIDA AQUI:
+  // =====================================================================
+  window.gerarRelatorioDiarioIA = async function() {
+      const btn = document.getElementById('btn-ia-diario');
+      const backupText = btn.innerText;
+      btn.innerText = "🤖 Compilando Diário...";
+      btn.disabled = true;
+
+      try {
+          const snapChave = await get(ref(db, 'config/gemini_daily_key'));
+          if (!snapChave.exists() || snapChave.val().trim() === "") {
+              alert("A chave 'config/gemini_daily_key' não foi configurada no Firebase.");
+              btn.innerText = backupText; btn.disabled = false;
+              return;
+          }
+          const apiKey = snapChave.val().trim();
+
+          const dataAlertaAlvo = window.CURRENT_SELECTED_DAY || dataHojeISO;
+          
+          let pacotesEventos = [];
+          Object.values(agendaMenusGlobais || {}).forEach(ev => { if (ev && ev.dataAlerta === dataAlertaAlvo) pacotesEventos.push(ev); });
+          Object.values(alertasCalendarioGlobais || {}).forEach(ev => { if (ev && ev.dataAlerta === dataAlertaAlvo) pacotesEventos.push(ev); });
+
+          if (pacotesEventos.length === 0) {
+              const dataFormatadaExibir = dataAlertaAlvo.split('-').reverse().join('/');
+              alert(`Não existem eventos cadastrados para o dia ${dataFormatadaExibir}.`);
+              btn.innerText = backupText; btn.disabled = false;
+              return;
+          }
+
+          const partes = dataAlertaAlvo.split('-');
+          const dataObj = new Date(partes[0], partes[1] - 1, partes[2]);
+          const diasSemanaMatriz = ['dom', 'seg', 'ter', 'qua', 'qui', 'sex', 'sab'];
+          const diaSemanaStr = diasSemanaMatriz[dataObj.getDay()];
+          const dataFormatadaBr = dataAlertaAlvo.split('-').reverse().join('/');
+
+          const promptFinal = `Você é um robô analista de inteligência. Pegue a lista de eventos fornecida e monte um relatório operacional diário seguindo RIGOROSAMENTE a estrutura e os recuos do modelo abaixo.
+          
+          Regras Absolutas:
+          - O cabeçalho institucional (PMPR, CME, BPCHOQUE, AESI) deve vir limpo no topo, sem asteriscos ou formatações markdown.
+          - Deixe obrigatoriamente uma linha em branco após AESI.
+          - Siga a linha de Data no formato "Data: [dia_da_semana], DD/MM/YYYY".
+          - Para cada evento, use o recuo exato de espaços, o caractere "•", o emoji "🕒", horário, título, emoji "📍" para endereço e emoji "📝" para detalhes.
+          - Ordene todos os eventos cronologicamente pelo horário.
+          - Não adicione markdown de bloco de código (como \`\`\`), saudações ou comentários. Apenas o texto puro formatado.
+
+          Modelo Exato de Saída esperado:
+          PMPR
+          CME
+          BPCHOQUE
+          AESI
+
+          Data: ${diaSemanaStr}, ${dataFormatadaBr}
+                   • 🕒 [Horário HH:MM] - [Título do Evento]
+                   📍 Endereço: [Local ou Endereço]
+                   📝 Detalhes: [Resumo e pauta sintetizada do evento]
+
+          Lista de eventos para processar: ${JSON.stringify(pacotesEventos)}`;
+
+          const resposta = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`, {
+              method: "POST", headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ contents: [{ parts: [{ text: promptFinal }] }] })
+          });
+
+          const dataIa = await resposta.json();
+          if (!dataIa.candidates || dataIa.candidates.length === 0) { throw new Error("A IA recusou a geração dos dados."); }
+          
+          const relatorioDiarioLimpo = dataIa.candidates[0].content.parts[0].text.trim() + "\n\n(relatório de eventos criado por IA🤖)";
+
+          document.getElementById('nota-alvo-titulo').innerText = `🤖 Relatório Diário Operacional (${dataFormatadaBr})`;
+          document.getElementById('nota-textarea').value = relatorioDiarioLimpo;
+          document.getElementById('container-local').style.display = 'none';
+          document.getElementById('container-tempo').style.display = 'none';
+          document.getElementById('container-atrelar-movimento').style.display = 'none';
+          
+          const btnGravar = document.getElementById('btn-modal-gravar');
+          btnGravar.innerText = "📋 Copiar Relatório Diário";
+          btnGravar.onclick = function() {
+              navigator.clipboard.writeText(relatorioDiarioLimpo);
+              alert("Relatório diário copiado para a área de transferência!");
+          };
+
+          document.getElementById('modal-overlay').style.display = 'block';
+          document.getElementById('nota-modal').style.display = 'block';
+
+      } catch (err) {
+          alert(`Falha na compilação do diário: ${err.message}`);
+          console.error(err);
+      }
+
+      btn.innerText = backupText; btn.disabled = false;
+  };
+
   window.gerarRelatorioIA = async function() {
       const btn = document.getElementById('btn-ia-report');
       const backupText = btn.innerText;
@@ -1239,7 +1366,7 @@
           }
           const apiKey = snapChave.val().trim();
 
-          let promptBase = "Você é uma Inteligência Artificial analista de dados. Analise a seguinte lista de eventos e manifestações agendadas para os próximos 7 dias e crie um Relatório Sintético de Cenários Ocultando jargões desnecessários. Organize estritamente por Ordem Cronológica de Dias, resumindo os principais alvos (movimentos envolvidos), horários e os locais citados. Seja muito direto, formal e objetivo. Use tópicos claros.";
+          let promptBase = "Você é uma Inteligência Artificial analista de dados. Analise a seguinte lista de eventos e manifestações agendadas para os próximos 7 dias e crie um Relatório Sintético de Cenários Ocultando jargões desnecessários. Organize estritamente por Ordem Chronológica de Dias, resumindo os principais alvos (movimentos envolvidos), horários e os locais citados. Seja muito direto, formal e objective. Use tópicos claros.";
           const snapPrompt = await get(ref(db, 'config/prompt_ia'));
           if (snapPrompt.exists() && snapPrompt.val().trim() !== "") {
               promptBase = snapPrompt.val().trim();
@@ -1264,25 +1391,25 @@
 
           const promptFinal = `Você é uma Inteligência Artificial analista de dados de inteligência de segurança. Analise a seguinte lista de eventos e manifestações agendadas para os próximos 7 dias e crie um Relatório Sintético de Cenários formatado RIGOROSAMENTE para envio direto no WhatsApp.
 
-          A estrutura da mensagem DEVE seguir estritamente o modelo abaixo, sem linhas em branco entre as siglas do cabeçalho institucional inicial. Agrupe todos os eventos de um mesmo dia cronologicamente pelo horário e use asteriscos de forma explícita para deixar os títulos em negrito no WhatsApp.
+A estrutura da mensagem DEVE seguir estritamente o modelo abaixo. Não coloque linhas em branco entre as siglas institucionais, mas deixe OBRIGATORIAMENTE uma linha em branco logo após *AESI* e antes da linha de *Data*. Agrupe todos os eventos de um mesmo dia cronologicamente pelo horário e use asteriscos de forma explícita para deixar os títulos em negrito no WhatsApp.
 
-          *PMPR*
-          *CME*
-          *BPCHOQUE*
-          *AESI*
+*PMPR*
+*CME*
+*BPCHOQUE*
+*AESI*
 
-          *Data*: [Data formatada DD/MM/YYYY]
+*Data*: [Dia da semana abreviado com 3 letras minúsculas, ex: seg, ter, qua, qui, sex, sab, dom], [Data formatada DD/MM/YYYY]
 
           Listar todos os eventos desta data em ordem de horário. Descrevendo o titulo da manifestação, horario e endereço nos moldes abaixo:
           • 🕒 [Horário HH:MM] - *[Título/Nome do Evento]*
           📍 Endereço: [Local ou Endereço completo]
           📝 Detalhes: [Descrição concisa da pauta ou informe observacional]
 
-          Separe cada bloco de data diferente com uma linha de traços '---'. Não invente dados e omita dias sem registros.
+          Separe cada bloco de data diferente com exatamente uma linha de 28 traços sequenciais '----------------------------'. Não quebre essa linha, não invente dados e omita dias sem registros.
 
           Eventos para análise: ${JSON.stringify(pacotesEventos)}`;
 
-          const resposta = await fetch(`https://generativelanguage.googleapis.com/v1/models/gemini-2.5-flash:generateContent?key=${apiKey}`, {
+          const resposta = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`, {
               method: "POST", headers: { "Content-Type": "application/json" },
               body: JSON.stringify({ contents: [{ parts: [{ text: promptFinal }] }] })
           });
@@ -1290,7 +1417,7 @@
           const dataIa = await resposta.json();
           if (!dataIa.candidates || dataIa.candidates.length === 0) { throw new Error("A IA recusou ou falhou na análise."); }
           
-          const relatorioFormatado = dataIa.candidates[0].content.parts[0].text;
+          const relatorioFormatado = dataIa.candidates[0].content.parts[0].text.trim() + "\n\n_(relatório de eventos criado por IA🤖)_";
 
           document.getElementById('nota-alvo-titulo').innerText = "🤖 Relatório Analítico IA (Próximos 7 Dias)";
           document.getElementById('nota-textarea').value = relatorioFormatado;
@@ -1305,7 +1432,7 @@
               alert("Relatório formatado copiado para a área de transferência!");
           };
 
-          document.getElementById('modal-overlay').style.display = 'block';
+       document.getElementById('modal-overlay').style.display = 'block';
           document.getElementById('nota-modal').style.display = 'block';
       } catch (err) {
           alert("Falha de Processamento na IA. Verifique as credenciais no console.");
@@ -1315,6 +1442,314 @@
       btn.innerText = backupText; btn.disabled = false;
   };
 
+ /* =====================================================================
+     MÓDULO DE INTELIGÊNCIA: PROJEÇÃO DE PÚBLICO (VERSÃO VETORES + MINI RESUMOS)
+     ===================================================================== */
+  window.gerarEstimativaPublico = async function() {
+      const btn = document.getElementById('btn-ia-publico');
+      const backupText = btn.innerText;
+
+      // 1. Filtra e agrupa os eventos dos próximos 7 dias primeiro para validar se existem alvos
+      let datasAlvo = [];
+      for (let i = 0; i < 7; i++) {
+          const d = new Date(new Date().toLocaleString("en-US", {timeZone: "America/Sao_Paulo"}));
+          d.setDate(d.getDate() + i);
+          datasAlvo.push(`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`);
+      }
+
+      let pacotesEventos = [];
+      Object.values(agendaMenusGlobais).forEach(ev => { if (ev && datasAlvo.includes(ev.dataAlerta)) pacotesEventos.push(ev); });
+      Object.values(alertasCalendarioGlobais).forEach(ev => { if (ev && datasAlvo.includes(ev.dataAlerta)) pacotesEventos.push(ev); });
+
+      if (pacotesEventos.length === 0) {
+          alert("Não existem eventos cadastrados nos próximos 7 dias para realizar a análise.");
+          return;
+      }
+
+      // 2. CRIAÇÃO DINÂMICA DO POP-UP DO QUESTIONÁRIO COMPLETO COM MINI RESUMOS
+      const antigoForm = document.getElementById('overlay-questionario-ia');
+      if (antigoForm) antigoForm.remove();
+
+      const overlayForm = document.createElement('div');
+      overlayForm.id = 'overlay-questionario-ia';
+      overlayForm.style = 'position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.85); z-index:99999; display:flex; align-items:center; justify-content:center; font-family:sans-serif;';
+
+      const caixaForm = document.createElement('div');
+      caixaForm.style = 'background:#111; color:#fff; border:2px solid #ea80fc; border-radius:10px; width:95%; max-width:500px; padding:20px; box-shadow:0 0 25px rgba(234,128,252,0.3); box-sizing:border-box; max-height: 90vh; overflow-y: auto;';
+      
+      caixaForm.innerHTML = `
+          <h3 style="margin-top:0; color:#ea80fc; font-size:16px; border-bottom:1px solid #222; padding-bottom:10px; display:flex; align-items:center; gap:8px;">📊 Matriz de Dados Operacionais (Vetores L, O, C)</h3>
+          <p style="font-size:12px; color:#aaa; margin-bottom:15px;">Avalie o cenário atual das últimas 48h para alimentar o modelo preditivo:</p>
+          
+          <div style="margin-bottom:14px; background:#161616; padding:10px; border-radius:6px; border-left:3px solid #ea80fc;">
+              <label style="display:block; font-size:12px; font-weight:bold; margin-bottom:2px;">🌤️ Vetor Logístico - Clima (W):</label>
+              <div style="font-size:11px; color:#777; font-style:italic; margin-bottom:6px;">Mede a severidade do clima. Chuva/tempestade aplica penalidade severa de evasão de público em pautas locais.</div>
+              <select id="form-w" style="width:100%; background:#222; color:#fff; border:1px solid #333; padding:8px; border-radius:5px; font-size:13px;">
+                  <option value="4">4 - Ensolarado / Céu Limpo</option>
+                  <option value="3">3 - Nublado / Tempo Firme</option>
+                  <option value="2">2 - Chuva Frequente / Garoa</option>
+                  <option value="1">1 - Tempestade / Condições Adversas</option>
+              </select>
+          </div>
+
+          <div style="margin-bottom:14px; background:#161616; padding:10px; border-radius:6px; border-left:3px solid #ea80fc;">
+              <label style="display:block; font-size:12px; font-weight:bold; margin-bottom:2px;">📈 Digital - Engajamento (ΔE):</label>
+              <div style="font-size:11px; color:#777; font-style:italic; margin-bottom:6px;">Crescimento percentual do volume de convocações, compartilhamentos e menções nas redes sociais (OSINT).</div>
+              <input type="number" id="form-deltaE" value="0" placeholder="Ex: 25" style="width:100%; background:#222; color:#fff; border:1px solid #333; padding:8px; border-radius:5px; font-size:13px; box-sizing:border-box;">
+          </div>
+
+          <div style="margin-bottom:14px; background:#161616; padding:10px; border-radius:6px; border-left:3px solid #ea80fc;">
+              <label style="display:block; font-size:12px; font-weight:bold; margin-bottom:2px;">😡 Digital - Sentimento (P_sent):</label>
+              <div style="font-size:11px; color:#777; font-style:italic; margin-bottom:6px;">Tom dominante das redes. Valores positivos (+1) indicam revolta/indignação ativa; negativos (-1) apatia ou receio.</div>
+              <select id="form-psent" style="width:100%; background:#222; color:#fff; border:1px solid #333; padding:8px; border-radius:5px; font-size:13px;">
+                  <option value="+1.0">+1.0 - Fúria / Indignação Extrema</option>
+                  <option value="+0.5">+0.5 - Descontentamento / Apoio</option>
+                  <option value="0.0">0.0 - Neutro / Informativo</option>
+                  <option value="-0.5">-0.5 - Desinteresse / Receio</option>
+                  <option value="-1.0">-1.0 - Apatia total / Medo</option>
+              </select>
+          </div>
+
+          <div style="margin-bottom:14px; background:#161616; padding:10px; border-radius:6px; border-left:3px solid #ea80fc;">
+              <label style="display:block; font-size:12px; font-weight:bold; margin-bottom:2px;">💥 Contexto - Gatilho Político/Econômico (G):</label>
+              <div style="font-size:11px; color:#777; font-style:italic; margin-bottom:6px;">Impacto do fato motivador recente (votações, decretos, reajustes). Se extremo, justifica anomalias acima da média histórica.</div>
+              <select id="form-g" style="width:100%; background:#222; color:#fff; border:1px solid #333; padding:8px; border-radius:5px; font-size:13px;">
+                  <option value="0">0 - Sem fato relevante / Agenda comum</option>
+                  <option value="1">1 - Fato restrito local ou setorial</option>
+                  <option value="2">2 - Forte impacto de repercussão estadual</option>
+                  <option value="3">3 - Escândalo / Decreto de urgência nacional</option>
+              </select>
+          </div>
+
+          <div style="margin-bottom:20px; background:#161616; padding:10px; border-radius:6px; border-left:3px solid #ea80fc;">
+              <label style="display:block; font-size:12px; font-weight:bold; margin-bottom:2px;">🛡️ Contexto - Nível de Repressão Recente (R):</label>
+              <div style="font-size:11px; color:#777; font-style:italic; margin-bottom:6px;">Histórico de atrito do grupo com as forças de segurança. Níveis altos causam evasão psicológica de manifestantes comuns.</div>
+              <select id="form-r" style="width:100%; background:#222; color:#fff; border:1px solid #333; padding:8px; border-radius:5px; font-size:13px;">
+                  <option value="0">0 - Histórico totalmente pacífico</option>
+                  <option value="1">1 - Registros anteriores de atritos isolados</option>
+                  <option value="2">2 - Registro de prisões, danos ou confrontos</option>
+                  <option value="3">3 - Atuação severa de Tropa de Choque em atos recentes</option>
+              </select>
+          </div>
+
+          <div style="display:flex; gap:10px; border-top:1px solid #222; padding-top:15px;">
+              <button id="btn-cancelar-form" style="flex:1; background:#222; color:#ccc; border:1px solid #333; padding:10px; border-radius:5px; cursor:pointer; font-weight:bold; font-size:13px;">Cancelar</button>
+              <button id="btn-confirmar-form" style="flex:2; background:#ea80fc; color:#000; border:none; padding:10px; border-radius:5px; cursor:pointer; font-weight:bold; font-size:13px; box-shadow:0 0 10px rgba(234,128,252,0.4);">Injetar Dados e Calcular Projeção</button>
+          </div>
+      `;
+
+      overlayForm.appendChild(caixaForm);
+      document.body.appendChild(overlayForm);
+
+      document.getElementById('btn-cancelar-form').onclick = function() { overlayForm.remove(); };
+
+      document.getElementById('btn-confirmar-form').onclick = async function() {
+          const varW = document.getElementById('form-w').value;
+          const varDeltaE = document.getElementById('form-deltaE').value || "0";
+          const varPsent = document.getElementById('form-psent').value;
+          const varG = document.getElementById('form-g').value;
+          const varR = document.getElementById('form-r').value;
+
+          overlayForm.remove();
+          btn.innerText = "🤖 Processando Vetores...";
+          btn.disabled = true;
+
+          try {
+              const snapChave = await get(ref(db, 'config/gemini_public_key'));
+              if (!snapChave.exists() || snapChave.val().trim() === "") {
+                  alert("Chave 'config/gemini_public_key' não encontrada no Firebase.");
+                  btn.innerText = backupText; btn.disabled = false;
+                  return;
+              }
+              const apiKey = snapChave.val().trim();
+
+              const snapPlanilha = await get(ref(db, 'config/planilha_publico_url'));
+              let dadosPlanilha = "Nenhum dado histórico disponível na base unificada.";
+              if (snapPlanilha.exists() && snapPlanilha.val().trim() !== "") {
+                  try {
+                      const resCsv = await fetch(snapPlanilha.val().trim());
+                      if (resCsv.ok) dadosPlanilha = await resCsv.text();
+                  } catch (e) { console.warn("Erro ao baixar a planilha unificada:", e); }
+              }
+
+              let metodoCalculo = "Considere variáveis locais e pauta para projetar o público.";
+              const snapMetodo = await get(ref(db, 'config/metodo_estimativa'));
+              if (snapMetodo.exists() && snapMetodo.val().trim() !== "") {
+                  metodoCalculo = snapMetodo.val().trim();
+              }
+
+              btn.innerText = "🤖 Executando Regressão...";
+
+              // 3. CALCULO E INJEÇÃO AUTOMÁTICA DA VARIÁVEL "D" PARA CADA EVENTO DA LISTA
+              const pacotesComDiaD = pacotesEventos.map(ev => {
+                  let varD = 0; 
+                  let diaTexto = "Não mapeado";
+                  if (ev.dataAlerta) {
+                      const partes = ev.dataAlerta.split('-');
+                      const dataObj = new Date(partes[0], partes[1] - 1, partes[2]);
+                      const diaSemana = dataObj.getDay(); 
+                      varD = (diaSemana === 0 || diaSemana === 6) ? 1 : 0;
+                      diaTexto = dataObj.toLocaleDateString('pt-BR', { weekday: 'long' });
+                  }
+                  return {
+                      ...ev,
+                      vetorLogistico_D: varD,
+                      diaDaSemanaNome: diaTexto
+                  };
+              });
+
+              // 4. Monta o Prompt Injetando os Vetores Manuais + Automatizados
+              const promptFinal = `${metodoCalculo}
+
+              =====================================================================
+              VALORES DAS VARIÁVEIS INJETADAS PELO OPERADOR HOJE NESTA CONSULTA:
+              • Vetor Logístico -> Clima (W) = ${varW}
+              • Vetor Digital/OSINT -> Crescimento do Engajamento (ΔE) = ${varDeltaE}%
+              • Vetor Digital/OSINT -> Sentimento da Rede (P_sent) = ${varPsent}
+              • Vetor de Contexto -> Gatilho Político/Econômico (G) = ${varG}
+              • Vetor de Contexto -> Nível de Repressão Recente (R) = ${varR}
+              
+              ⚙️ DETECÇÃO AUTOMÁTICA DO CALENDÁRIO PARA O VETOR LOGÍSTICO (D):
+              O sistema analisou a folha do calendário e injetou automaticamente em cada evento abaixo as propriedades "vetorLogistico_D" (onde 0 é dia útil/concorrência e 1 é fim de semana livre) e "diaDaSemanaNome". Considere estes valores nativos no cálculo da função Y_t.
+              =====================================================================
+
+              BASE DE DADOS HISTÓRICOS UNIFICADA (FORMATO CSV):
+              ${dadosPlanilha}
+
+              ATENÇÃO OPERACIONAL IMPORTANTÍSSIMA: Como você deve analisar uma lista com múltiplos eventos da semana abaixo, aplique as regras do seu método individualmente para cada evento e retorne a sua resposta estritamente estruturada como um ARRAY DE OBJETOS JSON [ { ... }, { ... } ], onde cada objeto possui obrigatoriamente as chaves "previsao_publico" e "relatorio_auditoria" conforme exigido pelo formato estrito de saída do método. Não quebre o JSON.
+
+              Lista de eventos cadastrados para análise atual: ${JSON.stringify(pacotesComDiaD)}`;
+
+              const resposta = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`, {
+                  method: "POST", headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({ contents: [{ parts: [{ text: promptFinal }] }] })
+              });
+
+              const dataIa = await resposta.json();
+
+              if (!resposta.ok) {
+                  if (resposta.status === 429) throw new Error("Limite de uso atingido (Erro 429). Aguarde 60 segundos.");
+                  throw new Error(dataIa.error?.message || "Erro HTTP na API da Google.");
+              }
+
+              if (!dataIa.candidates || dataIa.candidates.length === 0) throw new Error("A IA não retornou dados válidos.");
+              
+              let textoPuroIa = dataIa.candidates[0].content.parts[0].text.trim();
+              textoPuroIa = textoPuroIa.replace(/^```json/, '').replace(/```$/, '').trim();
+
+              let resultadoFormatado = `*PMPR / BPCHOQUE / AESI*\n*PROJEÇÃO ESTIMADA DE PÚBLICO*\n\n`;
+              
+              try {
+                  const objetoListaIa = JSON.parse(textoPuroIa);
+                  const listaPrevisoes = Array.isArray(objetoListaIa) ? objetoListaIa : [objetoListaIa];
+
+                  pacotesComDiaD.forEach((ev, index) => {
+                      const calculo = listaPrevisoes[index] || listaPrevisoes[0] || { previsao_publico: "N/A", relatorio_auditoria: "Falha na leitura individual." };
+                      let dataBr = ev.dataAlerta ? ev.dataAlerta.split('-').reverse().join('/') : '--/--/----';
+                      
+                      resultadoFormatado += `• *${dataBr}* (${ev.diaDaSemanaNome.toUpperCase()}) - *${ev.tituloOrigem || 'Evento Geral'}*\n`;
+                      resultadoFormatado += `📍 Concentração: ${ev.local || 'Não cadastrado'}\n`;
+                      resultadoFormatado += `👥 Estimativa de Efetivo: *${calculo.previsao_publico} participantes*\n`;
+                      resultadoFormatado += `📊 Auditoria do Modelo: _${calculo.relatorio_auditoria}_\n`;
+                      resultadoFormatado += `----------------------------\n`;
+                  });
+
+              } catch (jsonErr) {
+                  console.error("Falha ao analisar o JSON estrito da IA, exibindo texto bruto:", jsonErr);
+                  resultadoFormatado += `\n[AVISO: O modelo não gerou o JSON perfeito, exibindo resposta analítica bruta]:\n\n${textoPuroIa}`;
+              }
+
+              resultadoFormatado += `\n_(modelo de regressão preditiva baseado na matriz de vetores e OSINT🤖)_`;
+
+              document.getElementById('nota-alvo-titulo').innerText = "🤖 Projeção Estatística e Preditiva de Público (7 Dias)";
+              document.getElementById('nota-textarea').value = resultadoFormatado;
+              document.getElementById('container-local').style.display = 'none';
+              document.getElementById('container-tempo').style.display = 'none';
+              document.getElementById('container-atrelar-movimento').style.display = 'none';
+              
+              const btnGravar = document.getElementById('btn-modal-gravar');
+              btnGravar.innerText = "📋 Copiar Projeções Estruturadas";
+              btnGravar.onclick = function() {
+                  navigator.clipboard.writeText(resultadoFormatado);
+                  alert("Projeções de público copiadas para a área de transferência!");
+              };
+
+              document.getElementById('modal-overlay').style.display = 'block';
+              document.getElementById('nota-modal').style.display = 'block';
+
+          } catch (err) {
+              alert(`Falha no cálculo preditivo: ${err.message}`);
+              console.error(err);
+          }
+
+          btn.innerText = backupText; btn.disabled = false;
+      };
+  };
+  /* =====================================================================
+     SISTEMA DE SINCRONIZAÇÃO FORÇADA DE CACHE (ANTI-VERSÃO ANTIGA)
+     ===================================================================== */
+  function iniciarControleDeAtualizacao() {
+      // 1. Verifica a cada 5 segundos se bateu o horário exato de 12:00 ou 00:00
+      setInterval(() => {
+          const agora = new Date(new Date().toLocaleString("en-US", {timeZone: "America/Sao_Paulo"}));
+          const hora = agora.getHours();
+          const minuto = agora.getMinutes();
+          const dataStr = `${agora.getFullYear()}-${agora.getMonth()+1}-${agora.getDate()}`;
+          
+          const chaveMeioDia = `${dataStr}_12_00`;
+          const chaveMeiaNoite = `${dataStr}_00_00`;
+          
+          if (hora === 12 && minuto === 0 && localStorage.getItem('last_forced_reload') !== chaveMeioDia) {
+              localStorage.setItem('last_forced_reload', chaveMeioDia);
+              forçarRecarregamentoGeral();
+          }
+          if (hora === 0 && minuto === 0 && localStorage.getItem('last_forced_reload') !== chaveMeiaNoite) {
+              localStorage.setItem('last_forced_reload', chaveMeiaNoite);
+              forçarRecarregamentoGeral();
+          }
+      }, 5000);
+
+      // 2. Monitoramento de Suspensão (Se o PC dormir/hibernar e acordar)
+      let ultimoCheck = Date.now();
+      
+      document.addEventListener('visibilitychange', () => {
+          if (document.visibilityState === 'visible') {
+              verificarJanelasPerdidas();
+          }
+      });
+
+      setInterval(() => {
+          const agoraRef = Date.now();
+          if (agoraRef - ultimoCheck > 15000) { 
+              verificarJanelasPerdidas();
+          }
+          ultimoCheck = agoraRef;
+      }, 5000);
+  }
+
+  function verificarJanelasPerdidas() {
+      const agora = new Date(new Date().toLocaleString("en-US", {timeZone: "America/Sao_Paulo"}));
+      const hora = agora.getHours();
+      const dataStr = `${agora.getFullYear()}-${agora.getMonth()+1}-${agora.getDate()}`;
+      
+      const chaveMeioDia = `${dataStr}_12_00`;
+      const chaveMeiaNoite = `${dataStr}_00_00`;
+
+      if (hora >= 12 && localStorage.getItem('last_forced_reload') !== chaveMeioDia) {
+          localStorage.setItem('last_forced_reload', chaveMeioDia);
+          forçarRecarregamentoGeral();
+      }
+      if (hora >= 0 && hora < 12 && localStorage.getItem('last_forced_reload') !== chaveMeiaNoite) {
+          localStorage.setItem('last_forced_reload', chaveMeiaNoite);
+          forçarRecarregamentoGeral();
+      }
+  }
+
+  function forçarRecarregamentoGeral() {
+      window.location.href = window.location.origin + window.location.pathname + '?cacheBuster=' + Date.now();
+  }
+
+  // Mantém o escutador de cliques original do seu site funcionando abaixo:
   document.addEventListener('click', (e) => { 
       if (!e.target.closest('.search-box')) document.getElementById('caixaResultados').style.display = 'none'; 
       if (!e.target.closest('#container-atrelar-movimento')) {
