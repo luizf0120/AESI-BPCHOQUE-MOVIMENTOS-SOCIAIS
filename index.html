@@ -409,10 +409,10 @@
         </div>
     </div>
 
-    <div id="container-atrelar-movimento" style="margin-bottom: 15px; display: none; position: relative;">
-        <label style="font-size: 11px; color: #888; display: block; margin-bottom: 4px;">🔗 Atrelar a um Movimento (Opcional):</label>
-        <input type="text" id="nota-movimento-input" placeholder="Comece a digitar o nome do movimento..." style="width: 100%; background: #111; color: #fff; border: 1px solid #333; padding: 8px; border-radius: 6px; outline: none; font-size: 13px; font-weight: bold;" oninput="window.filtrarMovimentosDropdown()">
-        <div id="nota-movimento-sugestoes" style="max-height: 140px; overflow-y: auto; background: #0e0e0e; border: 1px solid #333; margin-top: 4px; border-radius: 6px; display: none; position: absolute; left: 0; right: 0; z-index: 30000; box-shadow: 0 5px 15px rgba(0,0,0,0.8);"></div>
+   <div id="container-atrelar-movimento" style="margin-bottom: 15px; display: none;">
+        <label style="font-size: 11px; color: #888; display: block; margin-bottom: 6px;">🔗 Atrelar a Movimentos (Opcional):</label>
+        <div id="lista-movimentos-dinamica" style="display: flex; flex-direction: column; gap: 8px;"></div>
+        <button type="button" onclick="window.adicionarLinhaMovimento()" style="margin-top: 6px; background: #1a1a1a; color: var(--accent-green); border: 1px solid #444; padding: 6px 12px; border-radius: 4px; font-size: 11px; cursor: pointer; font-weight: bold; width: fit-content; display: flex; align-items: center; gap: 4px;">➕ Vincular Mais Um Movimento</button>
     </div>
 
     <div class="nota-actions">
@@ -783,8 +783,7 @@ document.getElementById('modal-overlay').style.display = 'block';
       document.getElementById('nota-local').value = "";
       document.getElementById('nota-data').value = ""; 
       document.getElementById('nota-hora').value = "";
-      document.getElementById('nota-movimento-input').value = "";
-      document.getElementById('nota-movimento-sugestoes').style.display = 'none';
+     window.inicializarMovimentosModal([]);
 
       document.getElementById('container-local').style.display = 'block';
       document.getElementById('container-tempo').style.display = 'flex';
@@ -1083,7 +1082,7 @@ document.getElementById('modal-overlay').style.display = 'block';
           document.getElementById('nota-local').value = nota.local || "";
           document.getElementById('nota-data').value = nota.dataAlerta || "";
           document.getElementById('nota-hora').value = nota.horaAlerta || "";
-          document.getElementById('nota-movimento-input').value = nota.movimentoAtrelado || "";
+          window.inicializarMovimentosModal(nota.movimentosAtrelados || nota.movimentoAtrelado || []);
           window.CURRENT_IA_TEXTO_BRUTO = nota.textoBruto || "";
           
           document.getElementById('container-local').style.display = 'block';
@@ -1130,43 +1129,47 @@ document.getElementById('modal-overlay').style.display = 'block';
   };
 
   window.salvarNotaFirebase = function() {
-      const texto = document.getElementById('nota-textarea').value.trim();
-      const local = document.getElementById('nota-local').value.trim();
-      const dataAlerta = document.getElementById('nota-data').value;
-      const horaAlerta = document.getElementById('nota-hora').value;
-      const safeKey = sanitizarId(alvoAtualNota);
-      const user = auth.currentUser ? auth.currentUser.email : 'Desconhecido';
-      
-      const elMov = document.getElementById('nota-movimento-input');
-      let movimentoAtrelado = elMov ? elMov.value.trim() : "";
+// ... início da função salvarNotaFirebase ...
+const texto = document.getElementById('nota-textarea').value.trim();
+const local = document.getElementById('nota-local').value.trim();
+const dataAlerta = document.getElementById('nota-data').value;
+const horaAlerta = document.getElementById('nota-hora').value;
+const safeKey = sanitizarId(alvoAtualNota);
+const user = auth.currentUser ? auth.currentUser.email : 'Desconhecido';
+
+//  O NOVO EXTRATOR ENTRA AQUI:
+const inputsDinamicos = document.querySelectorAll('.nota-movimento-input-dinamico');
+let movimentosAtrelados = [];
+inputsDinamicos.forEach(inp => {
+    if (inp.value.trim() !== "") movimentosAtrelados.push(inp.value.trim());
+});
+// Mantém a compatibilidade salvando o primeiro item na chave antiga:
+let movimentoAtrelado = movimentosAtrelados.length > 0 ? movimentosAtrelados[0] : "";
 
 if (contextoAtual === 'direto') {
-          let uniqueKey = alvoAtualNota || ("CAL_" + Date.now()); 
-          let isHistoricalEvent = false;
-          
-          // Detecta se o fluxo veio da ampulheta ou se é a edição de um histórico existente
-          if (uniqueKey.startsWith("NEW_HIST_")) {
-              uniqueKey = uniqueKey.replace("NEW_HIST_", "HIST_");
-              isHistoricalEvent = true;
-          } else if (uniqueKey.startsWith("HIST_")) {
-              isHistoricalEvent = true;
-          }
-          
-          const notaRef = ref(db, `alertas_calendario/${uniqueKey}`);
-          
-          if (texto === "" && local === "" && dataAlerta === "" && horaAlerta === "") {
-              set(notaRef, null);
-          } else {
-              set(notaRef, { 
-                  texto, local, dataAlerta, horaAlerta, movimentoAtrelado, operador: user, 
-                  time: obterHoraBrasilia(), 
-                  tituloOrigem: movimentoAtrelado ? movimentoAtrelado.split(' > ').pop() : (isHistoricalEvent ? "Evento Histórico" : "Evento Geral"), 
-                  isDirectCalendar: true, 
-                  keyId: uniqueKey,
-                  isHistorical: isHistoricalEvent, // Flag persistida para seus futuros modelos de ML
-                  textoBruto: window.CURRENT_IA_TEXTO_BRUTO || ""
-              });
-          }
+    const uniqueKey = alvoAtualNota || ("CAL_" + Date.now()); 
+    const notaRef = ref(db, `alertas_calendario/${uniqueKey}`);
+    
+    if (texto === "" && local === "" && dataAlerta === "" && horaAlerta === "") {
+        set(notaRef, null);
+    } else {
+        //  O OBJETO ATUALIZADO FICA ASSIM (Adicionamos movimentosAtrelados):
+        set(notaRef, { 
+            texto, 
+            local, 
+            dataAlerta, 
+            horaAlerta, 
+            movimentoAtrelado,    // Salva o primeiro (evita quebrar relatórios antigos)
+            movimentosAtrelados,   //  NOVO: Grava o array com todos os movimentos vinculados
+            operador: user, 
+            time: obterHoraBrasilia(), 
+            tituloOrigem: movimentoAtrelado ? movimentoAtrelado.split(' > ').pop() : "Evento Geral", 
+            isDirectCalendar: true, 
+            keyId: uniqueKey,
+            textoBruto: window.CURRENT_IA_TEXTO_BRUTO || ""
+        });
+    }
+}
       } else if (contextoAtual === 'postit') {
           const notaRef = ref(db, `monitoramentoDiario/${dataHojeISO}/anotacoes/${safeKey}`);
           if (texto === "") set(notaRef, null);
@@ -1841,8 +1844,8 @@ A estrutura da mensagem DEVE seguir estritamente o modelo abaixo. Não coloque l
   // Mantém o escutador de cliques original do seu site funcionando abaixo:
   document.addEventListener('click', (e) => { 
       if (!e.target.closest('.search-box')) document.getElementById('caixaResultados').style.display = 'none'; 
-      if (!e.target.closest('#container-atrelar-movimento')) {
-          const sug = document.getElementById('nota-movimento-sugestoes'); if (sug) sug.style.display = 'none';
+     if (!e.target.closest('#container-atrelar-movimento')) {
+          document.querySelectorAll('.nota-movimento-sugestoes-dinamica').forEach(b => b.style.display = 'none');
       }
   });
 </script>
