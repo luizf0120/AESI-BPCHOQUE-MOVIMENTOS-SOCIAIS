@@ -333,7 +333,10 @@
 
       <div class="right-panel">
           <div class="stat-box" style="position: sticky; top: 20px;">
-              <h4>Calendário 📅</h4>
+             <h4 style="display: flex; justify-content: space-between; align-items: center;">
+    <span>Calendário 📅</span>
+    <span id="btn-historico-ampulheta" onclick="window.abrirModalHistorico()" style="cursor: pointer; font-size: 16px; transition: 0.2s; user-select: none; padding-right: 5px;" title="Registrar Evento Histórico (Base de Dados para Machine Learning)">⏳</span>
+</h4>
               <div class="calendar-box">
                   <div class="calendar-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; border-bottom: 1px solid #333; padding-bottom: 8px;">
                       <button class="btn-action" onclick="window.mudarMesCalendario(-1)" style="padding: 2px 8px; font-size: 11px;">◀</button>
@@ -765,10 +768,26 @@ function verificarAlertasExpirados() {
       document.getElementById('btn-modal-gravar').style.display = 'block';
       document.getElementById('btn-modal-gravar').innerText = "Gravar Alerta";
 
-      document.getElementById('modal-overlay').style.display = 'block';
-      document.getElementById('nota-modal').style.display = 'block';
-      document.getElementById('nota-textarea').focus();
-  };
+    window.abrirModalHistorico = function() {
+            contextoAtual = 'historico'; alvoAtualNota = "";
+            window.CURRENT_IA_TEXTO_BRUTO = "";
+            document.getElementById('nota-alvo-titulo').innerText = "⏳ Registrar Evento Histórico (Passado)";
+            document.getElementById('nota-textarea').value = ""; document.getElementById('nota-local').value = "";
+            document.getElementById('nota-data').value = ""; document.getElementById('nota-hora').value = "";
+            document.getElementById('nota-movimento-input').value = "";
+            document.getElementById('nota-movimento-sugestoes').style.display = 'none';
+
+            document.getElementById('container-local').style.display = 'block';
+            document.getElementById('container-tempo').style.display = 'flex';
+            document.getElementById('container-atrelar-movimento').style.display = 'block';
+            
+            document.getElementById('btn-modal-gravar').style.display = 'block';
+            document.getElementById('btn-modal-gravar').innerText = "Gravar Registro Histórico";
+
+            document.getElementById('modal-overlay').style.display = 'block';
+            document.getElementById('nota-modal').style.display = 'block';
+            document.getElementById('nota-textarea').focus();
+        };
 
   function linkify(text) {
       if (!text) return "";
