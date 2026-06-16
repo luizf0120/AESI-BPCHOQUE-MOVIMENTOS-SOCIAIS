@@ -755,27 +755,27 @@ window.inicializarCamposMovimento = function(listaMovimentos = []) {
     }
 };
 
- window.abrirModalCalendarioDireto = function() {
-      contextoAtual = 'direto'; alvoAtualNota = "";
-      window.CURRENT_IA_TEXTO_BRUTO = "";
-      document.getElementById('nota-alvo-titulo').innerText = "Agendar Novo Evento";
-      document.getElementById('nota-textarea').value = ""; document.getElementById('nota-local').value = "";
-      document.getElementById('nota-data').value = ""; document.getElementById('nota-hora').value = "";
-      
-      // Nova função que limpa e cria a primeira linha em branco
-      window.inicializarCamposMovimento([]); 
+window.abrirModalCalendarioDireto = function() {
+    contextoAtual = 'direto'; alvoAtualNota = "";
+    window.CURRENT_IA_TEXTO_BRUTO = "";
+    document.getElementById('nota-alvo-titulo').innerText = "Agendar Novo Evento";
+    document.getElementById('nota-textarea').value = ""; document.getElementById('nota-local').value = "";
+    document.getElementById('nota-data').value = ""; document.getElementById('nota-hora').value = "";
+    
+    // Inicializa a lista dinâmica com um único campo vazio limpo
+    window.inicializarCamposMovimento([]);
 
-      document.getElementById('container-local').style.display = 'block';
-      document.getElementById('container-tempo').style.display = 'flex';
-      document.getElementById('container-atrelar-movimento').style.display = 'block';
-      
-      document.getElementById('btn-modal-gravar').style.display = 'block';
-      document.getElementById('btn-modal-gravar').innerText = "Gravar Alerta";
+    document.getElementById('container-local').style.display = 'block';
+    document.getElementById('container-tempo').style.display = 'flex';
+    document.getElementById('container-atrelar-movimento').style.display = 'block';
+    
+    document.getElementById('btn-modal-gravar').style.display = 'block';
+    document.getElementById('btn-modal-gravar').innerText = "Gravar Alerta";
 
-      document.getElementById('modal-overlay').style.display = 'block';
-      document.getElementById('nota-modal').style.display = 'block';
-      document.getElementById('nota-textarea').focus();
-  };
+    document.getElementById('modal-overlay').style.display = 'block';
+    document.getElementById('nota-modal').style.display = 'block';
+    document.getElementById('nota-textarea').focus();
+};
 
   function linkify(text) {
       if (!text) return "";
@@ -912,86 +912,85 @@ window.inicializarCamposMovimento = function(listaMovimentos = []) {
   /* =====================================================================
      CORREÇÃO DA IA: IMPLEMENTADO ENDPOINT v1beta + VALIDAÇÃO ANTI-CRASH
      ===================================================================== */
-  window.processarTextoBrutoIA = async function() {
-      const txtBruto = document.getElementById('ia-texto-bruto').value.trim();
-      if (!txtBruto) { alert("Cole o texto do informe antes de avançar."); return; }
-      const btn = document.getElementById('btn-ia-avancar');
-      btn.innerText = "🤖 Estruturando Dados..."; btn.disabled = true;
+ window.processarTextoBrutoIA = async function() {
+    const txtBruto = document.getElementById('ia-texto-bruto').value.trim();
+    if (!txtBruto) { alert("Cole o texto do informe antes de avançar."); return; }
+    const btn = document.getElementById('btn-ia-avancar');
+    btn.innerText = "🤖 Estruturando Dados..."; btn.disabled = true;
 
-      try {
-          const snapChave = await get(ref(db, 'config/gemini_key'));
-          if (!snapChave.exists() || snapChave.val().trim() === "") {
-              alert("A IA não está configurada no Firebase.");
-              btn.innerText = "Avançar ➔"; btn.disabled = false; return;
-          }
-          const apiKey = snapChave.val().trim();
+    try {
+        const snapChave = await get(ref(db, 'config/gemini_key'));
+        if (!snapChave.exists() || snapChave.val().trim() === "") {
+            alert("A IA não está configurada no Firebase.");
+            btn.innerText = "Avançar ➔"; btn.disabled = false; return;
+        }
+        const apiKey = snapChave.val().trim();
 
-          const tempoSistema = new Date(new Date().toLocaleString("en-US", {timeZone: "America/Sao_Paulo"}));
-          const anoCorrente = tempoSistema.getFullYear();
-          const mesesMatriz = ["Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho", "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"];
-          const nomeMesCorrente = mesesMatriz[tempoSistema.getMonth()];
+        const tempoSistema = new Date(new Date().toLocaleString("en-US", {timeZone: "America/Sao_Paulo"}));
+        const anoCorrente = tempoSistema.getFullYear();
+        const mesesMatriz = ["Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho", "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"];
+        const nomeMesCorrente = mesesMatriz[tempoSistema.getMonth()];
 
-          const promptInstrucao = `Você é um robô auxiliar de inteligência e triagem operacional. Analise o informe fornecido e extraia os dados. 
-          Responda OBRIGATORIAMENTE com um objeto JSON plano válido. Se omitido no texto, use o ano ${anoCorrente} e mês de ${nomeMesCorrente}.
-          JSON Chaves estruturais obrigatórias: "texto", "local", "data" (no formato YYYY-MM-DD), "hora" (no formato HH:MM), "movimento". 
-          Texto original para análise: "${txtBruto}"`;
+        const promptInstrucao = `Você é um robô auxiliar de inteligência e triagem operacional. Analise o informe fornecido e extraia os dados. 
+        Responda OBRIGATORIAMENTE com um objeto JSON plano válido. Se omitido no texto, use o ano ${anoCorrente} e mês de ${nomeMesCorrente}.
+        JSON Chaves estruturais obrigatórias: "texto", "local", "data" (no formato YYYY-MM-DD), "hora" (no formato HH:MM), "movimento". 
+        Texto original para análise: "${txtBruto}"`;
 
-          // Alterado para a rota v1beta (Estabiliza o uso de responseMimeType estruturado)
-          const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`, {
-              method: "POST", 
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ 
-                  contents: [{ parts: [{ text: promptInstrucao }] }],
-                  generationConfig: { responseMimeType: "application/json" }
-              })
-          });
+        const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`, {
+            method: "POST", 
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ 
+                contents: [{ parts: [{ text: promptInstrucao }] }],
+                generationConfig: { responseMimeType: "application/json" }
+            })
+        });
 
-          const dataIa = await response.json();
-          
-          // BLINDAGEM OPERACIONAL: Valida se o servidor respondeu com sucesso antes de processar
-          if (!response.ok) {
-              console.error("Erro retornado pela API da Google:", dataIa);
-              throw new Error(dataIa.error?.message || "Erro HTTP do servidor da Google.");
-          }
+        const dataIa = await response.json();
+        
+        if (!response.ok) {
+            console.error("Erro retornado pela API da Google:", dataIa);
+            throw new Error(dataIa.error?.message || "Erro HTTP do servidor da Google.");
+        }
 
-          if (!dataIa.candidates || dataIa.candidates.length === 0) {
-              throw new Error("A API respondeu com sucesso, mas não gerou candidatos de texto.");
-          }
+        if (!dataIa.candidates || dataIa.candidates.length === 0) {
+            throw new Error("A API respondeu com sucesso, mas não gerou candidatos de texto.");
+        }
 
-          let rawText = dataIa.candidates[0].content.parts[0].text;
-          
-          let inicioJson = rawText.indexOf('{');
-          let fimJson = rawText.lastIndexOf('}');
-          if (inicioJson === -1 || fimJson === -1) { throw new Error("JSON inválido ou incompleto na resposta da IA."); }
-          let cleanJsonStr = rawText.substring(inicioJson, fimJson + 1).trim();
-          let dataObjeto = JSON.parse(cleanJsonStr);
+        let rawText = dataIa.candidates[0].content.parts[0].text;
+        
+        let inicioJson = rawText.indexOf('{');
+        let fimJson = rawText.lastIndexOf('}');
+        if (inicioJson === -1 || fimJson === -1) { throw new Error("JSON inválido ou incompleto na resposta da IA."); }
+        let cleanJsonStr = rawText.substring(inicioJson, fimJson + 1).trim();
+        let dataObjeto = JSON.parse(cleanJsonStr);
 
-          window.CURRENT_IA_TEXTO_BRUTO = txtBruto;
+        window.CURRENT_IA_TEXTO_BRUTO = txtBruto;
 
-          document.getElementById('ia-input-modal').style.display = 'none';
+        document.getElementById('ia-input-modal').style.display = 'none';
 
-          contextoAtual = 'direto'; alvoAtualNota = "";
-          document.getElementById('nota-alvo-titulo').innerText = "Conferir Agendamento por IA";
-         document.getElementById('nota-textarea').value = dataObjeto.texto || "";
-          document.getElementById('nota-local').value = dataObjeto.local || "";
-          document.getElementById('nota-data').value = dataObjeto.data || "";
-          document.getElementById('nota-hora').value = dataObjeto.hora || "";
-          document.getElementById('nota-movimento-input').value = dataObjeto.movimento || ""; // <- APAGAR
+        contextoAtual = 'direto'; alvoAtualNota = "";
+        document.getElementById('nota-alvo-titulo').innerText = "Conferir Agendamento por IA";
+        document.getElementById('nota-textarea').value = dataObjeto.texto || "";
+        document.getElementById('nota-local').value = dataObjeto.local || "";
+        document.getElementById('nota-data').value = dataObjeto.data || "";
+        document.getElementById('nota-hora').value = dataObjeto.hora || "";
+        
+        // Injeta o movimento detectado pela IA na nossa lista dinâmica nova
+        window.inicializarCamposMovimento(dataObjeto.movimento ? [dataObjeto.movimento] : []);
 
-          document.getElementById('container-local').style.display = 'block';
-          document.getElementById('container-tempo').style.display = 'flex';
-          document.getElementById('container-atrelar-movimento').style.display = 'block';
-          document.getElementById('nota-movimento-sugestoes').style.display = 'none';
-          document.getElementById('btn-modal-gravar').innerText = "Confirmar e Gravar Alerta";
-          document.getElementById('nota-modal').style.display = 'block';
+        document.getElementById('container-local').style.display = 'block';
+        document.getElementById('container-tempo').style.display = 'flex';
+        document.getElementById('container-atrelar-movimento').style.display = 'block';
+        document.getElementById('btn-modal-gravar').innerText = "Confirmar e Gravar Alerta";
+        document.getElementById('nota-modal').style.display = 'block';
 
-      } catch (err) {
-          alert(`Falha no Processamento: ${err.message}\n\nAbra o Console do Navegador (F12) para inspecionar os detalhes táticos.`);
-          console.error("Erro detalhado do fluxo de IA:", err);
-      }
-      btn.innerText = "Avançar ➔"; btn.disabled = false;
-  };
-
+    } catch (err) {
+        alert(`Falha no Processamento: ${err.message}\n\nAbra o Console do Navegador (F12) para inspecionar os detalhes táticos.`);
+        console.error("Erro detalhado do fluxo de IA:", err);
+    }
+    btn.innerText = "Avançar ➔"; btn.disabled = false;
+};
+  
   window.focarCaminhoDireto = function(caminhoCompletoStr) {
       if (!caminhoCompletoStr) return;
       const pastas = caminhoCompletoStr.split(' > ');
@@ -1029,60 +1028,58 @@ window.inicializarCamposMovimento = function(listaMovimentos = []) {
 
   window.esconderTooltipTatico = function() { document.getElementById('tooltip-preview').classList.remove('show'); };
 
-  window.abrirModalTatico = function(e, idUnico, titulo, tipo) {
-      if (e) { e.preventDefault(); e.stopPropagation(); }
-      window.esconderTooltipTatico();
-      contextoAtual = tipo; alvoAtualNota = idUnico; tituloAtualNota = titulo;
-      const safeKey = sanitizarId(idUnico);
-      window.CURRENT_IA_TEXTO_BRUTO = "";
-      
-      document.getElementById('container-atrelar-movimento').style.display = 'none';
-      document.getElementById('btn-modal-gravar').style.display = 'block';
-      document.getElementById('btn-modal-gravar').innerText = "Gravar Alerta";
+window.abrirModalTatico = function(e, idUnico, titulo, tipo) {
+    if (e) { e.preventDefault(); e.stopPropagation(); }
+    window.esconderTooltipTatico();
+    contextoAtual = tipo; alvoAtualNota = idUnico; tituloAtualNota = titulo;
+    const safeKey = sanitizarId(idUnico);
+    window.CURRENT_IA_TEXTO_BRUTO = "";
+    
+    document.getElementById('container-atrelar-movimento').style.display = 'none';
+    document.getElementById('btn-modal-gravar').style.display = 'block';
+    document.getElementById('btn-modal-gravar').innerText = "Gravar Alerta";
 
-      if (tipo === 'postit') {
-          document.getElementById('nota-alvo-titulo').innerText = "Nota (Post-it): " + titulo;
-          const nota = anotacoesGlobais[safeKey] || {};
-          document.getElementById('nota-textarea').value = nota.texto || "";
-          document.getElementById('container-local').style.display = 'none';
-          document.getElementById('container-tempo').style.display = 'none';
-      } else if (tipo === 'agenda') {
-          document.getElementById('nota-alvo-titulo').innerText = "Agenda de Evento: " + titulo;
-          const nota = agendaMenusGlobais[safeKey] || {};
-          document.getElementById('nota-textarea').value = nota.texto || "";
-          document.getElementById('nota-local').value = nota.local || "";
-          document.getElementById('nota-data').value = nota.dataAlerta || "";
-          document.getElementById('nota-hora').value = nota.horaAlerta || "";
-          document.getElementById('container-local').style.display = 'block';
-          document.getElementById('container-tempo').style.display = 'flex';
-     } else if (tipo === 'direto') {
-          document.getElementById('nota-alvo-titulo').innerText = "Editar Evento";
-          const nota = alertasCalendarioGlobais[idUnico] || {};
-          document.getElementById('nota-textarea').value = nota.texto || "";
-          document.getElementById('nota-local').value = nota.local || "";
-          document.getElementById('nota-data').value = nota.dataAlerta || "";
-          document.getElementById('nota-hora').value = nota.horaAlerta || "";
-          window.CURRENT_IA_TEXTO_BRUTO = nota.textoBruto || "";
-          
-          // Bloco inteligente que lê a nova lista de movimentos ou aceita o formato antigo antigo caso exista
-          let listaMovs = [];
-          if (nota.movimentosAtrelados && Array.isArray(nota.movimentosAtrelados)) {
-              listaMovs = nota.movimentosAtrelados;
-          } else if (nota.movimentoAtrelado) {
-              listaMovs = [nota.movimentoAtrelado];
-          }
-          window.inicializarCamposMovimento(listaMovs);
-          
-          document.getElementById('container-local').style.display = 'block';
-          document.getElementById('container-tempo').style.display = 'flex';
-          document.getElementById('container-atrelar-movimento').style.display = 'block';
-          document.getElementById('nota-movimento-sugestoes').style.display = 'none';
-      }
-      
-      document.getElementById('modal-overlay').style.display = 'block';
-      document.getElementById('nota-modal').style.display = 'block';
-      document.getElementById('nota-textarea').focus();
-  };
+    if (tipo === 'postit') {
+        document.getElementById('nota-alvo-titulo').innerText = "Nota (Post-it): " + titulo;
+        const nota = anotacoesGlobais[safeKey] || {};
+        document.getElementById('nota-textarea').value = nota.texto || "";
+        document.getElementById('container-local').style.display = 'none';
+        document.getElementById('container-tempo').style.display = 'none';
+    } else if (tipo === 'agenda') {
+        document.getElementById('nota-alvo-titulo').innerText = "Agenda de Evento: " + titulo;
+        const nota = agendaMenusGlobais[safeKey] || {};
+        document.getElementById('nota-textarea').value = nota.texto || "";
+        document.getElementById('nota-local').value = nota.local || "";
+        document.getElementById('nota-data').value = nota.dataAlerta || "";
+        document.getElementById('nota-hora').value = nota.horaAlerta || "";
+        document.getElementById('container-local').style.display = 'block';
+        document.getElementById('container-tempo').style.display = 'flex';
+    } else if (tipo === 'direto') {
+        document.getElementById('nota-alvo-titulo').innerText = "Editar Evento";
+        const nota = alertasCalendarioGlobais[idUnico] || {};
+        document.getElementById('nota-textarea').value = nota.texto || "";
+        document.getElementById('nota-local').value = nota.local || "";
+        document.getElementById('nota-data').value = nota.dataAlerta || "";
+        document.getElementById('nota-hora').value = nota.horaAlerta || "";
+        window.CURRENT_IA_TEXTO_BRUTO = nota.textoBruto || "";
+        
+        let listaMovs = [];
+        if (nota.movimentosAtrelados && Array.isArray(nota.movimentosAtrelados)) {
+            listaMovs = nota.movimentosAtrelados;
+        } else if (nota.movimentoAtrelado) {
+            listaMovs = [nota.movimentoAtrelado];
+        }
+        window.inicializarCamposMovimento(listaMovs);
+        
+        document.getElementById('container-local').style.display = 'block';
+        document.getElementById('container-tempo').style.display = 'flex';
+        document.getElementById('container-atrelar-movimento').style.display = 'block';
+    }
+    
+    document.getElementById('modal-overlay').style.display = 'block';
+    document.getElementById('nota-modal').style.display = 'block';
+    document.getElementById('nota-textarea').focus();
+};
 
   window.mostrarTooltipTatico = function(e, idUnico, tipo) {
       e.stopPropagation();
