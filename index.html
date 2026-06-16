@@ -799,7 +799,7 @@ window.abrirModalCalendarioDireto = function() {
           <p><strong>🎯 Movimento:</strong> ${nota.tituloOrigem || 'Evento Geral'}</p>
           <p><strong>📅 Data de Execução:</strong> ${dataBr} às ${nota.horaAlerta || '--:--'}</p>
           <p><strong>📍 Local de Concentração:</strong> ${nota.local || 'Não cadastrado'}</p>
-          ${nota.numeroManifestantes ? `<p><strong>👥 Efetivo de Manifestantes:</strong> <span style="color: var(--accent-yellow); font-weight: bold;">${nota.numeroManifestantes} participantes</span></p>` : ''}
+          ${nota.numeroManifestantes ? `<p><strong>👥 Manifestantes Constatados:</strong> <span style="color: var(--accent-yellow); font-weight: bold;">${nota.numeroManifestantes} participantes</span></p>` : ''}
           <p><strong>📝 Resumo Estruturado da Pauta:</strong><br><span style="color:#ddd; display:block; padding: 6px 0; white-space: pre-wrap;">"${textoProcessado}"</span></p>
           
           <div style="margin-top: 15px; background: #030303; padding: 12px; border: 1px solid #222; border-radius: 6px;">
