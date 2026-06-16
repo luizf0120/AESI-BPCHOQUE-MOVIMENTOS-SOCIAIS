@@ -1131,9 +1131,8 @@ function verificarAlertasExpirados() {
       const elMov = document.getElementById('nota-movimento-input');
       let movimentoAtrelado = elMov ? elMov.value.trim() : "";
 
-if (contextoAtual === 'direto' || contextoAtual === 'historico') {
-                const prefixo = contextoAtual === 'historico' ? "HIST_" : "CAL_";
-                const uniqueKey = alvoAtualNota || (prefixo + Date.now()); 
+if (contextoAtual === 'direto') {
+                const uniqueKey = alvoAtualNota || ("CAL_" + Date.now()); 
                 const notaRef = ref(db, `alertas_calendario/${uniqueKey}`);
                 
                 if (texto === "" && local === "" && dataAlerta === "" && horaAlerta === "") {
@@ -1141,11 +1140,7 @@ if (contextoAtual === 'direto' || contextoAtual === 'historico') {
                 } else {
                     set(notaRef, { 
                         texto, local, dataAlerta, horaAlerta, movimentoAtrelado, operador: user, 
-                        time: obterHoraBrasilia(), 
-                        tituloOrigem: movimentoAtrelado ? movimentoAtrelado.split(' > ').pop() : (contextoAtual === 'historico' ? "Evento Histórico" : "Evento Geral"), 
-                        isDirectCalendar: true, 
-                        keyId: uniqueKey,
-                        isHistorical: contextoAtual === 'historico', // Tag booleana crucial para os vetores de ML
+                        time: obterHoraBrasilia(), tituloOrigem: movimentoAtrelado ? movimentoAtrelado.split(' > ').pop() : "Evento Geral", isDirectCalendar: true, keyId: uniqueKey,
                         textoBruto: window.CURRENT_IA_TEXTO_BRUTO || ""
                     });
                 }
