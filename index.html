@@ -1141,19 +1141,33 @@ document.getElementById('modal-overlay').style.display = 'block';
       let movimentoAtrelado = elMov ? elMov.value.trim() : "";
 
 if (contextoAtual === 'direto') {
-                const uniqueKey = alvoAtualNota || ("CAL_" + Date.now()); 
-                const notaRef = ref(db, `alertas_calendario/${uniqueKey}`);
-                
-                if (texto === "" && local === "" && dataAlerta === "" && horaAlerta === "") {
-                    set(notaRef, null);
-                } else {
-                    set(notaRef, { 
-                        texto, local, dataAlerta, horaAlerta, movimentoAtrelado, operador: user, 
-                        time: obterHoraBrasilia(), tituloOrigem: movimentoAtrelado ? movimentoAtrelado.split(' > ').pop() : "Evento Geral", isDirectCalendar: true, keyId: uniqueKey,
-                        textoBruto: window.CURRENT_IA_TEXTO_BRUTO || ""
-                    });
-                }
-            } else if (contextoAtual === 'postit') {
+          let uniqueKey = alvoAtualNota || ("CAL_" + Date.now()); 
+          let isHistoricalEvent = false;
+          
+          // Detecta se o fluxo veio da ampulheta ou se é a edição de um histórico existente
+          if (uniqueKey.startsWith("NEW_HIST_")) {
+              uniqueKey = uniqueKey.replace("NEW_HIST_", "HIST_");
+              isHistoricalEvent = true;
+          } else if (uniqueKey.startsWith("HIST_")) {
+              isHistoricalEvent = true;
+          }
+          
+          const notaRef = ref(db, `alertas_calendario/${uniqueKey}`);
+          
+          if (texto === "" && local === "" && dataAlerta === "" && horaAlerta === "") {
+              set(notaRef, null);
+          } else {
+              set(notaRef, { 
+                  texto, local, dataAlerta, horaAlerta, movimentoAtrelado, operador: user, 
+                  time: obterHoraBrasilia(), 
+                  tituloOrigem: movimentoAtrelado ? movimentoAtrelado.split(' > ').pop() : (isHistoricalEvent ? "Evento Histórico" : "Evento Geral"), 
+                  isDirectCalendar: true, 
+                  keyId: uniqueKey,
+                  isHistorical: isHistoricalEvent, // Flag persistida para seus futuros modelos de ML
+                  textoBruto: window.CURRENT_IA_TEXTO_BRUTO || ""
+              });
+          }
+      } else if (contextoAtual === 'postit') {
           const notaRef = ref(db, `monitoramentoDiario/${dataHojeISO}/anotacoes/${safeKey}`);
           if (texto === "") set(notaRef, null);
           else set(notaRef, { texto, operador: user, time: obterHoraBrasilia(), tituloOrigem: tituloAtualNota });
