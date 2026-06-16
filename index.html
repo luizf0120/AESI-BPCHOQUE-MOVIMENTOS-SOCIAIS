@@ -1128,48 +1128,47 @@ document.getElementById('modal-overlay').style.display = 'block';
       document.getElementById('detalhes-modal').style.display = 'none';
   };
 
-  window.salvarNotaFirebase = function() {
-// ... início da função salvarNotaFirebase ...
-const texto = document.getElementById('nota-textarea').value.trim();
-const local = document.getElementById('nota-local').value.trim();
-const dataAlerta = document.getElementById('nota-data').value;
-const horaAlerta = document.getElementById('nota-hora').value;
-const safeKey = sanitizarId(alvoAtualNota);
-const user = auth.currentUser ? auth.currentUser.email : 'Desconhecido';
+window.salvarNotaFirebase = function() {
+      const texto = document.getElementById('nota-textarea').value.trim();
+      const local = document.getElementById('nota-local').value.trim();
+      const dataAlerta = document.getElementById('nota-data').value;
+      const horaAlerta = document.getElementById('nota-hora').value;
+      const safeKey = sanitizarId(alvoAtualNota);
+      const user = auth.currentUser ? auth.currentUser.email : 'Desconhecido';
 
-//  O NOVO EXTRATOR ENTRA AQUI:
-const inputsDinamicos = document.querySelectorAll('.nota-movimento-input-dinamico');
-let movimentosAtrelados = [];
-inputsDinamicos.forEach(inp => {
-    if (inp.value.trim() !== "") movimentosAtrelados.push(inp.value.trim());
-});
-// Mantém a compatibilidade salvando o primeiro item na chave antiga:
-let movimentoAtrelado = movimentosAtrelados.length > 0 ? movimentosAtrelados[0] : "";
+      // 1. Captura o texto de todas as caixas dinâmicas de movimento criadas
+      const inputsDinamicos = document.querySelectorAll('.nota-movimento-input-dinamico');
+      let movimentosAtrelados = [];
+      inputsDinamicos.forEach(inp => {
+          if (inp.value.trim() !== "") movimentosAtrelados.push(inp.value.trim());
+      });
+      
+      // Mantém compatibilidade com o sistema antigo salvando o primeiro na chave singular
+      let movimentoAtrelado = movimentosAtrelados.length > 0 ? movimentosAtrelados[0] : "";
 
-if (contextoAtual === 'direto') {
-    const uniqueKey = alvoAtualNota || ("CAL_" + Date.now()); 
-    const notaRef = ref(db, `alertas_calendario/${uniqueKey}`);
-    
-    if (texto === "" && local === "" && dataAlerta === "" && horaAlerta === "") {
-        set(notaRef, null);
-    } else {
-        //  O OBJETO ATUALIZADO FICA ASSIM (Adicionamos movimentosAtrelados):
-        set(notaRef, { 
-            texto, 
-            local, 
-            dataAlerta, 
-            horaAlerta, 
-            movimentoAtrelado,    // Salva o primeiro (evita quebrar relatórios antigos)
-            movimentosAtrelados,   //  NOVO: Grava o array com todos os movimentos vinculados
-            operador: user, 
-            time: obterHoraBrasilia(), 
-            tituloOrigem: movimentoAtrelado ? movimentoAtrelado.split(' > ').pop() : "Evento Geral", 
-            isDirectCalendar: true, 
-            keyId: uniqueKey,
-            textoBruto: window.CURRENT_IA_TEXTO_BRUTO || ""
-        });
-    }
-}
+      // 2. Corrente de validação tática (Alinhada sem quebras)
+      if (contextoAtual === 'direto') {
+          const uniqueKey = alvoAtualNota || ("CAL_" + Date.now()); 
+          const notaRef = ref(db, `alertas_calendario/${uniqueKey}`);
+          
+          if (texto === "" && local === "" && dataAlerta === "" && horaAlerta === "") {
+              set(notaRef, null);
+          } else {
+              set(notaRef, { 
+                  texto, 
+                  local, 
+                  dataAlerta, 
+                  horaAlerta, 
+                  movimentoAtrelado,    
+                  movimentosAtrelados, // Grava a lista completa contendo todos os movimentos selecionados
+                  operador: user, 
+                  time: obterHoraBrasilia(), 
+                  tituloOrigem: movimentoAtrelado ? movimentoAtrelado.split(' > ').pop() : "Evento Geral", 
+                  isDirectCalendar: true, 
+                  keyId: uniqueKey,
+                  textoBruto: window.CURRENT_IA_TEXTO_BRUTO || ""
+              });
+          }
       } else if (contextoAtual === 'postit') {
           const notaRef = ref(db, `monitoramentoDiario/${dataHojeISO}/anotacoes/${safeKey}`);
           if (texto === "") set(notaRef, null);
@@ -1179,6 +1178,7 @@ if (contextoAtual === 'direto') {
           if (texto === "" && local === "" && dataAlerta === "" && horaAlerta === "") set(notaRef, null);
           else set(notaRef, { texto, local, dataAlerta, horaAlerta, operador: user, time: obterHoraBrasilia(), tituloOrigem: tituloAtualNota, pathString: alvoAtualNota, textoBruto: window.CURRENT_IA_TEXTO_BRUTO || "" });
       }
+
       window.fecharModalNota();
   };
 
