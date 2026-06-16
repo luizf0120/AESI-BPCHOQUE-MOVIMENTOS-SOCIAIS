@@ -773,6 +773,31 @@ document.getElementById('modal-overlay').style.display = 'block';
             document.getElementById('nota-textarea').focus();
         };
 
+  window.abrirModalHistorico = function() {
+      contextoAtual = 'direto'; // Reaproveita o motor padrão de calendário do seu sistema
+      alvoAtualNota = "NEW_HIST_" + Date.now(); // Identificador temporário para a gravação
+      window.CURRENT_IA_TEXTO_BRUTO = "";
+      
+      document.getElementById('nota-alvo-titulo').innerText = "⏳ Registrar Evento Histórico (Passado)";
+      document.getElementById('nota-textarea').value = ""; 
+      document.getElementById('nota-local').value = "";
+      document.getElementById('nota-data').value = ""; 
+      document.getElementById('nota-hora').value = "";
+      document.getElementById('nota-movimento-input').value = "";
+      document.getElementById('nota-movimento-sugestoes').style.display = 'none';
+
+      document.getElementById('container-local').style.display = 'block';
+      document.getElementById('container-tempo').style.display = 'flex';
+      document.getElementById('container-atrelar-movimento').style.display = 'block';
+      
+      document.getElementById('btn-modal-gravar').style.display = 'block';
+      document.getElementById('btn-modal-gravar').innerText = "Gravar Registro Histórico";
+
+      document.getElementById('modal-overlay').style.display = 'block';
+      document.getElementById('nota-modal').style.display = 'block';
+      document.getElementById('nota-textarea').focus();
+  };
+
   function linkify(text) {
       if (!text) return "";
       const urlRegex = /(https?:\/\/[^\s]+)/g;
