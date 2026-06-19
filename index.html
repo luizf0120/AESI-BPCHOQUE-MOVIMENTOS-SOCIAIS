@@ -796,25 +796,28 @@ window.abrirModalCalendarioDireto = function() {
       const textoProcessado = nota.texto ? linkify(String(nota.texto)) : "Sem descrição cadastrada.";
 
    document.getElementById('detalhes-conteudo').innerHTML = `
-    <p><strong>🎯 Movimento:</strong> ${nota.tituloOrigem || 'Evento Geral'}</p>
-    <p><strong>📅 Data de Execução:</strong> ${dataBr} às ${nota.horaAlerta || '--:--'}</p>
-    <p><strong>📍 Local de Concentração:</strong> ${nota.local || 'Não cadastrado'}</p>
-    ${nota.clima ? `<p><strong>🌤️ Condição do Tempo:</strong> <span style="color: #00bcd4; font-weight: bold;">${nota.clima}</span></p>` : ''}
-    ${nota.numeroManifestantes ? `<p><strong>👥 Manifestantes Constatados:</strong> <span style="color: var(--accent-yellow); font-weight: bold;">${nota.numeroManifestantes} participantes</span></p>` : ''}
-    <p><strong>📝 Resumo Estruturado da Pauta:</strong><br><span style="color:#ddd; display:block; padding: 6px 0; white-space: pre-wrap;">"${textoProcessado}"</span></p>
-    
-    <div style="margin-top: 15px; background: #030303; padding: 12px; border: 1px solid #222; border-radius: 6px;">
-        <strong style="color: var(--accent-green); display: block; margin-bottom: 6px; font-size:12px;">🤖 Relatório de Origem / Informações Brutas:</strong>
-        <div style="white-space: pre-wrap; font-size: 12px; color: #888; line-height: 1.4; max-height: 160px; overflow-y: auto; padding-right: 4px;">${textoBrutoLimpo}</div>
-    </div>
-    
-    ${caminhoFoco ? `<p style="margin-top:12px;"><span style="color: var(--accent-blue); font-weight: bold; cursor: pointer; text-decoration: underline;" id="btn-focar-popup">🔗 Encontrar movimento na árvore</span></p>` : ''}
-    
-    <p style="font-size: 11px; color: #555; margin-top: 15px; border-top: 1px solid #222; padding-top: 8px;">
-        👤 Operador: ${nota.operador ? nota.operador.split('@')[0] : 'Desconhecido'} | ⏰ Registro: ${nota.time || '--:--'}
-    </p>
-`;
-
+          <p><strong>🎯 Movimento:</strong> ${nota.tituloOrigem || 'Evento Geral'}</p>
+          <p><strong>📅 Data de Execução:</strong> ${dataBr} às ${nota.horaAlerta || '--:--'}</p>
+          <p><strong>📍 Local de Concentração:</strong> ${nota.local || 'Não cadastrado'}</p>
+          ${nota.clima ? `<p><strong>🌤️ Condição do Tempo:</strong> <span style="color: #00bcd4; font-weight: bold;">${nota.clima}</span></p>` : ''}
+          
+          ${nota.previsaoIA ? `<p><strong>🤖 Previsão de Público (IA):</strong> <span style="color: #ea80fc; font-weight: bold; font-size: 15px;">${nota.previsaoIA}</span></p>` : ''}
+          ${nota.consideracoesIA ? `<p><strong>📊 Fatores Considerados (IA):</strong> <span style="color: #aaa; font-style: italic; display: block; margin-top: 4px; padding-left: 8px; border-left: 3px solid #ea80fc; line-height: 1.4; font-size: 12px;">"${nota.consideracoesIA}"</span></p>` : ''}
+          
+          ${nota.numeroManifestantes ? `<p><strong>👥 Manifestantes Constatados:</strong> <span style="color: var(--accent-yellow); font-weight: bold;">${nota.numeroManifestantes} participantes</span></p>` : ''}
+          <p><strong>📝 Resumo Estruturado da Pauta:</strong><br><span style="color:#ddd; display:block; padding: 6px 0; white-space: pre-wrap;">"${textoProcessado}"</span></p>
+          
+          <div style="margin-top: 15px; background: #030303; padding: 12px; border: 1px solid #222; border-radius: 6px;">
+              <strong style="color: var(--accent-green); display: block; margin-bottom: 6px; font-size:12px;">🤖 Relatório de Origem / Informações Brutas:</strong>
+              <div style="white-space: pre-wrap; font-size: 12px; color: #888; line-height: 1.4; max-height: 160px; overflow-y: auto; padding-right: 4px;">${textoBrutoLimpo}</div>
+          </div>
+          
+          ${caminhoFoco ? `<p style="margin-top:12px;"><span style="color: var(--accent-blue); font-weight: bold; cursor: pointer; text-decoration: underline;" id="btn-focar-popup">🔗 Encontrar movimento na árvore</span></p>` : ''}
+          
+          <p style="font-size: 11px; color: #555; margin-top: 15px; border-top: 1px solid #222; padding-top: 8px;">
+              👤 Operador: ${nota.operador ? nota.operador.split('@')[0] : 'Desconhecido'} | ⏰ Registro: ${nota.time || '--:--'}
+          </p>
+      `;
       if (caminhoFoco) {
           document.getElementById('btn-focar-popup').addEventListener('click', () => {
               window.fecharModalDetalhes();
@@ -1957,92 +1960,111 @@ A estrutura da mensagem DEVE seguir estritamente o modelo abaixo. Não coloque l
       }
   });
 
-  window.preverPublicoIndividualIA = async function(keyId, tipoEntrada) {
-      const nota = tipoEntrada === 'direto' ? alertasCalendarioGlobais[keyId] : agendaMenusGlobais[keyId];
-      if (!nota) return;
+ window.preverPublicoIndividualIA = async function(keyId, tipoEntrada) {
+    const nota = tipoEntrada === 'direto' ? alertasCalendarioGlobais[keyId] : agendaMenusGlobais[keyId];
+    if (!nota) return;
 
-      const modalTitulo = document.getElementById('nota-alvo-titulo');
-      const modalTexto = document.getElementById('nota-textarea');
-      if (!modalTexto) return;
+    const modalTitulo = document.getElementById('nota-alvo-titulo');
+    const modalTexto = document.getElementById('nota-textarea');
+    if (!modalTexto) return;
 
-      modalTitulo.innerText = `🤖 Processando Previsão Tática...`;
-      modalTexto.value = `Aguarde... Conectando à IA e processando vetores históricos para o movimento "${nota.tituloOrigem || 'Geral'}".`;
-      document.getElementById('container-local').style.display = 'none';
-      document.getElementById('container-tempo').style.display = 'none';
-      document.getElementById('container-atrelar-movimento').style.display = 'none';
-      document.getElementById('modal-overlay').style.display = 'block';
-      document.getElementById('nota-modal').style.display = 'block';
+    // Alerta visual de progresso na tela do operador
+    modalTitulo.innerText = `🤖 Processando Previsão Tática...`;
+    modalTexto.value = `Aguarde... Conectando à IA e processando vetores históricos para o movimento "${nota.tituloOrigem || 'Geral'}".`;
+    document.getElementById('container-local').style.display = 'none';
+    document.getElementById('container-tempo').style.display = 'none';
+    document.getElementById('container-atrelar-movimento').style.display = 'none';
+    document.getElementById('modal-overlay').style.display = 'block';
+    document.getElementById('nota-modal').style.display = 'block';
 
-      try {
-          const snapChave = await get(ref(db, 'config/gemini_public_key'));
-          if (!snapChave.exists() || snapChave.val().trim() === "") {
-              throw new Error("Chave 'config/gemini_public_key' ausente no Firebase.");
-          }
-          const apiKey = snapChave.val().trim();
+    try {
+        const snapChave = await get(ref(db, 'config/gemini_public_key'));
+        if (!snapChave.exists() || snapChave.val().trim() === "") {
+            throw new Error("Chave 'config/gemini_public_key' ausente no Firebase.");
+        }
+        const apiKey = snapChave.val().trim();
 
-          let dadosPlanilha = "Sem histórico disponível.";
-          const snapPlanilha = await get(ref(db, 'config/planilha_publico_url'));
-          if (snapPlanilha.exists() && snapPlanilha.val().trim() !== "") {
-              try {
-                  const resCsv = await fetch(snapPlanilha.val().trim());
-                  if (resCsv.ok) dadosPlanilha = await resCsv.text();
-              } catch (e) { console.warn("Falha ao anexar planilha analítica:", e); }
-          }
+        let dadosPlanilha = "Sem histórico disponível.";
+        const snapPlanilha = await get(ref(db, 'config/planilha_publico_url'));
+        if (snapPlanilha.exists() && snapPlanilha.val().trim() !== "") {
+            try {
+                const resCsv = await fetch(snapPlanilha.val().trim());
+                if (resCsv.ok) dadosPlanilha = await resCsv.text();
+            } catch (e) { console.warn("Falha ao anexar planilha analítica:", e); }
+        }
 
-          const dataFormatadaBr = nota.dataAlerta ? nota.dataAlerta.split('-').reverse().join('/') : '--/--/----';
+        const dataFormatadaBr = nota.dataAlerta ? nota.dataAlerta.split('-').reverse().join('/') : '--/--/----';
 
-          const promptIndividual = `Você é um algoritmo especialista em análise preditiva de inteligência de segurança pública. Calcule a projeção de público exclusivamente para o evento especificado abaixo.
-          
-          Analise a pauta, o local de concentração histórico e use o dado do clima injetado no evento para estimar o público provável com precisão. Devolva uma resposta direta, formal e organizada para leitura operacional rápida.
+        // Configurando prompt estrito de extração JSON para a IA
+        const promptIndividual = `Você é um algoritmo especialista em análise preditiva de inteligência de segurança pública. Calcule a projeção de público exclusivamente para o evento especificado abaixo.
+        
+        Analise a pauta, o local de concentração histórico e use o dado do clima injetado no evento para estimar o público provável com precisão.
+        
+        Responda OBRIGATORIAMENTE com um objeto JSON plano válido.
+        JSON Chaves estruturais obrigatórias:
+        "previsao" (String resumida contendo a estimativa de público, ex: "150 a 200 participantes"),
+        "consideracoes" (String bem concisa e direta contendo resumidamente o que foi levado em consideração para o cálculo, avaliando clima, local e pauta),
+        "texto_completo" (String formatada contendo o relatório analítico expandido).
 
-          BASE DE DADOS HISTÓRICOS UNIFICADA (FORMATO CSV):
-          ${dadosPlanilha}
+        BASE DE DADOS HISTÓRICOS UNIFICADA (FORMATO CSV):
+        ${dadosPlanilha}
 
-          DADOS ATUAIS DO EVENTO SELECIONADO:
-          • Movimento: ${nota.tituloOrigem || 'Não Definido'}
-          • Data: ${dataFormatadaBr} às ${nota.horaAlerta || 'Horário não informado'}
-          • Local de Concentração: ${nota.local || 'Não cadastrado'}
-          • Clima Registrado: ${nota.clima || 'Sem informações climáticas na base'}
-          • Resumo da Pauta: "${nota.texto || 'Sem descrição'}"
+        DADOS ATUAIS DO EVENTO SELECIONADO:
+        • Movimento: ${nota.tituloOrigem || 'Não Definido'}
+        • Data: ${dataFormatadaBr} às ${nota.horaAlerta || 'Horário não informado'}
+        • Local de Concentração: ${nota.local || 'Não cadastrado'}
+        • Clima Registrado: ${nota.clima || 'Sem informações climáticas na base'}
+        • Resumo da Pauta: "${nota.texto || 'Sem descrição'}"`;
 
-          Estruture sua resposta exatamente assim:
-          *PMPR / BPCHOQUE / AESI*
-          *PROJEÇÃO INDIVIDUAL DE PÚBLICO COM IA*
+        const resposta = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`, {
+            method: "POST", headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ 
+                contents: [{ parts: [{ text: promptIndividual }] }],
+                generationConfig: { responseMimeType: "application/json" }
+            })
+        });
 
-          • *Movimento*: [Nome do Movimento]
-          • *Previsão de Efetivo*: [X a Y participantes]
-          • *Análise de Risco Operacional*: [Insira 2 linhas explicando os motivos do cálculo baseado no Clima, Local e Pauta]
-          
-          _(modelo analítico regressivo focado em alvo único🤖)_`;
+        const dataIa = await resposta.json();
+        if (!dataIa.candidates || dataIa.candidates.length === 0) { throw new Error("A IA não gerou a previsão."); }
+        
+        let rawText = dataIa.candidates[0].content.parts[0].text;
+        let dataObjeto = JSON.parse(rawText.trim());
 
-          const resposta = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`, {
-              method: "POST", headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ contents: [{ parts: [{ text: promptIndividual }] }] })
-          });
+        // Mescla as novas chaves de previsão aos dados já existentes do evento
+        const novosDados = {
+            ...nota,
+            previsaoIA: dataObjeto.previsao || "Não calculada",
+            consideracoesIA: dataObjeto.consideracoes || "Não informadas",
+            relatorioIaCompleto: dataObjeto.texto_completo || ""
+        };
 
-          const dataIa = await resposta.json();
-          if (!dataIa.candidates || dataIa.candidates.length === 0) { throw new Error("A IA não gerou a previsão."); }
-          
-          const relatorioFinal = dataIa.candidates[0].content.parts[0].text.trim();
+        // Define a rota exata de salvamento unificado
+        const dbPath = tipoEntrada === 'direto' 
+            ? `alertas_calendario/${keyId}` 
+            : `monitoramentoDiario/${dataHojeISO}/agenda_menus/${keyId}`;
+        
+        // Despacha e consolida no Firebase
+        await set(ref(db, dbPath), novosDados);
 
-          modalTitulo.innerText = `🤖 Projeção de Público: ${nota.tituloOrigem || 'Evento'}`;
-          modalTexto.value = relatorioFinal;
+        // Exibe o relatório detalhado no campo de texto para leitura imediata
+        modalTitulo.innerText = `🤖 Projeção de Público: ${nota.tituloOrigem || 'Evento'}`;
+        modalTexto.value = dataObjeto.texto_completo || `Previsão: ${dataObjeto.previsao}\n\nFatores: ${dataObjeto.consideracoes}`;
 
-          const btnGravar = document.getElementById('btn-modal-gravar');
-          btnGravar.innerText = "📋 Copiar Projeção do Alvo";
-          btnGravar.onclick = function() {
-              navigator.clipboard.writeText(relatorioFinal);
-              alert("Previsão individual copiada para a área de transferência!");
-          };
+        const btnGravar = document.getElementById('btn-modal-gravar');
+        btnGravar.innerText = "📋 Copiar Projeção e Fechar";
+        btnGravar.onclick = function() {
+            navigator.clipboard.writeText(modalTexto.value);
+            window.fecharModalNota();
+        };
 
-      } catch (err) {
-          modalTitulo.innerText = `⚠️ Falha na Projeção`;
-          modalTexto.value = `Erro ao calcular previsão do público por IA: ${err.message}\n\nVerifique as chaves e os consoles do sistema.`;
-          const btnGravar = document.getElementById('btn-modal-gravar');
-          btnGravar.innerText = "Gravar Alerta";
-          btnGravar.onclick = function() { window.salvarNotaFirebase(); };
-      }
-  };
+    } catch (err) {
+        modalTitulo.innerText = `⚠️ Falha na Projeção`;
+        modalTexto.value = `Erro ao calcular e registrar previsão por IA: ${err.message}\n\nVerifique os logs técnicos no console (F12).`;
+        const btnGravar = document.getElementById('btn-modal-gravar');
+        btnGravar.innerText = "Fechar Janela";
+        btnGravar.onclick = function() { window.fecharModalNota(); };
+    }
+};
   
 </script>
 </body>
