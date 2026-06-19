@@ -1968,7 +1968,6 @@ A estrutura da mensagem DEVE seguir estritamente o modelo abaixo. Não coloque l
     const modalTexto = document.getElementById('nota-textarea');
     if (!modalTexto) return;
 
-    // Alerta visual de progresso na tela do operador
     modalTitulo.innerText = `🤖 Processando Previsão Tática...`;
     modalTexto.value = `Aguarde... Conectando à IA e processando vetores históricos para o movimento "${nota.tituloOrigem || 'Geral'}".`;
     document.getElementById('container-local').style.display = 'none';
@@ -1995,7 +1994,6 @@ A estrutura da mensagem DEVE seguir estritamente o modelo abaixo. Não coloque l
 
         const dataFormatadaBr = nota.dataAlerta ? nota.dataAlerta.split('-').reverse().join('/') : '--/--/----';
 
-        // Configurando prompt estrito de extração JSON para a IA
         const promptIndividual = `Você é um algoritmo especialista em análise preditiva de inteligência de segurança pública. Calcule a projeção de público exclusivamente para o evento especificado abaixo.
         
         Analise a pauta, o local de concentração histórico e use o dado do clima injetado no evento para estimar o público provável com precisão.
@@ -2030,7 +2028,6 @@ A estrutura da mensagem DEVE seguir estritamente o modelo abaixo. Não coloque l
         let rawText = dataIa.candidates[0].content.parts[0].text;
         let dataObjeto = JSON.parse(rawText.trim());
 
-        // Mescla as novas chaves de previsão aos dados já existentes do evento
         const novosDados = {
             ...nota,
             previsaoIA: dataObjeto.previsao || "Não calculada",
@@ -2038,30 +2035,31 @@ A estrutura da mensagem DEVE seguir estritamente o modelo abaixo. Não coloque l
             relatorioIaCompleto: dataObjeto.texto_completo || ""
         };
 
-        // Define a rota exata de salvamento unificado
         const dbPath = tipoEntrada === 'direto' 
             ? `alertas_calendario/${keyId}` 
             : `monitoramentoDiario/${dataHojeISO}/agenda_menus/${keyId}`;
         
-        // Despacha e consolida no Firebase
+        // 🔒 SALVAMENTO ABSOLUTO E IMEDIATO AQUI
         await set(ref(db, dbPath), novosDados);
 
-        // Exibe o relatório detalhado no campo de texto para leitura imediata
-        modalTitulo.innerText = `🤖 Projeção de Público: ${nota.tituloOrigem || 'Evento'}`;
+        // Atualiza a interface informando o sucesso independente da próxima ação do operador
+        modalTitulo.innerText = `✔️ Previsão Salva nos Detalhes`;
         modalTexto.value = dataObjeto.texto_completo || `Previsão: ${dataObjeto.previsao}\n\nFatores: ${dataObjeto.consideracoes}`;
 
         const btnGravar = document.getElementById('btn-modal-gravar');
-        btnGravar.innerText = "📋 Copiar Projeção e Fechar";
+        btnGravar.innerText = "Fechar Janela [X]";
+        btnGravar.style.background = "var(--accent-green)";
+        btnGravar.style.color = "#fff";
         btnGravar.onclick = function() {
-            navigator.clipboard.writeText(modalTexto.value);
             window.fecharModalNota();
         };
 
     } catch (err) {
         modalTitulo.innerText = `⚠️ Falha na Projeção`;
-        modalTexto.value = `Erro ao calcular e registrar previsão por IA: ${err.message}\n\nVerifique os logs técnicos no console (F12).`;
+        modalTexto.value = `Erro ao calcular e registrar previsão por IA: ${err.message}`;
         const btnGravar = document.getElementById('btn-modal-gravar');
         btnGravar.innerText = "Fechar Janela";
+        btnGravar.style.background = "var(--accent-red)";
         btnGravar.onclick = function() { window.fecharModalNota(); };
     }
 };
