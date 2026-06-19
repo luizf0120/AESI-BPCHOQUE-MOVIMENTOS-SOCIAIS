@@ -795,24 +795,25 @@ window.abrirModalCalendarioDireto = function() {
       let textoBrutoLimpo = nota.textoBruto ? linkify(String(nota.textoBruto)) : "<span style='color: #555; font-style: italic;'>Nenhum registro bruto associado (Agendamento Manual Clássico).</span>";
       const textoProcessado = nota.texto ? linkify(String(nota.texto)) : "Sem descrição cadastrada.";
 
-      document.getElementById('detalhes-conteudo').innerHTML = `
-          <p><strong>🎯 Movimento:</strong> ${nota.tituloOrigem || 'Evento Geral'}</p>
-          <p><strong>📅 Data de Execução:</strong> ${dataBr} às ${nota.horaAlerta || '--:--'}</p>
-          <p><strong>📍 Local de Concentração:</strong> ${nota.local || 'Não cadastrado'}</p>
-          ${nota.numeroManifestantes ? `<p><strong>👥 Manifestantes Constatados:</strong> <span style="color: var(--accent-yellow); font-weight: bold;">${nota.numeroManifestantes} participantes</span></p>` : ''}
-          <p><strong>📝 Resumo Estruturado da Pauta:</strong><br><span style="color:#ddd; display:block; padding: 6px 0; white-space: pre-wrap;">"${textoProcessado}"</span></p>
-          
-          <div style="margin-top: 15px; background: #030303; padding: 12px; border: 1px solid #222; border-radius: 6px;">
-              <strong style="color: var(--accent-green); display: block; margin-bottom: 6px; font-size:12px;">🤖 Relatório de Origem / Informações Brutas:</strong>
-              <div style="white-space: pre-wrap; font-size: 12px; color: #888; line-height: 1.4; max-height: 160px; overflow-y: auto; padding-right: 4px;">${textoBrutoLimpo}</div>
-          </div>
-          
-          ${caminhoFoco ? `<p style="margin-top:12px;"><span style="color: var(--accent-blue); font-weight: bold; cursor: pointer; text-decoration: underline;" id="btn-focar-popup">🔗 Encontrar movimento na árvore</span></p>` : ''}
-          
-          <p style="font-size: 11px; color: #555; margin-top: 15px; border-top: 1px solid #222; padding-top: 8px;">
-              👤 Operador: ${nota.operador ? nota.operador.split('@')[0] : 'Desconhecido'} | ⏰ Registro: ${nota.time || '--:--'}
-          </p>
-      `;
+   document.getElementById('detalhes-conteudo').innerHTML = `
+    <p><strong>🎯 Movimento:</strong> ${nota.tituloOrigem || 'Evento Geral'}</p>
+    <p><strong>📅 Data de Execução:</strong> ${dataBr} às ${nota.horaAlerta || '--:--'}</p>
+    <p><strong>📍 Local de Concentração:</strong> ${nota.local || 'Não cadastrado'}</p>
+    ${nota.clima ? `<p><strong>🌤️ Condição do Tempo:</strong> <span style="color: #00bcd4; font-weight: bold;">${nota.clima}</span></p>` : ''}
+    ${nota.numeroManifestantes ? `<p><strong>👥 Manifestantes Constatados:</strong> <span style="color: var(--accent-yellow); font-weight: bold;">${nota.numeroManifestantes} participantes</span></p>` : ''}
+    <p><strong>📝 Resumo Estruturado da Pauta:</strong><br><span style="color:#ddd; display:block; padding: 6px 0; white-space: pre-wrap;">"${textoProcessado}"</span></p>
+    
+    <div style="margin-top: 15px; background: #030303; padding: 12px; border: 1px solid #222; border-radius: 6px;">
+        <strong style="color: var(--accent-green); display: block; margin-bottom: 6px; font-size:12px;">🤖 Relatório de Origem / Informações Brutas:</strong>
+        <div style="white-space: pre-wrap; font-size: 12px; color: #888; line-height: 1.4; max-height: 160px; overflow-y: auto; padding-right: 4px;">${textoBrutoLimpo}</div>
+    </div>
+    
+    ${caminhoFoco ? `<p style="margin-top:12px;"><span style="color: var(--accent-blue); font-weight: bold; cursor: pointer; text-decoration: underline;" id="btn-focar-popup">🔗 Encontrar movimento na árvore</span></p>` : ''}
+    
+    <p style="font-size: 11px; color: #555; margin-top: 15px; border-top: 1px solid #222; padding-top: 8px;">
+        👤 Operador: ${nota.operador ? nota.operador.split('@')[0] : 'Desconhecido'} | ⏰ Registro: ${nota.time || '--:--'}
+    </p>
+`;
 
       if (caminhoFoco) {
           document.getElementById('btn-focar-popup').addEventListener('click', () => {
@@ -1113,7 +1114,76 @@ window.abrirModalTatico = function(e, idUnico, titulo, tipo) {
       document.getElementById('detalhes-modal').style.display = 'none';
   };
 
-window.salvarNotaFirebase = function() {
+  // Tradutor de códigos meteorológicos WMO para formato operacional descritivo
+function traduzirWmoCode(code) {
+    const mapeamento = {
+        0: "☀️ Céu Limpo",
+        1: "🌤️ Predominantemente Limpo", 2: "⛅ Parcialmente Nublado", 3: "☁️ Encoberto / Nublado",
+        45: " Fogoso / Nevoeiro", 48: "🌫️ Nevoeiro com depósito de rime",
+        51: "🌧️ Chuvisco Leve", 53: "🌧️ Chuvisco Moderado", 55: "🌧️ Chuvisco Intenso",
+        61: "🌧️ Chuva Leve", 63: "🌧️ Chuva Moderada", 65: "🌧️ Chuva Forte / Tempestiva",
+        71: "❄️ Queda de Neve Leve", 73: "❄️ Neve Moderada", 75: "❄️ Neve Forte",
+        80: "🌦️ Pancadas de Chuva Leves", 81: "🌦️ Pancadas de Chuva Moderadas", 82: "🌦️ Pancadas de Chuva Fortes",
+        95: "⛈️ Tempestade Elétrica", 96: "⛈️ Tempestade com Granizo Leve", 99: "⛈️ Tempestade Severa com Granizo"
+    };
+    return mapeamento[code] || "🌤️ Condições Variáveis";
+}
+
+// Motor de busca Open-Meteo com suporte a Geocoding e Chave Comercial/Gratuita
+window.obterClimaOpenMeteo = async function(localTexto, dataIso) {
+    if (!localTexto || !dataIso) return null;
+
+    try {
+        // 1. Consulta a API de Geocoding para achar as coordenadas do endereço digitado
+        const geoUrl = `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(localTexto)}&count=1&language=pt`;
+        const geoRes = await fetch(geoUrl);
+        const geoData = await geoRes.json();
+
+        if (!geoData.results || geoData.results.length === 0) return "Localização não reconhecida pela API de Clima.";
+        
+        const { latitude, longitude } = geoData.results[0];
+
+        // 2. Verifica se o cliente possui chave cadastrada no Firebase
+        const snapChave = await get(ref(db, 'config/openmeteo_key'));
+        const apiKey = snapChave.exists() ? snapChave.val().trim() : "";
+
+        // 3. Define se a data está no Passado ou Futuro comparada com a data atual de Brasília
+        const hojeIso = obterDataBrasiliaISO();
+        const ehPassado = dataIso < hojeIso;
+
+        let weatherUrl = "";
+        
+        if (apiKey) {
+            // Se possuir chave comercial, aponta para o domínio dedicado de clientes
+            const dominioComercial = ehPassado ? "customer-archive-api.open-meteo.com/v1/archive" : "customer-api.open-meteo.com/v1/forecast";
+            weatherUrl = `https://${dominioComercial}?latitude=${latitude}&longitude=${longitude}&start_date=${dataIso}&end_date=${dataIso}&daily=weather_code,temperature_2m_max,temperature_2m_min&timezone=America/Sao_Paulo&apikey=${apiKey}`;
+        } else {
+            // Fallback usando os endpoints públicos padrão
+            if (ehPassado) {
+                weatherUrl = `https://archive-api.open-meteo.com/v1/archive?latitude=${latitude}&longitude=${longitude}&start_date=${dataIso}&end_date=${dataIso}&daily=weather_code,temperature_2m_max,temperature_2m_min&timezone=America/Sao_Paulo`;
+            } else {
+                weatherUrl = `https://api.open-meteo.com/v1/forecast?latitude=${latitude}&longitude=${longitude}&start_date=${dataIso}&end_date=${dataIso}&daily=weather_code,temperature_2m_max,temperature_2m_min&timezone=America/Sao_Paulo`;
+            }
+        }
+
+        const weatherRes = await fetch(weatherUrl);
+        const weatherData = await weatherRes.json();
+
+        if (!weatherData.daily || !weatherData.daily.weather_code) return "Dados climáticos indisponíveis para esta data.";
+
+        const code = weatherData.daily.weather_code[0];
+        const tempMax = Math.round(weatherData.daily.temperature_2m_max[0]);
+        const tempMin = Math.round(weatherData.daily.temperature_2m_min[0]);
+
+        return `${traduzirWmoCode(code)} (${tempMin}°C a ${tempMax}°C)`;
+
+    } catch (error) {
+        console.error("Erro no barramento de clima:", error);
+        return "Erro ao obter previsão do tempo.";
+    }
+};
+
+window.salvarNotaFirebase = async function() {
     const texto = document.getElementById('nota-textarea').value.trim();
     const local = document.getElementById('nota-local').value.trim();
     const dataAlerta = document.getElementById('nota-data').value;
@@ -1121,23 +1191,23 @@ window.salvarNotaFirebase = function() {
     const safeKey = sanitizarId(alvoAtualNota);
     const user = auth.currentUser ? auth.currentUser.email : 'Desconhecido';
     
-    // 1. Captura TODOS os novos campos dinâmicos de movimentos preenchidos
+    const btnGravar = document.getElementById('btn-modal-gravar');
+    const textoBotaoOriginal = btnGravar.innerText;
+    
+    // Captura campos dinâmicos de movimentos preenchidos
     const inputsMov = document.querySelectorAll('.nota-movimento-input-dinamico');
     let movimentosAtrelados = [];
+    inputsMov.forEach(inp => { if (inp.value.trim() !== "") movimentosAtrelados.push(inp.value.trim()); });
     
-    inputsMov.forEach(inp => {
-        if (inp.value.trim() !== "") {
-            movimentosAtrelados.push(inp.value.trim());
-        }
-    });
-    
-    // 2. Define o movimento principal (o primeiro da lista) para manter compatibilidade
     let movimentoAtreladoOriginal = movimentosAtrelados.length > 0 ? movimentosAtrelados[0] : "";
-    
-    // 3. Define dinamicamente o título que vai aparecer no card do calendário
-    let tituloDefinido = "Evento Geral";
-    if (movimentoAtreladoOriginal) {
-        tituloDefinido = movimentoAtreladoOriginal.split(' > ').pop();
+    let tituloDefinido = movimentoAtreladoOriginal ? movimentoAtreladoOriginal.split(' > ').pop() : "Evento Geral";
+
+    // Modificação tática: Busca meteorológica em tempo real no ato da gravação
+    let dadosClimaticos = "";
+    if (local && dataAlerta) {
+        btnGravar.innerText = "🌤️ Mapeando Clima...";
+        btnGravar.disabled = true;
+        dadosClimaticos = await window.obterClimaOpenMeteo(local, dataAlerta);
     }
 
     if (contextoAtual === 'direto') {
@@ -1147,19 +1217,25 @@ window.salvarNotaFirebase = function() {
         if (texto === "" && local === "" && dataAlerta === "" && horaAlerta === "") {
             set(notaRef, null);
         } else {
+            // Resgata o nó antigo caso seja edição para não perder dados de manifestantes legados
+            let dadosExistentes = {};
+            try { const snap = await get(notaRef); if(snap.exists()) dadosExistentes = snap.val(); } catch(e){}
+
             set(notaRef, { 
                 texto, 
                 local, 
                 dataAlerta, 
                 horaAlerta, 
-                movimentoAtrelado: movimentoAtreladoOriginal, // Fallback para sistemas legados
-                movimentosAtrelados: movimentosAtrelados,     // Lista completa com todos os alvos
+                clima: dadosClimaticos || dadosExistentes.clima || "",
+                movimentoAtrelado: movimentoAtreladoOriginal,
+                movimentosAtrelados: movimentosAtrelados,     
                 operador: user, 
                 time: obterHoraBrasilia(), 
-                tituloOrigem: tituloDefinido,                 // Nome do movimento que aparecerá no card
+                tituloOrigem: tituloDefinido,                  
                 isDirectCalendar: true, 
                 keyId: uniqueKey,
-                textoBruto: window.CURRENT_IA_TEXTO_BRUTO || ""
+                numeroManifestantes: dadosExistentes.numeroManifestantes || null,
+                textoBruto: window.CURRENT_IA_TEXTO_BRUTO || dadosExistentes.textoBruto || ""
             });
         }
     } else if (contextoAtual === 'postit') {
@@ -1168,9 +1244,31 @@ window.salvarNotaFirebase = function() {
         else set(notaRef, { texto, operador: user, time: obterHoraBrasilia(), tituloOrigem: tituloAtualNota });
     } else if (contextoAtual === 'agenda') {
         const notaRef = ref(db, `monitoramentoDiario/${dataHojeISO}/agenda_menus/${safeKey}`);
-        if (texto === "" && local === "" && dataAlerta === "" && horaAlerta === "") set(notaRef, null);
-        else set(notaRef, { texto, local, dataAlerta, horaAlerta, operador: user, time: obterHoraBrasilia(), tituloOrigem: tituloAtualNota, pathString: alvoAtualNota, textoBruto: window.CURRENT_IA_TEXTO_BRUTO || "" });
+        if (texto === "" && local === "" && dataAlerta === "" && horaAlerta === "") {
+            set(notaRef, null);
+        } else {
+            let dadosExistentes = {};
+            try { const snap = await get(notaRef); if(snap.exists()) dadosExistentes = snap.val(); } catch(e){}
+
+            set(notaRef, { 
+                texto, 
+                local, 
+                dataAlerta, 
+                horaAlerta, 
+                clima: dadosClimaticos || dadosExistentes.clima || "",
+                operador: user, 
+                time: obterHoraBrasilia(), 
+                tituloOrigem: tituloAtualNota, 
+                pathString: alvoAtualNota, 
+                numeroManifestantes: dadosExistentes.numeroManifestantes || null,
+                textoBruto: window.CURRENT_IA_TEXTO_BRUTO || dadosExistentes.textoBruto || "" 
+            });
+        }
     }
+
+    // Restaura o estado do botão e fecha a janela
+    btnGravar.innerText = textoBotaoOriginal;
+    btnGravar.disabled = false;
     window.fecharModalNota();
 };
 
