@@ -1483,16 +1483,16 @@ window.salvarNotaFirebase = async function() {
           - Não adicione markdown de bloco de código (como \`\`\`), saudações ou comentários. Apenas o texto puro formatado.
 
           Modelo Exato de Saída esperado:
-          PMPR
-          CME
-          BPCHOQUE
-          AESI
+          *PMPR*
+          *CME*
+          *BPCHOQUE*
+          *AESI*
 
           Data: ${diaSemanaStr}, ${dataFormatadaBr}
                    • 🕒 [Horário HH:MM] - [Título do Evento]
                    📍 Endereço: [Local ou Endereço]
                    📝 Detalhes: [Resumo e pauta sintetizada do evento]
-
+                   🌤️ Clima: [Extraia o valor exato da chave "clima" presente no objeto]
           Lista de eventos para processar: ${JSON.stringify(pacotesEventos)}`;
 
           const resposta = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`, {
@@ -1582,7 +1582,8 @@ A estrutura da mensagem DEVE seguir estritamente o modelo abaixo. Não coloque l
           • 🕒 [Horário HH:MM] - *[Título/Nome do Evento]*
           📍 Endereço: [Local ou Endereço completo]
           📝 Detalhes: [Descrição concisa da pauta ou informe observacional]
-
+🌤️ Clima: [Extraia o valor exato da chave "clima" presente no objeto]
+          
           Separe cada bloco de data diferente com exatamente uma linha de 28 traços sequenciais '----------------------------'. Não quebre essa linha, não invente dados e omita dias sem registros.
 
           Eventos para análise: ${JSON.stringify(pacotesEventos)}`;
