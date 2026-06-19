@@ -1265,8 +1265,7 @@ const hashtagAlvo = document.getElementById('nota-hashtag').value.trim().replace
     numeroManifestantes: dadosExistentes.numeroManifestantes || null,
     textoBruto: window.CURRENT_IA_TEXTO_BRUTO || dadosExistentes.textoBruto || ""
 });
-            });
-        }
+
     } else if (contextoAtual === 'postit') {
         const notaRef = ref(db, `monitoramentoDiario/${dataHojeISO}/anotacoes/${safeKey}`);
         if (texto === "") set(notaRef, null);
