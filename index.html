@@ -1161,6 +1161,12 @@ window.obterClimaOpenMeteo = async function(localTexto, dataIso) {
 
         const weatherRes = await fetch(weatherUrl);
         const weatherData = await weatherRes.json();
+      console.log("================ AUDITORIA DE CLIMA AESI ================");
+console.log("1. Data do Evento selecionada no painel:", dataIso);
+console.log("2. Array completo de datas que a API mandou:", weatherData.daily?.time);
+console.log("3. Posição (Índice) que o código encontrou no mapa:", weatherData.daily?.time?.indexOf(dataIso));
+console.log("4. Código Climático bruto retornado para esse dia:", weatherData.daily?.weather_code[weatherData.daily?.time?.indexOf(dataIso)]);
+console.log("=========================================================");
 
         if (!weatherData || !weatherData.daily || !weatherData.daily.time) {
             return "Dados climáticos indisponíveis.";
