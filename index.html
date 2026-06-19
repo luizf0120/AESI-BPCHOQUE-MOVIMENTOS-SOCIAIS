@@ -1051,22 +1051,26 @@ function construirItemVisualEvento(nota, keyId, tipoEntrada) {
 
 window.abrirModalTatico = function(e, idUnico, titulo, tipo) {
     if (e) { e.preventDefault(); e.stopPropagation(); }
-    window.esconderTooltipTatico();
-    contextoAtual = tipo; alvoAtualNota = idUnico; tituloAtualNota = titulo;
-    const safeKey = sanitizarId(idUnico);
-    window.CURRENT_IA_TEXTO_BRUTO = "";
     
-    document.getElementById('container-atrelar-movimento').style.display = 'none';
-    document.getElementById('btn-modal-gravar').style.display = 'block';
-    document.getElementById('btn-modal-gravar').innerText = "Gravar Alerta";
+    // Restaura a função de salvamento manual padrão contra retenção de cache da IA
+    document.getElementById('btn-modal-gravar').onclick = function() { window.salvarNotaFirebase(); };
+    document.getElementById('btn-modal-gravar').style.background = "var(--accent-yellow)";
+    document.getElementById('btn-modal-gravar').style.color = "#000";
 
-if (tipo === 'postit') {
+    window.esconderTooltipTatico();
+
+    const safeKey = idUnico;
+    alvoAtualNota = idUnico;
+    contextoAtual = tipo;
+
+    // Bloco analítico estruturado de exibição dos campos de Hashtag OSINT
+    if (tipo === 'postit') {
         document.getElementById('nota-alvo-titulo').innerText = "Nota (Post-it): " + titulo;
         const nota = anotacoesGlobais[safeKey] || {};
         document.getElementById('nota-textarea').value = nota.texto || "";
         document.getElementById('container-local').style.display = 'none';
         document.getElementById('container-tempo').style.display = 'none';
-        document.getElementById('container-hashtag-osint').style.display = 'none'; // Esconde no postit
+        document.getElementById('container-hashtag-osint').style.display = 'none'; 
     } else if (tipo === 'agenda') {
         document.getElementById('nota-alvo-titulo').innerText = "Agenda de Evento: " + titulo;
         const nota = agendaMenusGlobais[safeKey] || {};
@@ -1074,10 +1078,10 @@ if (tipo === 'postit') {
         document.getElementById('nota-local').value = nota.local || "";
         document.getElementById('nota-data').value = nota.dataAlerta || "";
         document.getElementById('nota-hora').value = nota.horaAlerta || "";
-        document.getElementById('nota-hashtag').value = nota.hashtagAlvo || ""; // Puxa a tag salva
+        document.getElementById('nota-hashtag').value = nota.hashtagAlvo || ""; 
         document.getElementById('container-local').style.display = 'block';
         document.getElementById('container-tempo').style.display = 'flex';
-        document.getElementById('container-hashtag-osint').style.display = 'block'; // Mostra
+        document.getElementById('container-hashtag-osint').style.display = 'block'; 
     } else if (tipo === 'direto') {
         document.getElementById('nota-alvo-titulo').innerText = "Editar Evento";
         const nota = alertasCalendarioGlobais[idUnico] || {};
@@ -1085,24 +1089,14 @@ if (tipo === 'postit') {
         document.getElementById('nota-local').value = nota.local || "";
         document.getElementById('nota-data').value = nota.dataAlerta || "";
         document.getElementById('nota-hora').value = nota.horaAlerta || "";
-        document.getElementById('nota-hashtag').value = nota.hashtagAlvo || "";
-        
-        let listaMovs = [];
-        if (nota.movimentosAtrelados && Array.isArray(nota.movimentosAtrelados)) {
-            listaMovs = nota.movimentosAtrelados;
-        } else if (nota.movimentoAtrelado) {
-            listaMovs = [nota.movimentoAtrelado];
-        }
-        window.inicializarCamposMovimento(listaMovs);
-        
+        document.getElementById('nota-hashtag').value = nota.hashtagAlvo || ""; 
         document.getElementById('container-local').style.display = 'block';
         document.getElementById('container-tempo').style.display = 'flex';
-        document.getElementById('container-atrelar-movimento').style.display = 'block';
+        document.getElementById('container-hashtag-osint').style.display = 'block'; 
     }
-    
+
     document.getElementById('modal-overlay').style.display = 'block';
     document.getElementById('nota-modal').style.display = 'block';
-    document.getElementById('nota-textarea').focus();
 };
 
   window.mostrarTooltipTatico = function(e, idUnico, tipo) {
