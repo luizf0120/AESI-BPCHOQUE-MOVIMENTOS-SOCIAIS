@@ -1134,66 +1134,60 @@ window.obterClimaOpenMeteo = async function(localTexto, dataIso) {
     if (!dataIso) return null;
 
     try {
-        // Coordenadas operacionais fixas de Curitiba - PR
+        // Coordenadas fixas de Curitiba - PR
         const latitude = -25.4278;
         const longitude = -49.2731;
 
-        // Cálculos de linha temporal com base no fuso de Brasília
-        const hojeLocal = new Date(new Date().toLocaleString("en-US", {timeZone: "America/Sao_Paulo"}));
-        hojeLocal.setHours(0,0,0,0);
-        
-        const partes = dataIso.split('-');
-        const dataEvento = new Date(partes[0], partes[1] - 1, partes[2]);
-        dataEvento.setHours(0,0,0,0);
+        // 1. Busca a chave do Visual Crossing no Firebase
+        const snapChave = await get(ref(db, 'config/visualcrossing_key'));
+        if (!snapChave.exists() || snapChave.val().trim() === "") {
+            return "Chave Visual Crossing não configurada.";
+        }
+        const apiKey = snapChave.val().trim();
 
-        const diffTempo = dataEvento - hojeLocal;
-        const diffDias = Math.ceil(diffTempo / (1000 * 60 * 60 * 24));
+        // 2. Monta a URL da Timeline API (past, present & future em um único disparo)
+        // Usamos include=days para enxugar o pacote e unitGroup=metric para Celsius
+        const url = `https://weather.visualcrossing.com/VisualCrossingWebServices/rest/services/timeline/${latitude},${longitude}/${dataIso}/${dataIso}?key=${apiKey}&unitGroup=metric&include=days&lang=pt`;
 
-        let weatherUrl = "";
-
-        // Se a data estiver na janela de 7 dias atrás até 16 dias para a frente, usa o Forecast unificado
-        if (diffDias >= -7 && diffDias <= 16) {
-            weatherUrl = `https://api.open-meteo.com/v1/forecast?latitude=${latitude}&longitude=${longitude}&daily=weather_code,temperature_2m_max,temperature_2m_min&past_days=7&timezone=America/Sao_Paulo`;
-        } else {
-            // Se for um registro histórico muito antigo, recorre ao Archive clássico
-            weatherUrl = `https://archive-api.open-meteo.com/v1/archive?latitude=${latitude}&longitude=${longitude}&start_date=${dataIso}&end_date=${dataIso}&daily=weather_code,temperature_2m_max,temperature_2m_min&timezone=America/Sao_Paulo`;
+        const response = await fetch(url);
+        if (!response.ok) {
+            if (response.status === 429) return "Limite da API climática atingido.";
+            throw new Error(`Erro HTTP: ${response.status}`);
         }
 
-        const weatherRes = await fetch(weatherUrl);
-        const weatherData = await weatherRes.json();
-      console.log("================ AUDITORIA DE CLIMA AESI ================");
-console.log("1. Data do Evento selecionada no painel:", dataIso);
-console.log("2. Array completo de datas que a API mandou:", weatherData.daily?.time);
-console.log("3. Posição (Índice) que o código encontrou no mapa:", weatherData.daily?.time?.indexOf(dataIso));
-console.log("4. Código Climático bruto retornado para esse dia:", weatherData.daily?.weather_code[weatherData.daily?.time?.indexOf(dataIso)]);
-console.log("=========================================================");
+        const data = await response.json();
 
-        if (!weatherData || !weatherData.daily || !weatherData.daily.time) {
-            return "Dados climáticos indisponíveis.";
+        if (!data || !data.days || data.days.length === 0) {
+            return "Sem registros climáticos para esta data.";
         }
 
-        // Procura dinamicamente onde a data do evento está posicionada dentro do array retornado
-        const idx = weatherData.daily.time.indexOf(dataIso);
-        
-        // Se a data não for encontrada no mapa retornado pela API
-        if (idx === -1) {
-            return "Clima fora do alcance de previsão.";
-        }
+        const dia = data.days[0];
+        const condicao = dia.conditions; // Retorna o texto traduzido (ex: "Chuva, Parcialmente nublado")
+        const tempMax = Math.round(dia.tempmax);
+        const tempMin = Math.round(dia.tempmin);
 
-        const code = weatherData.daily.weather_code[idx];
-        const tempMax = Math.round(weatherData.daily.temperature_2m_max[idx]);
-        const tempMin = Math.round(weatherData.daily.temperature_2m_min[idx]);
+        // Tradução manual rápida de termos comuns caso a API retorne em inglês em alguma oscilação
+        let condicaoPt = condicao
+            .replace("Rain", "Chuva")
+            .replace("Overcast", "Encoberto")
+            .replace("Partially cloudy", "Parcialmente Nublado")
+            .replace("Clear", "Céu Limpo")
+            .replace("Snow", "Neve")
+            .replace("Clear", "Ensolarado");
 
-        // Evita retornar valores nulos ou vazios caso o banco meteorológico falhe em algum campo
-        if (code === undefined || isNaN(tempMax) || isNaN(tempMin)) {
-            return "Dados de clima pendentes de consolidação.";
-        }
+        // Escolha de emoji dinâmico baseado no que foi retornado pelos sensores de Curitiba
+        let emoji = "🌤️";
+        const condicaoMinha = condicaoPt.toLowerCase();
+        if (condicaoMinha.includes("chuva") || condicaoMinha.includes("pancadas")) emoji = "🌧️";
+        else if (condicaoMinha.includes("tempestade") || condicaoMinha.includes("trovoada")) emoji = "⛈️";
+        else if (condicaoMinha.includes("limpo") || condicaoMinha.includes("sol")) emoji = "☀️";
+        else if (condicaoMinha.includes("encoberto") || condicaoMinha.includes("nublado")) emoji = "☁️";
 
-        return `${traduzirWmoCode(code)} (${tempMin}°C a ${tempMax}°C)`;
+        return `${emoji} ${condicaoPt} (${tempMin}°C a ${tempMax}°C)`;
 
     } catch (error) {
-        console.error("Erro no barramento de clima:", error);
-        return "Erro ao obter previsão do tempo.";
+        console.error("Erro no barramento de clima Visual Crossing:", error);
+        return "Erro ao processar dados climáticos.";
     }
 };
 
