@@ -1131,34 +1131,29 @@ function traduzirWmoCode(code) {
 
 // Motor de busca Open-Meteo com suporte a Geocoding e Chave Comercial/Gratuita
 window.obterClimaOpenMeteo = async function(localTexto, dataIso) {
-    if (!localTexto || !dataIso) return null;
+    if (!dataIso) return null;
 
     try {
-        // 1. Consulta a API de Geocoding para achar as coordenadas do endereço digitado
-        const geoUrl = `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(localTexto)}&count=1&language=pt`;
-        const geoRes = await fetch(geoUrl);
-        const geoData = await geoRes.json();
+        // Fixando de forma definitiva as coordenadas operacionais de Curitiba - PR
+        const latitude = -25.4278;
+        const longitude = -49.2731;
 
-        if (!geoData.results || geoData.results.length === 0) return "Localização não reconhecida pela API de Clima.";
-        
-        const { latitude, longitude } = geoData.results[0];
-
-        // 2. Verifica se o cliente possui chave cadastrada no Firebase
+        // Verifica se o cliente possui chave cadastrada no Firebase (opcional)
         const snapChave = await get(ref(db, 'config/openmeteo_key'));
         const apiKey = snapChave.exists() ? snapChave.val().trim() : "";
 
-        // 3. Define se a data está no Passado ou Futuro comparada com a data atual de Brasília
+        // Define se a data está no Passado ou Futuro comparada com a data atual de Brasília
         const hojeIso = obterDataBrasiliaISO();
         const ehPassado = dataIso < hojeIso;
 
         let weatherUrl = "";
         
         if (apiKey) {
-            // Se possuir chave comercial, aponta para o domínio dedicado de clientes
+            // Rota com chave comercial
             const dominioComercial = ehPassado ? "customer-archive-api.open-meteo.com/v1/archive" : "customer-api.open-meteo.com/v1/forecast";
             weatherUrl = `https://${dominioComercial}?latitude=${latitude}&longitude=${longitude}&start_date=${dataIso}&end_date=${dataIso}&daily=weather_code,temperature_2m_max,temperature_2m_min&timezone=America/Sao_Paulo&apikey=${apiKey}`;
         } else {
-            // Fallback usando os endpoints públicos padrão
+            // Rota pública gratuita (Histórico vs Previsão)
             if (ehPassado) {
                 weatherUrl = `https://archive-api.open-meteo.com/v1/archive?latitude=${latitude}&longitude=${longitude}&start_date=${dataIso}&end_date=${dataIso}&daily=weather_code,temperature_2m_max,temperature_2m_min&timezone=America/Sao_Paulo`;
             } else {
@@ -1175,6 +1170,7 @@ window.obterClimaOpenMeteo = async function(localTexto, dataIso) {
         const tempMax = Math.round(weatherData.daily.temperature_2m_max[0]);
         const tempMin = Math.round(weatherData.daily.temperature_2m_min[0]);
 
+        // Retorna a string formatada para o relatório do Firebase
         return `${traduzirWmoCode(code)} (${tempMin}°C a ${tempMax}°C)`;
 
     } catch (error) {
