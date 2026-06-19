@@ -407,11 +407,6 @@
     </div>
 
 <div id="container-atrelar-movimento" style="margin-bottom: 15px; display: none;">
-  <div id="container-hashtag-osint" style="margin-bottom: 15px; display: none;">
-    <label style="font-size: 11px; color: #888; display: block; margin-bottom: 4px;">🏷️ Hashtag Alvo do Instagram (Sem #):</label>
-    <input type="text" id="nota-hashtag" placeholder="Ex: greveprofessorespr" style="width: 100%; background: #111; color: #fff; border: 1px solid #333; padding: 10px; border-radius: 6px; box-sizing: border-box; outline: none; font-size: 13px;">
-</div>
-  
     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
         <label style="font-size: 11px; color: #888; font-weight: bold;">🔗 Atrelar a Movimentos (Opcional):</label>
         <button type="button" onclick="window.adicionarLinhaMovimento()" style="background: var(--accent-blue); color: white; border: none; padding: 4px 10px; border-radius: 4px; font-size: 11px; cursor: pointer; font-weight: bold; transition: 0.2s;">＋ Adicionar</button>
@@ -588,7 +583,6 @@ const bottom15 = estatisticasCompletas.filter(s => s.caminho && s.caminho[0] !==
           estrelasOrigem = data ? Object.values(data) : [];
           atualizarEstrelasUI();
       });
-    setTimeout(() => { window.verificarEAtualizarHashtagsOSINT(); }, 3000);
   }
 
 function verificarAlertasExpirados() {
@@ -767,8 +761,6 @@ window.abrirModalCalendarioDireto = function() {
     document.getElementById('nota-alvo-titulo').innerText = "Agendar Novo Evento";
     document.getElementById('nota-textarea').value = ""; document.getElementById('nota-local').value = "";
     document.getElementById('nota-data').value = ""; document.getElementById('nota-hora').value = "";
-  document.getElementById('container-hashtag-osint').style.display = 'block';
-document.getElementById('nota-hashtag').value = "";
     
     // Inicializa a lista dinâmica com um único campo vazio limpo
     window.inicializarCamposMovimento([]);
@@ -1051,26 +1043,21 @@ function construirItemVisualEvento(nota, keyId, tipoEntrada) {
 
 window.abrirModalTatico = function(e, idUnico, titulo, tipo) {
     if (e) { e.preventDefault(); e.stopPropagation(); }
-    
-    // Restaura a função de salvamento manual padrão contra retenção de cache da IA
-    document.getElementById('btn-modal-gravar').onclick = function() { window.salvarNotaFirebase(); };
-    document.getElementById('btn-modal-gravar').style.background = "var(--accent-yellow)";
-    document.getElementById('btn-modal-gravar').style.color = "#000";
-
     window.esconderTooltipTatico();
+    contextoAtual = tipo; alvoAtualNota = idUnico; tituloAtualNota = titulo;
+    const safeKey = sanitizarId(idUnico);
+    window.CURRENT_IA_TEXTO_BRUTO = "";
+    
+    document.getElementById('container-atrelar-movimento').style.display = 'none';
+    document.getElementById('btn-modal-gravar').style.display = 'block';
+    document.getElementById('btn-modal-gravar').innerText = "Gravar Alerta";
 
-    const safeKey = idUnico;
-    alvoAtualNota = idUnico;
-    contextoAtual = tipo;
-
-    // Bloco analítico estruturado de exibição dos campos de Hashtag OSINT
     if (tipo === 'postit') {
         document.getElementById('nota-alvo-titulo').innerText = "Nota (Post-it): " + titulo;
         const nota = anotacoesGlobais[safeKey] || {};
         document.getElementById('nota-textarea').value = nota.texto || "";
         document.getElementById('container-local').style.display = 'none';
         document.getElementById('container-tempo').style.display = 'none';
-        document.getElementById('container-hashtag-osint').style.display = 'none'; 
     } else if (tipo === 'agenda') {
         document.getElementById('nota-alvo-titulo').innerText = "Agenda de Evento: " + titulo;
         const nota = agendaMenusGlobais[safeKey] || {};
@@ -1078,10 +1065,8 @@ window.abrirModalTatico = function(e, idUnico, titulo, tipo) {
         document.getElementById('nota-local').value = nota.local || "";
         document.getElementById('nota-data').value = nota.dataAlerta || "";
         document.getElementById('nota-hora').value = nota.horaAlerta || "";
-        document.getElementById('nota-hashtag').value = nota.hashtagAlvo || ""; 
         document.getElementById('container-local').style.display = 'block';
         document.getElementById('container-tempo').style.display = 'flex';
-        document.getElementById('container-hashtag-osint').style.display = 'block'; 
     } else if (tipo === 'direto') {
         document.getElementById('nota-alvo-titulo').innerText = "Editar Evento";
         const nota = alertasCalendarioGlobais[idUnico] || {};
@@ -1089,14 +1074,24 @@ window.abrirModalTatico = function(e, idUnico, titulo, tipo) {
         document.getElementById('nota-local').value = nota.local || "";
         document.getElementById('nota-data').value = nota.dataAlerta || "";
         document.getElementById('nota-hora').value = nota.horaAlerta || "";
-        document.getElementById('nota-hashtag').value = nota.hashtagAlvo || ""; 
+        window.CURRENT_IA_TEXTO_BRUTO = nota.textoBruto || "";
+        
+        let listaMovs = [];
+        if (nota.movimentosAtrelados && Array.isArray(nota.movimentosAtrelados)) {
+            listaMovs = nota.movimentosAtrelados;
+        } else if (nota.movimentoAtrelado) {
+            listaMovs = [nota.movimentoAtrelado];
+        }
+        window.inicializarCamposMovimento(listaMovs);
+        
         document.getElementById('container-local').style.display = 'block';
         document.getElementById('container-tempo').style.display = 'flex';
-        document.getElementById('container-hashtag-osint').style.display = 'block'; 
+        document.getElementById('container-atrelar-movimento').style.display = 'block';
     }
-
+    
     document.getElementById('modal-overlay').style.display = 'block';
     document.getElementById('nota-modal').style.display = 'block';
+    document.getElementById('nota-textarea').focus();
 };
 
   window.mostrarTooltipTatico = function(e, idUnico, tipo) {
@@ -1209,7 +1204,6 @@ window.obterClimaOpenMeteo = async function(localTexto, dataIso) {
 };
 
 window.salvarNotaFirebase = async function() {
-const hashtagAlvo = document.getElementById('nota-hashtag').value.trim().replace('#', '').toLowerCase();
     const texto = document.getElementById('nota-textarea').value.trim();
     const local = document.getElementById('nota-local').value.trim();
     const dataAlerta = document.getElementById('nota-data').value;
@@ -1248,26 +1242,25 @@ const hashtagAlvo = document.getElementById('nota-hashtag').value.trim().replace
             try { const snap = await get(notaRef); if(snap.exists()) dadosExistentes = snap.val(); } catch(e){}
 
             set(notaRef, { 
-              texto, 
-    local, 
-    dataAlerta, 
-    horaAlerta, 
-    clima: dadosClimaticos || dadosExistentes.clima || "",
-    hashtagAlvo: hashtagAlvo, // 🏷️ Salva a string da tag
-    historico_engajamento_osint: dadosExistentes.historico_engajamento_osint || {}, // 📊 Preserva o gráfico histórico anterior
-    movimentoAtrelado: movimentoAtreladoOriginal,
-    movimentosAtrelados: movimentosAtrelados,     
-    operador: user, 
-    time: obterHoraBrasilia(), 
-    tituloOrigem: tituloDefinido,                  
-    isDirectCalendar: true, 
-    keyId: uniqueKey,
-    numeroManifestantes: dadosExistentes.numeroManifestantes || null,
-    textoBruto: window.CURRENT_IA_TEXTO_BRUTO || dadosExistentes.textoBruto || ""
-});
-} else if (contextoAtual === 'postit') {
-    const notaRef = ref(db, `monitoramentoDiario/${dataHojeISO}/anotacoes/${safeKey}`);
-    if (texto === "") set(notaRef, null);
+                texto, 
+                local, 
+                dataAlerta, 
+                horaAlerta, 
+                clima: dadosClimaticos || dadosExistentes.clima || "",
+                movimentoAtrelado: movimentoAtreladoOriginal,
+                movimentosAtrelados: movimentosAtrelados,     
+                operador: user, 
+                time: obterHoraBrasilia(), 
+                tituloOrigem: tituloDefinido,                  
+                isDirectCalendar: true, 
+                keyId: uniqueKey,
+                numeroManifestantes: dadosExistentes.numeroManifestantes || null,
+                textoBruto: window.CURRENT_IA_TEXTO_BRUTO || dadosExistentes.textoBruto || ""
+            });
+        }
+    } else if (contextoAtual === 'postit') {
+        const notaRef = ref(db, `monitoramentoDiario/${dataHojeISO}/anotacoes/${safeKey}`);
+        if (texto === "") set(notaRef, null);
         else set(notaRef, { texto, operador: user, time: obterHoraBrasilia(), tituloOrigem: tituloAtualNota });
     } else if (contextoAtual === 'agenda') {
         const notaRef = ref(db, `monitoramentoDiario/${dataHojeISO}/agenda_menus/${safeKey}`);
@@ -2015,13 +2008,11 @@ A estrutura da mensagem DEVE seguir estritamente o modelo abaixo. Não coloque l
         ${dadosPlanilha}
 
         DADOS ATUAIS DO EVENTO SELECIONADO:
-• Movimento: ${nota.tituloOrigem || 'Não Definido'}
-• Data: ${dataFormatadaBr} às ${nota.horaAlerta || 'Horário não informado'}
-• Local de Concentração: ${nota.local || 'Não cadastrado'}
-• Clima Registrado: ${nota.clima || 'Sem informações climáticas na base'}
-• Hashtag Monitorada no Instagram: #${nota.hashtagAlvo || 'Nenhuma tag rastreada'}
-• Histórico de Evolução de Posts da Tag por Dia (OSINT): ${JSON.stringify(nota.historico_engajamento_osint || {})}
-• Resumo da Pauta: "${nota.texto || 'Sem descrição'}"
+        • Movimento: ${nota.tituloOrigem || 'Não Definido'}
+        • Data: ${dataFormatadaBr} às ${nota.horaAlerta || 'Horário não informado'}
+        • Local de Concentração: ${nota.local || 'Não cadastrado'}
+        • Clima Registrado: ${nota.clima || 'Sem informações climáticas na base'}
+        • Resumo da Pauta: "${nota.texto || 'Sem descrição'}"`;
 
         const resposta = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`, {
             method: "POST", headers: { "Content-Type": "application/json" },
@@ -2071,64 +2062,6 @@ A estrutura da mensagem DEVE seguir estritamente o modelo abaixo. Não coloque l
         btnGravar.style.background = "var(--accent-red)";
         btnGravar.onclick = function() { window.fecharModalNota(); };
     }
-};
-
-  window.verificarEAtualizarHashtagsOSINT = async function() {
-    try {
-        const snapChave = await get(ref(db, 'config/rapidapi_key'));
-        if (!snapChave.exists() || snapChave.val().trim() === "") return;
-        const apiKey = snapChave.val().trim();
-
-        const hojeIso = obterDataBrasiliaISO();
-
-        // Função interna para processar a raspagem de um evento específico
-        const processarCheckHashtag = async (nota, pathUrl) => {
-            if (!nota.hashtagAlvo) return;
-            
-            // Inicializa o objeto se ele não existir
-            const historico = nota.historico_engajamento_osint || {};
-            
-            // 🔒 Trava de Segurança: Se hoje já foi coletado, cancela para economizar cota da API
-            if (historico[hojeIso] !== undefined) return;
-
-            console.log(`📊 [OSINT] Atualizando volume diário para a tag: #${nota.hashtagAlvo}`);
-
-            try {
-                // Requisição padrão para o ecossistema RapidAPI (Instagram Data Provider)
-                const res = await fetch(`https://instagram-data-provider.p.rapidapi.com/v1/hashtag/info?hashtag=${nota.hashtagAlvo}`, {
-                    method: "GET",
-                    headers: {
-                        "x-rapidapi-key": apiKey,
-                        "x-rapidapi-host": "instagram-data-provider.p.rapidapi.com"
-                    }
-                });
-
-                if (!res.ok) return;
-                const resData = await res.json();
-                
-                // Extração dinâmica do total de posts baseado na resposta padrão de nós do Instagram
-                const totalPosts = resData.data?.hashtag?.edge_hashtag_to_media?.count || resData.data?.media_count || null;
-
-                if (totalPosts !== null) {
-                    historico[hojeIso] = totalPosts; // Grava o número na data de hoje
-                    await set(ref(db, `${pathUrl}/historico_engajamento_osint`), historico);
-                }
-            } catch (err) { console.error("Erro na varredura da API de hashtag:", err); }
-        };
-
-        // Roda a varredura nas duas fontes de eventos do seu Firebase
-        if (alertasCalendarioGlobais) {
-            for (let keyId of Object.keys(alertasCalendarioGlobais)) {
-                await processarCheckHashtag(alertasCalendarioGlobais[keyId], `alertas_calendario/${keyId}`);
-            }
-        }
-        if (agendaMenusGlobais) {
-            for (let keyId of Object.keys(agendaMenusGlobais)) {
-                await processarCheckHashtag(agendaMenusGlobais[keyId], `monitoramentoDiario/${dataHojeISO}/agenda_menus/${keyId}`);
-            }
-        }
-
-    } catch (e) { console.error("Falha geral no motor OSINT de mídias:", e); }
 };
   
 </script>
