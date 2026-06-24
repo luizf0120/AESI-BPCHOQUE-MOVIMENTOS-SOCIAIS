@@ -1519,13 +1519,20 @@ window.salvarNotaFirebase = async function() {
                    🌤️ Clima: [Extraia o valor exato da chave "clima" presente no objeto]
           Lista de eventos para processar: ${JSON.stringify(pacotesEventos)}`;
 
-          const resposta = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`, {
+         const resposta = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`, {
               method: "POST", headers: { "Content-Type": "application/json" },
               body: JSON.stringify({ contents: [{ parts: [{ text: promptFinal }] }] })
           });
 
           const dataIa = await resposta.json();
-          if (!dataIa.candidates || dataIa.candidates.length === 0) { throw new Error("A IA recusou a geração dos dados."); }
+          
+          // --- CORREÇÃO CIRÚRGICA: Trata erros 503, 400, 429, etc. ---
+          if (!resposta.ok) { 
+              throw new Error(`Erro na API do Google (HTTP ${resposta.status}): ${dataIa.error?.message || 'Servidor indisponível no momento. Tente novamente em alguns segundos.'}`); 
+          }
+          // -----------------------------------------------------------
+
+          if (!dataIa.candidates || dataIa.candidates.length === 0) { throw new Error("A IA recusou ou falhou na análise."); }
           
           const relatorioDiarioLimpo = dataIa.candidates[0].content.parts[0].text.trim() + "\n\n(relatório de eventos criado por IA🤖)";
 
@@ -1612,12 +1619,19 @@ A estrutura da mensagem DEVE seguir estritamente o modelo abaixo. Não coloque l
 
           Eventos para análise: ${JSON.stringify(pacotesEventos)}`;
 
-          const resposta = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`, {
+        const resposta = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`, {
               method: "POST", headers: { "Content-Type": "application/json" },
               body: JSON.stringify({ contents: [{ parts: [{ text: promptFinal }] }] })
           });
 
           const dataIa = await resposta.json();
+          
+          // --- CORREÇÃO CIRÚRGICA: Trata erros 503, 400, 429, etc. ---
+          if (!resposta.ok) { 
+              throw new Error(`Erro na API do Google (HTTP ${resposta.status}): ${dataIa.error?.message || 'Servidor indisponível no momento. Tente novamente em alguns segundos.'}`); 
+          }
+          // -----------------------------------------------------------
+
           if (!dataIa.candidates || dataIa.candidates.length === 0) { throw new Error("A IA recusou ou falhou na análise."); }
           
           const relatorioFormatado = dataIa.candidates[0].content.parts[0].text.trim() + "\n\n_(relatório de eventos criado por IA🤖)_";
