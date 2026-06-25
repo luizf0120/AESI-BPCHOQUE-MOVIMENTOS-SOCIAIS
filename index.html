@@ -1560,7 +1560,7 @@ window.salvarNotaFirebase = async function() {
       btn.innerText = backupText; btn.disabled = false;
   };
 
-  window.gerarRelatorioIA = async function() {
+window.gerarRelatorioIA = async function() {
       const btn = document.getElementById('btn-ia-report');
       const backupText = btn.innerText;
       btn.innerText = "🤖 Analisando Cenários...";
@@ -1612,8 +1612,9 @@ A estrutura da mensagem DEVE seguir estritamente o modelo abaixo. Não coloque l
           Listar todos os eventos desta data em ordem de horário. Descrevendo o titulo da manifestação, horario e endereço nos moldes abaixo:
           • 🕒 [Horário HH:MM] - *[Título/Nome do Evento]*
           📍 Endereço: [Local ou Endereço completo]
-          📝 Detalhes: [Descrição concisa da pauta ou informe observacional]
-🌤️ Clima: [Extraia o valor exato da chave "clima" presente no objeto]
+          📝 Detalhes: [Descrição concisa da pauta. REGRA ABSOLUTA: Jamais coloque estimativa de público aqui dentro]
+          👥 Previsão de participantes por IA: [Extraia o valor da chave "previsaoIA" do objeto. Caso essa chave não exista ou esteja vazia, calcule você mesmo uma estimativa aproximada]
+          🌤️ Clima: [Extraia o valor exato da chave "clima" presente no objeto]
           
           Separe cada bloco de data diferente com exatamente uma linha de 28 traços sequenciais '----------------------------'. Não quebre essa linha, não invente dados e omita dias sem registros.
 
@@ -1626,11 +1627,9 @@ A estrutura da mensagem DEVE seguir estritamente o modelo abaixo. Não coloque l
 
           const dataIa = await resposta.json();
           
-          // --- CORREÇÃO CIRÚRGICA: Trata erros 503, 400, 429, etc. ---
           if (!resposta.ok) { 
               throw new Error(`Erro na API do Google (HTTP ${resposta.status}): ${dataIa.error?.message || 'Servidor indisponível no momento. Tente novamente em alguns segundos.'}`); 
           }
-          // -----------------------------------------------------------
 
           if (!dataIa.candidates || dataIa.candidates.length === 0) { throw new Error("A IA recusou ou falhou na análise."); }
           
