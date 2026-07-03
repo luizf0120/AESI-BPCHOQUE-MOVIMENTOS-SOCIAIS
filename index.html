@@ -1380,7 +1380,10 @@ window.salvarNotaFirebase = async function() {
             }
             if (dados[d].agenda_menus) {
                 relatorio += `\n   *** EVENTOS AGENDADOS (AGENDA) DO DIA ***\n`;
-                Object.values(dados[d].agenda_menus).forEach(n => { relatorio += `   [📅] ${n.time} | ${n.tituloOrigem} | Local: ${n.local || 'Não Informado'} | Data: ${n.dataAlerta.split('-').reverse().join('/')} às ${n.horaAlerta} (Op: ${n.operador.split('@')[0]})\n`; });
+               // Dentro de window.baixarRelatorio(), na seção de agenda_menus:
+Object.values(dados[d].agenda_menus).forEach(n => { 
+    relatorio += `   [📅] ${n.time} | Título: ${n.tituloOrigem || 'Evento Geral'} | Local: ${n.local || 'Não Informado'} | Data: ${n.dataAlerta.split('-').reverse().join('/')} às ${n.horaAlerta} (Op: ${n.operador.split('@')[0]})\n`; 
+});
             }
             relatorio += "\n------------------------------------------------\n\n";
         });
@@ -1529,6 +1532,7 @@ Regras Absolutas:
 - Ordene todos os eventos cronologicamente pelo horário.
 - Não adicione markdown de bloco de código (como \`\`\`), saudações ou comentários. Apenas o texto puro formatado.
 - REGRA DE TÍTULO: Para preencher o [Título do Evento], extraia OBRIGATORIAMENTE o valor exato da chave "tituloOrigem" presente no objeto do evento. Se estiver vazio, use "Evento Geral".
+- Não erre o horário.
 
 Modelo Exato de Saída esperado:
 *PMPR*
