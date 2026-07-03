@@ -387,6 +387,10 @@
 <div id="nota-modal">
     <h4 id="nota-alvo-titulo">Gerenciar Entrada</h4>
     
+    <div id="container-titulo" style="margin-bottom: 15px;">
+        <label style="font-size: 11px; color: #888; display: block; margin-bottom: 4px;">🏷️ Título / Nome do Movimento ou Evento:</label>
+        <input type="text" id="nota-titulo" placeholder="Ex: Manifestação Sindical / Ato Nacional contra Reformas" style="width: 100%; background: #111; color: #fff; border: 1px solid #333; padding: 10px; border-radius: 6px; box-sizing: border-box; outline: none; font-size: 14px; font-weight: bold; border-left: 3px solid var(--accent-yellow);">
+    </div>
     <label style="font-size: 11px; color: #888; display: block; margin-bottom: 4px;">Informações / Dados do Alerta:</label>
     <textarea id="nota-textarea" placeholder="Digite os detalhes observacionais..."></textarea>
     
@@ -759,6 +763,10 @@ window.abrirModalCalendarioDireto = function() {
     contextoAtual = 'direto'; alvoAtualNota = "";
     window.CURRENT_IA_TEXTO_BRUTO = "";
     document.getElementById('nota-alvo-titulo').innerText = "Agendar Novo Evento";
+    
+    // 🟢 LIMPA O CAMPO TÍTULO
+    document.getElementById('nota-titulo').value = ""; 
+    
     document.getElementById('nota-textarea').value = ""; document.getElementById('nota-local').value = "";
     document.getElementById('nota-data').value = ""; document.getElementById('nota-hora').value = "";
     
@@ -982,11 +990,15 @@ function construirItemVisualEvento(nota, keyId, tipoEntrada) {
         document.getElementById('ia-input-modal').style.display = 'none';
 
         contextoAtual = 'direto'; alvoAtualNota = "";
-        document.getElementById('nota-alvo-titulo').innerText = "Conferir Agendamento por IA";
-        document.getElementById('nota-textarea').value = dataObjeto.texto || "";
-        document.getElementById('nota-local').value = dataObjeto.local || "";
-        document.getElementById('nota-data').value = dataObjeto.data || "";
-        document.getElementById('nota-hora').value = dataObjeto.hora || "";
+      document.getElementById('nota-alvo-titulo').innerText = "Conferir Agendamento por IA";
+
+// 🟢 PREENCHIMENTO AUTOMÁTICO DO NOVO CAMPO PELA IA:
+document.getElementById('nota-titulo').value = dataObjeto.titulo || dataObjeto.movimento || "";
+
+document.getElementById('nota-textarea').value = dataObjeto.texto || "";
+document.getElementById('nota-local').value = dataObjeto.local || "";
+document.getElementById('nota-data').value = dataObjeto.data || "";
+document.getElementById('nota-hora').value = dataObjeto.hora || "";
         
         // Injeta o movimento detectado pela IA na nossa lista dinâmica nova
         window.inicializarCamposMovimento(dataObjeto.movimento ? [dataObjeto.movimento] : []);
@@ -1055,12 +1067,14 @@ window.abrirModalTatico = function(e, idUnico, titulo, tipo) {
     if (tipo === 'postit') {
         document.getElementById('nota-alvo-titulo').innerText = "Nota (Post-it): " + titulo;
         const nota = anotacoesGlobais[safeKey] || {};
+        document.getElementById('nota-titulo').value = nota.tituloOrigem || titulo || ""; // 🟢 CARREGA TÍTULO
         document.getElementById('nota-textarea').value = nota.texto || "";
         document.getElementById('container-local').style.display = 'none';
         document.getElementById('container-tempo').style.display = 'none';
     } else if (tipo === 'agenda') {
         document.getElementById('nota-alvo-titulo').innerText = "Agenda de Evento: " + titulo;
         const nota = agendaMenusGlobais[safeKey] || {};
+        document.getElementById('nota-titulo').value = nota.tituloOrigem || titulo || ""; // 🟢 CARREGA TÍTULO
         document.getElementById('nota-textarea').value = nota.texto || "";
         document.getElementById('nota-local').value = nota.local || "";
         document.getElementById('nota-data').value = nota.dataAlerta || "";
@@ -1070,11 +1084,14 @@ window.abrirModalTatico = function(e, idUnico, titulo, tipo) {
     } else if (tipo === 'direto') {
         document.getElementById('nota-alvo-titulo').innerText = "Editar Evento";
         const nota = alertasCalendarioGlobais[idUnico] || {};
+        document.getElementById('nota-titulo').value = nota.tituloOrigem || ""; // 🟢 CARREGA TÍTULO
         document.getElementById('nota-textarea').value = nota.texto || "";
         document.getElementById('nota-local').value = nota.local || "";
         document.getElementById('nota-data').value = nota.dataAlerta || "";
         document.getElementById('nota-hora').value = nota.horaAlerta || "";
         window.CURRENT_IA_TEXTO_BRUTO = nota.textoBruto || "";
+        
+        // ... restante da função igual
         
         let listaMovs = [];
         if (nota.movimentosAtrelados && Array.isArray(nota.movimentosAtrelados)) {
@@ -1204,6 +1221,9 @@ window.obterClimaOpenMeteo = async function(localTexto, dataIso) {
 };
 
 window.salvarNotaFirebase = async function() {
+    // 🟢 CAPTURA O VALOR DIGITADO NO NOVO CAMPO TÍTULO:
+    const tituloDigitado = document.getElementById('nota-titulo').value.trim();
+    
     const texto = document.getElementById('nota-textarea').value.trim();
     const local = document.getElementById('nota-local').value.trim();
     const dataAlerta = document.getElementById('nota-data').value;
@@ -1214,13 +1234,16 @@ window.salvarNotaFirebase = async function() {
     const btnGravar = document.getElementById('btn-modal-gravar');
     const textoBotaoOriginal = btnGravar.innerText;
     
-    // Captura campos dinâmicos de movimentos preenchidos
     const inputsMov = document.querySelectorAll('.nota-movimento-input-dinamico');
     let movimentosAtrelados = [];
     inputsMov.forEach(inp => { if (inp.value.trim() !== "") movimentosAtrelados.push(inp.value.trim()); });
     
     let movimentoAtreladoOriginal = movimentosAtrelados.length > 0 ? movimentosAtrelados[0] : "";
-    let tituloDefinido = movimentoAtreladoOriginal ? movimentoAtreladoOriginal.split(' > ').pop() : "Evento Geral";
+    
+    // 🟢 HIERARQUIA INTELIGENTE: Usa o campo digitado; se estiver vazio, usa a árvore; por fim, "Evento Geral"
+    let tituloDefinido = tituloDigitado || (movimentoAtreladoOriginal ? movimentoAtreladoOriginal.split(' > ').pop() : (tituloAtualNota || "Evento Geral"));
+
+    // ... o restante da função continua exatamente igual, salvando tituloDefinido na chave tituloOrigem do Firebase
 
     // Modificação tática: Busca meteorológica em tempo real no ato da gravação
     let dadosClimaticos = "";
