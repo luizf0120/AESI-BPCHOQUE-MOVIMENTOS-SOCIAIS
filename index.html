@@ -1519,28 +1519,29 @@ window.salvarNotaFirebase = async function() {
           const diaSemanaStr = diasSemanaMatriz[dataObj.getDay()];
           const dataFormatadaBr = dataAlertaAlvo.split('-').reverse().join('/');
 
-          const promptFinal = `Você é um robô analista de inteligência. Pegue a lista de eventos fornecida e monte um relatório operacional diário seguindo RIGOROSAMENTE a estrutura e os recuos do modelo abaixo.
+         const promptFinal = `Você é um robô analista de inteligência. Pegue a lista de eventos fornecida e monte um relatório operacional diário seguindo RIGOROSAMENTE a estrutura e os recuos do modelo abaixo.
           
-          Regras Absolutas:
-          - O cabeçalho institucional (PMPR, CME, BPCHOQUE, AESI) deve vir limpo no topo, sem asteriscos ou formatações markdown.
-          - Deixe obrigatoriamente uma linha em branco após AESI.
-          - Siga a linha de Data no formato "Data: [dia_da_semana], DD/MM/YYYY".
-          - Para cada evento, use o recuo exato de espaços, o caractere "•", o emoji "🕒", horário, título, emoji "📍" para endereço e emoji "📝" para detalhes.
-          - Ordene todos os eventos cronologicamente pelo horário.
-          - Não adicione markdown de bloco de código (como \`\`\`), saudações ou comentários. Apenas o texto puro formatado.
+Regras Absolutas:
+- O cabeçalho institucional (PMPR, CME, BPCHOQUE, AESI) deve vir limpo no topo, ou formatações markdown, somente com os asteriscos.
+- Deixe obrigatoriamente uma linha em branco após AESI.
+- Siga a linha de Data no formato "Data: [dia_da_semana], DD/MM/YYYY".
+- Para cada evento, use o recuo exato de espaços, o caractere "•", o emoji "🕒", horário, título, emoji "📍" para endereço e emoji "📝" para detalhes.
+- Ordene todos os eventos cronologicamente pelo horário.
+- Não adicione markdown de bloco de código (como \`\`\`), saudações ou comentários. Apenas o texto puro formatado.
+- REGRA DE TÍTULO: Para preencher o [Título do Evento], extraia OBRIGATORIAMENTE o valor exato da chave "tituloOrigem" presente no objeto do evento. Se estiver vazio, use "Evento Geral".
 
-          Modelo Exato de Saída esperado:
-          *PMPR*
-          *CME*
-          *BPCHOQUE*
-          *AESI*
+Modelo Exato de Saída esperado:
+*PMPR*
+*CME*
+*BPCHOQUE*
+*AESI*
 
-          Data: ${diaSemanaStr}, ${dataFormatadaBr}
-                   • 🕒 [Horário HH:MM] - [Título do Evento]
+Data: ${diaSemanaStr}, ${dataFormatadaBr}
+                   • 🕒 [Horário HH:MM] - [Extraia o valor de tituloOrigem aqui]
                    📍 Endereço: [Local ou Endereço]
                    📝 Detalhes: [Resumo e pauta sintetizada do evento]
                    🌤️ Clima: [Extraia o valor exato da chave "clima" presente no objeto]
-          Lista de eventos para processar: ${JSON.stringify(pacotesEventos)}`;
+Lista de eventos para processar: ${JSON.stringify(pacotesEventos)}`;
 
          const resposta = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`, {
               method: "POST", headers: { "Content-Type": "application/json" },
@@ -1621,7 +1622,7 @@ window.gerarRelatorioIA = async function() {
               return;
           }
 
-          const promptFinal = `Você é uma Inteligência Artificial analista de dados de inteligência de segurança. Analise a seguinte lista de eventos e manifestações agendadas para os próximos 7 dias e crie um Relatório Sintético de Cenários formatado RIGOROSAMENTE para envio direto no WhatsApp.
+const promptFinal = `Você é uma Inteligência Artificial analista de dados de inteligência de segurança. Analise a seguinte lista de eventos e manifestações agendadas para os próximos 7 dias e crie um Relatório Sintético de Cenários formatado RIGOROSAMENTE para envio direto no WhatsApp.
 
 A estrutura da mensagem DEVE seguir estritamente o modelo abaixo. Não coloque linhas em branco entre as siglas institucionais, mas deixe OBRIGATORIAMENTE uma linha em branco logo após *AESI* e antes da linha de *Data*. Agrupe todos os eventos de um mesmo dia cronologicamente pelo horário e use asteriscos de forma explícita para deixar os títulos em negrito no WhatsApp.
 
@@ -1633,7 +1634,7 @@ A estrutura da mensagem DEVE seguir estritamente o modelo abaixo. Não coloque l
 *Data*: [Dia da semana abreviado com 3 letras minúsculas, ex: seg, ter, qua, qui, sex, sab, dom], [Data formatada DD/MM/YYYY]
 
           Listar todos os eventos desta data em ordem de horário. Descrevendo o titulo da manifestação, horario e endereço nos moldes abaixo:
-          • 🕒 [Horário HH:MM] - *[Título/Nome do Evento]*
+          • 🕒 [Horário HH:MM] - *[Extraia OBRIGATORIAMENTE o valor exato da chave "tituloOrigem"]*
           📍 Endereço: [Local ou Endereço completo]
           📝 Detalhes: [Descrição concisa da pauta. REGRA ABSOLUTA: Jamais coloque estimativa de público aqui dentro]
           👥 Previsão de participantes por IA: [Extraia o valor da chave "previsaoIA" do objeto. Caso essa chave não exista ou esteja vazia, calcule você mesmo uma estimativa aproximada]
