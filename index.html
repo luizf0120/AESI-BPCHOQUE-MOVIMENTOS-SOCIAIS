@@ -266,6 +266,83 @@
   .link-url { font-size: 10px; color: #888; margin-top: 2px; }
   .no-children .toggle-icon { display: none; }
   .no-children .node-progress-bar { display: none; } 
+
+  /* =========================================
+     RESPONSIVIDADE PARA DISPOSITIVOS MÓVEIS (CELULARES)
+     ========================================= */
+  @media (max-width: 768px) {
+    /* 1. Ajusta o cabeçalho e a barra de busca para empilhar */
+    .header-container {
+      flex-direction: column;
+      align-items: stretch;
+      padding: 15px;
+      gap: 15px;
+    }
+    
+    .search-input {
+      width: 100%;
+      box-sizing: border-box;
+    }
+
+    /* 2. Reduz as margens da barra de progresso e empilha botões */
+    .progress-wrapper {
+      margin: 0 15px 20px 15px;
+    }
+    
+    .progress-header {
+      flex-direction: column;
+      gap: 15px;
+      align-items: stretch;
+      text-align: center;
+    }
+    
+    .action-buttons {
+      justify-content: center;
+      flex-wrap: wrap; /* Permite que os botões quebrem de linha se necessário */
+    }
+
+    /* 3. Empilha o painel esquerdo (árvore) e o direito (calendário) */
+    .workspace-wrapper {
+      flex-direction: column;
+      padding: 0 15px 20px 15px;
+    }
+    
+    .right-panel {
+      width: 100% !important; /* Força a sobrescrever o estilo inline de 360px */
+    }
+
+    /* 4. Empilha as caixas de estatísticas (Top/Bottom da semana) */
+    .stats-container {
+      flex-direction: column;
+    }
+
+    /* 5. Ajusta os botões da árvore de navegação para não estourarem a tela */
+    .node > button, .link-card {
+      min-width: 100%;
+      box-sizing: border-box;
+      white-space: normal; /* Permite que textos muito longos quebrem de linha */
+      height: auto;
+    }
+    
+    .stamp {
+      position: static;
+      transform: none;
+      display: block;
+      margin-top: 5px;
+    }
+
+    /* 6. Ajusta a caixa de login para não ficar colada nas bordas */
+    .login-box {
+      width: 90%;
+      padding: 30px 20px;
+    }
+    
+    /* 7. Ajusta a exibição de inputs duplos nos formulários (modais) */
+    .input-linha-dupla {
+      flex-direction: column;
+      gap: 0;
+    }
+  }
 </style>
 </head>
 <body>
