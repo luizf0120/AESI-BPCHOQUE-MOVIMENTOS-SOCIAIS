@@ -1883,16 +1883,7 @@ A estrutura da mensagem DEVE seguir estritamente o modelo abaixo. Não coloque l
               }
               const apiKey = snapChave.val().trim();
 
-              const snapPlanilha = await get(ref(db, 'config/planilha_publico_url'));
-              let dadosPlanilha = "Nenhum dado histórico disponível na base unificada.";
-              if (snapPlanilha.exists() && snapPlanilha.val().trim() !== "") {
-                  try {
-                      const resCsv = await fetch(snapPlanilha.val().trim());
-                      if (resCsv.ok) dadosPlanilha = await resCsv.text();
-                  } catch (e) { console.warn("Erro ao baixar a planilha unificada:", e); }
-              }
-
-              let metodoCalculo = "Considere variáveis locais e pauta para projetar o público.";
+                          let metodoCalculo = "Considere variáveis locais e pauta para projetar o público.";
               const snapMetodo = await get(ref(db, 'config/metodo_estimativa'));
               if (snapMetodo.exists() && snapMetodo.val().trim() !== "") {
                   metodoCalculo = snapMetodo.val().trim();
@@ -1933,10 +1924,7 @@ A estrutura da mensagem DEVE seguir estritamente o modelo abaixo. Não coloque l
               O sistema analisou a folha do calendário e injetou automaticamente em cada evento abaixo as propriedades "vetorLogistico_D" (onde 0 é dia útil/concorrência e 1 é fim de semana livre) e "diaDaSemanaNome". Considere estes valores nativos no cálculo da função Y_t.
               =====================================================================
 
-              BASE DE DADOS HISTÓRICOS UNIFICADA (FORMATO CSV):
-              ${dadosPlanilha}
-
-              ATENÇÃO OPERACIONAL IMPORTANTÍSSIMA: Como você deve analisar uma lista com múltiplos eventos da semana abaixo, aplique as regras do seu método individualmente para cada evento e retorne a sua resposta estritamente estruturada como um ARRAY DE OBJETOS JSON [ { ... }, { ... } ], onde cada objeto possui obrigatoriamente as chaves "previsao_publico" e "relatorio_auditoria" conforme exigido pelo formato estrito de saída do método. Não quebre o JSON.
+                        ATENÇÃO OPERACIONAL IMPORTANTÍSSIMA: Como você deve analisar uma lista com múltiplos eventos da semana abaixo, aplique as regras do seu método individualmente para cada evento e retorne a sua resposta estritamente estruturada como um ARRAY DE OBJETOS JSON [ { ... }, { ... } ], onde cada objeto possui obrigatoriamente as chaves "previsao_publico" e "relatorio_auditoria" conforme exigido pelo formato estrito de saída do método. Não quebre o JSON.
 
               Lista de eventos cadastrados para análise atual: ${JSON.stringify(pacotesComDiaD)}`;
 
@@ -2100,15 +2088,6 @@ A estrutura da mensagem DEVE seguir estritamente o modelo abaixo. Não coloque l
         }
         const apiKey = snapChave.val().trim();
 
-        let dadosPlanilha = "Sem histórico disponível.";
-        const snapPlanilha = await get(ref(db, 'config/planilha_publico_url'));
-        if (snapPlanilha.exists() && snapPlanilha.val().trim() !== "") {
-            try {
-                const resCsv = await fetch(snapPlanilha.val().trim());
-                if (resCsv.ok) dadosPlanilha = await resCsv.text();
-            } catch (e) { console.warn("Falha ao anexar planilha analítica:", e); }
-        }
-
         const dataFormatadaBr = nota.dataAlerta ? nota.dataAlerta.split('-').reverse().join('/') : '--/--/----';
 
         const promptIndividual = `Você é um algoritmo especialista em análise preditiva de inteligência de segurança pública. Calcule a projeção de público exclusivamente para o evento especificado abaixo.
@@ -2120,9 +2099,6 @@ A estrutura da mensagem DEVE seguir estritamente o modelo abaixo. Não coloque l
         "previsao" (String resumida contendo a estimativa de público, ex: "150 a 200 participantes"),
         "consideracoes" (String bem concisa e direta contendo resumidamente o que foi levado em consideração para o cálculo, avaliando clima, local e pauta),
         "texto_completo" (String formatada contendo o relatório analítico expandido).
-
-        BASE DE DADOS HISTÓRICOS UNIFICADA (FORMATO CSV):
-        ${dadosPlanilha}
 
         DADOS ATUAIS DO EVENTO SELECIONADO:
         • Movimento: ${nota.tituloOrigem || 'Não Definido'}
