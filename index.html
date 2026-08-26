@@ -1891,8 +1891,9 @@ A estrutura da mensagem DEVE seguir estritamente o modelo abaixo. Não coloque l
 
               btn.innerText = "🤖 Executando Regressão...";
 
-              // 3. CALCULO E INJEÇÃO AUTOMÁTICA DA VARIÁVEL "D" PARA CADA EVENTO DA LISTA
-              const pacotesComDiaD = pacotesEventos.map(ev => {
+// 3. CÁLCULO E INJEÇÃO AUTOMÁTICA DA VARIÁVEL "D" E DO VETOR HISTÓRICO "H"
+              const pacotesComDadosInjetados = pacotesEventos.map(ev => {
+                  // --- Lógica original: Cálculo do Vetor D (Fim de semana) ---
                   let varD = 0; 
                   let diaTexto = "Não mapeado";
                   if (ev.dataAlerta) {
@@ -1902,10 +1903,47 @@ A estrutura da mensagem DEVE seguir estritamente o modelo abaixo. Não coloque l
                       varD = (diaSemana === 0 || diaSemana === 6) ? 1 : 0;
                       diaTexto = dataObj.toLocaleDateString('pt-BR', { weekday: 'long' });
                   }
+
+                  // --- NOVA LÓGICA: Cálculo do Vetor Histórico (H) ---
+                  let historicoValido = [];
+                  let tituloAlvo = ev.tituloOrigem || ev.movimentoAtrelado;
+                  
+                  // Varre a base global de alertas em busca de eventos passados deste mesmo movimento
+                  if (tituloAlvo && alertasCalendarioGlobais) {
+                      Object.values(alertasCalendarioGlobais).forEach(pastEv => {
+                          if (pastEv.tituloOrigem === tituloAlvo && pastEv.dataAlerta < ev.dataAlerta && pastEv.numeroManifestantes) {
+                              // Limpa o dado (ex: "chuva atrapalhou 50" -> 50)
+                              let num = parseInt(pastEv.numeroManifestantes.toString().replace(/\D/g, ''));
+                              if (!isNaN(num)) {
+                                  historicoValido.push({ data: pastEv.dataAlerta, publico: num });
+                              }
+                          }
+                      });
+                  }
+                  
+                  // Ordena cronologicamente do mais antigo para o mais recente
+                  historicoValido.sort((a, b) => new Date(a.data) - new Date(b.data));
+                  
+                  let H_ult = 0;
+                  let deltaH = 0; // Porcentagem de tendência
+                  
+                  if (historicoValido.length > 0) {
+                      H_ult = historicoValido[historicoValido.length - 1].publico; // Último público
+                      
+                      if (historicoValido.length > 1) {
+                          let penultimo = historicoValido[historicoValido.length - 2].publico;
+                          if (penultimo > 0) {
+                              deltaH = Math.round(((H_ult - penultimo) / penultimo) * 100);
+                          }
+                      }
+                  }
+
                   return {
                       ...ev,
                       vetorLogistico_D: varD,
-                      diaDaSemanaNome: diaTexto
+                      diaDaSemanaNome: diaTexto,
+                      vetorHistorico_H_ult: H_ult,
+                      vetorHistorico_deltaH: deltaH + "%"
                   };
               });
 
@@ -1920,13 +1958,16 @@ A estrutura da mensagem DEVE seguir estritamente o modelo abaixo. Não coloque l
               • Vetor de Contexto -> Gatilho Político/Econômico (G) = ${varG}
               • Vetor de Contexto -> Nível de Repressão Recente (R) = ${varR}
               
-              ⚙️ DETECÇÃO AUTOMÁTICA DO CALENDÁRIO PARA O VETOR LOGÍSTICO (D):
-              O sistema analisou a folha do calendário e injetou automaticamente em cada evento abaixo as propriedades "vetorLogistico_D" (onde 0 é dia útil/concorrência e 1 é fim de semana livre) e "diaDaSemanaNome". Considere estes valores nativos no cálculo da função Y_t.
+              ⚙️ DETECÇÃO AUTOMÁTICA DE VETORES (INJETADOS NO JSON DE CADA EVENTO):
+              O sistema varreu o banco de dados e injetou as seguintes chaves reais em cada evento:
+              - "vetorLogistico_D": 0 (dia útil/concorrência) ou 1 (fim de semana).
+              - "vetorHistorico_H_ult": O público real do último evento registrado deste grupo. ESTA DEVE SER SUA ÂNCORA PRINCIPAL DE CÁLCULO. Se for 0, trate como primeiro evento.
+              - "vetorHistorico_deltaH": A tendência média de crescimento/queda (%) histórica.
               =====================================================================
 
                         ATENÇÃO OPERACIONAL IMPORTANTÍSSIMA: Como você deve analisar uma lista com múltiplos eventos da semana abaixo, aplique as regras do seu método individualmente para cada evento e retorne a sua resposta estritamente estruturada como um ARRAY DE OBJETOS JSON [ { ... }, { ... } ], onde cada objeto possui obrigatoriamente as chaves "previsao_publico" e "relatorio_auditoria" conforme exigido pelo formato estrito de saída do método. Não quebre o JSON.
 
-              Lista de eventos cadastrados para análise atual: ${JSON.stringify(pacotesComDiaD)}`;
+              Lista de eventos cadastrados para análise atual: ${JSON.stringify(pacotesComDadosInjetados)}`;
 
               const resposta = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`, {
                   method: "POST", headers: { "Content-Type": "application/json" },
@@ -1951,7 +1992,7 @@ A estrutura da mensagem DEVE seguir estritamente o modelo abaixo. Não coloque l
                   const objetoListaIa = JSON.parse(textoPuroIa);
                   const listaPrevisoes = Array.isArray(objetoListaIa) ? objetoListaIa : [objetoListaIa];
 
-                  pacotesComDiaD.forEach((ev, index) => {
+                  pacotesComDadosInjetados.forEach((ev, index) => {
                       const calculo = listaPrevisoes[index] || listaPrevisoes[0] || { previsao_publico: "N/A", relatorio_auditoria: "Falha na leitura individual." };
                       let dataBr = ev.dataAlerta ? ev.dataAlerta.split('-').reverse().join('/') : '--/--/----';
                       
@@ -1992,7 +2033,6 @@ A estrutura da mensagem DEVE seguir estritamente o modelo abaixo. Não coloque l
 
           btn.innerText = backupText; btn.disabled = false;
       };
-  };
   /* =====================================================================
      SISTEMA DE SINCRONIZAÇÃO FORÇADA DE CACHE (ANTI-VERSÃO ANTIGA)
      ===================================================================== */
