@@ -1904,21 +1904,35 @@ A estrutura da mensagem DEVE seguir estritamente o modelo abaixo. Não coloque l
                       diaTexto = dataObj.toLocaleDateString('pt-BR', { weekday: 'long' });
                   }
 
-                  // --- NOVA LÓGICA: Cálculo do Vetor Histórico (H) ---
+// --- NOVA LÓGICA: Cálculo do Vetor Histórico (H) COM BUSCA INTELIGENTE ---
                   let historicoValido = [];
+                  let memoriaErros = []; 
                   let tituloAlvo = ev.tituloOrigem || ev.movimentoAtrelado;
                   
-                  // Varre a base global de alertas em busca de eventos passados deste mesmo movimento
-                  if (tituloAlvo && alertasCalendarioGlobais) {
+                  // Filtro que remove acentos, espaços, traços e põe tudo em minúsculo
+                  const limparNome = (str) => str ? str.normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]/gi, "").toLowerCase() : "";
+                  const alvoLimpo = limparNome(tituloAlvo);
+                  
+                  if (alvoLimpo && alertasCalendarioGlobais) {
                       Object.values(alertasCalendarioGlobais).forEach(pastEv => {
-                          if (pastEv.tituloOrigem === tituloAlvo && pastEv.dataAlerta < ev.dataAlerta && pastEv.numeroManifestantes) {
-                              // Limpa o dado (ex: "chuva atrapalhou 50" -> 50)
-                              let num = parseInt(pastEv.numeroManifestantes.toString().replace(/\D/g, ''));
-                              if (!isNaN(num)) {
+                          // Aqui o código compara as duas strings "limpas"
+                          if (limparNome(pastEv.tituloOrigem) === alvoLimpo && pastEv.dataAlerta < ev.dataAlerta && pastEv.numeroManifestantes) {
+                              
+                              let textoManifestantes = pastEv.numeroManifestantes.toString();
+                              if(textoManifestantes.includes('@')) return; 
+
+                              let num = parseInt(textoManifestantes.replace(/\D/g, ''));
+                              
+                              if (!isNaN(num) && num < 500000) { 
                                   historicoValido.push({ data: pastEv.dataAlerta, publico: num });
+                                  
+                                  if (pastEv.previsaoIA) {
+                                      memoriaErros.push(`IA previu '${pastEv.previsaoIA}', mas o real foi ${num}`);
+                                  }
                               }
                           }
                       });
+                  }
                   }
                   
                   // Ordena cronologicamente do mais antigo para o mais recente
@@ -2131,14 +2145,19 @@ window.preverPublicoIndividualIA = async function(keyId, tipoEntrada) {
 
         const dataFormatadaBr = nota.dataAlerta ? nota.dataAlerta.split('-').reverse().join('/') : '--/--/----';
 
-        // --- NOVA LÓGICA DE HISTÓRICO E MEMÓRIA PARA O BOTÃO INDIVIDUAL ---
+// --- NOVA LÓGICA DE HISTÓRICO E MEMÓRIA PARA O BOTÃO INDIVIDUAL ---
         let historicoValido = [];
         let memoriaErros = [];
         let tituloAlvo = nota.tituloOrigem || nota.movimentoAtrelado;
         
-        if (tituloAlvo && alertasCalendarioGlobais) {
+        // Filtro que remove acentos, espaços, traços e põe tudo em minúsculo
+        const limparNome = (str) => str ? str.normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]/gi, "").toLowerCase() : "";
+        const alvoLimpo = limparNome(tituloAlvo);
+        
+        if (alvoLimpo && alertasCalendarioGlobais) {
             Object.values(alertasCalendarioGlobais).forEach(pastEv => {
-                if (pastEv.tituloOrigem === tituloAlvo && pastEv.dataAlerta < nota.dataAlerta && pastEv.numeroManifestantes) {
+                // Compara as duas strings "limpas"
+                if (limparNome(pastEv.tituloOrigem) === alvoLimpo && pastEv.dataAlerta < nota.dataAlerta && pastEv.numeroManifestantes) {
                     let textoManifestantes = pastEv.numeroManifestantes.toString();
                     if(textoManifestantes.includes('@')) return; 
                     let num = parseInt(textoManifestantes.replace(/\D/g, ''));
