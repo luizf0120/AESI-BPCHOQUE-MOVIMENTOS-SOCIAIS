@@ -2106,7 +2106,7 @@ A estrutura da mensagem DEVE seguir estritamente o modelo abaixo. Não coloque l
       }
   });
 
- window.preverPublicoIndividualIA = async function(keyId, tipoEntrada) {
+window.preverPublicoIndividualIA = async function(keyId, tipoEntrada) {
     const nota = tipoEntrada === 'direto' ? alertasCalendarioGlobais[keyId] : agendaMenusGlobais[keyId];
     if (!nota) return;
 
@@ -2131,21 +2131,54 @@ A estrutura da mensagem DEVE seguir estritamente o modelo abaixo. Não coloque l
 
         const dataFormatadaBr = nota.dataAlerta ? nota.dataAlerta.split('-').reverse().join('/') : '--/--/----';
 
+        // --- NOVA LÓGICA DE HISTÓRICO E MEMÓRIA PARA O BOTÃO INDIVIDUAL ---
+        let historicoValido = [];
+        let memoriaErros = [];
+        let tituloAlvo = nota.tituloOrigem || nota.movimentoAtrelado;
+        
+        if (tituloAlvo && alertasCalendarioGlobais) {
+            Object.values(alertasCalendarioGlobais).forEach(pastEv => {
+                if (pastEv.tituloOrigem === tituloAlvo && pastEv.dataAlerta < nota.dataAlerta && pastEv.numeroManifestantes) {
+                    let textoManifestantes = pastEv.numeroManifestantes.toString();
+                    if(textoManifestantes.includes('@')) return; 
+                    let num = parseInt(textoManifestantes.replace(/\D/g, ''));
+                    if (!isNaN(num) && num < 500000) { 
+                        historicoValido.push({ data: pastEv.dataAlerta, publico: num });
+                        if (pastEv.previsaoIA) {
+                            memoriaErros.push(`No dia ${pastEv.dataAlerta.split('-').reverse().join('/')}, IA previu '${pastEv.previsaoIA}', mas o público real foi ${num}`);
+                        }
+                    }
+                }
+            });
+        }
+        
+        historicoValido.sort((a, b) => new Date(a.data) - new Date(b.data));
+        let H_ult = 0; let deltaH = 0; 
+        if (historicoValido.length > 0) {
+            H_ult = historicoValido[historicoValido.length - 1].publico; 
+            if (historicoValido.length > 1) {
+                let penultimo = historicoValido[historicoValido.length - 2].publico;
+                if (penultimo > 0) deltaH = Math.round(((H_ult - penultimo) / penultimo) * 100);
+            }
+        }
+        let strMemoria = memoriaErros.length > 0 ? memoriaErros.slice(-3).join(" | ") : "Nenhum feedback anterior. Considere este o primeiro evento ou evento isolado.";
+
         const promptIndividual = `Você é um algoritmo especialista em análise preditiva de inteligência de segurança pública. Calcule a projeção de público exclusivamente para o evento especificado abaixo.
         
-        Analise a pauta, o local de concentração histórico e use o dado do clima injetado no evento para estimar o público provável com precisão.
+        REGRA ABSOLUTA DE MATEMÁTICA: O sistema localizou o último público real registrado para este movimento (Âncora H_ult: ${H_ult} pessoas) e a tendência de crescimento (ΔH: ${deltaH}%). Você DEVE usar o valor de H_ult (${H_ult}) como sua base principal de cálculo. Se for 0, analise apenas pela pauta.
         
-        Responda OBRIGATORIAMENTE com um objeto JSON plano válido.
-        JSON Chaves estruturais obrigatórias:
+        MEMÓRIA DE ERROS DA IA: "${strMemoria}". Se você superestimou antes, puxe os números para baixo agora.
+        
+        Responda OBRIGATORIAMENTE com um objeto JSON plano válido contendo as chaves:
         "previsao" (String resumida contendo a estimativa de público, ex: "150 a 200 participantes"),
-        "consideracoes" (String bem concisa e direta contendo resumidamente o que foi levado em consideração para o cálculo, avaliando clima, local e pauta),
+        "consideracoes" (String bem concisa e direta justificando o cálculo baseado na âncora de ${H_ult} pessoas, clima e pauta),
         "texto_completo" (String formatada contendo o relatório analítico expandido).
 
         DADOS ATUAIS DO EVENTO SELECIONADO:
-        • Movimento: ${nota.tituloOrigem || 'Não Definido'}
+        • Movimento: ${tituloAlvo || 'Não Definido'}
         • Data: ${dataFormatadaBr} às ${nota.horaAlerta || 'Horário não informado'}
         • Local de Concentração: ${nota.local || 'Não cadastrado'}
-        • Clima Registrado: ${nota.clima || 'Sem informações climáticas na base'}
+        • Clima Registrado: ${nota.clima || 'Sem informação'}
         • Resumo da Pauta: "${nota.texto || 'Sem descrição'}"`;
 
         const resposta = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`, {
@@ -2160,7 +2193,8 @@ A estrutura da mensagem DEVE seguir estritamente o modelo abaixo. Não coloque l
         if (!dataIa.candidates || dataIa.candidates.length === 0) { throw new Error("A IA não gerou a previsão."); }
         
         let rawText = dataIa.candidates[0].content.parts[0].text;
-        let dataObjeto = JSON.parse(rawText.trim());
+        rawText = rawText.replace(/^```json/, '').replace(/```$/, '').trim();
+        let dataObjeto = JSON.parse(rawText);
 
         const novosDados = {
             ...nota,
