@@ -1765,7 +1765,7 @@ A estrutura da mensagem DEVE seguir estritamente o modelo abaixo. Não coloque l
  /* =====================================================================
      MÓDULO DE INTELIGÊNCIA: PROJEÇÃO DE PÚBLICO (VERSÃO VETORES + MINI RESUMOS)
      ===================================================================== */
-  window.gerarEstimativaPublico = async function() {
+window.gerarEstimativaPublico = async function() {
       const btn = document.getElementById('btn-ia-publico');
       const backupText = btn.innerText;
 
@@ -1883,7 +1883,7 @@ A estrutura da mensagem DEVE seguir estritamente o modelo abaixo. Não coloque l
               }
               const apiKey = snapChave.val().trim();
 
-                          let metodoCalculo = "Considere variáveis locais e pauta para projetar o público.";
+              let metodoCalculo = "Considere variáveis locais e pauta para projetar o público.";
               const snapMetodo = await get(ref(db, 'config/metodo_estimativa'));
               if (snapMetodo.exists() && snapMetodo.val().trim() !== "") {
                   metodoCalculo = snapMetodo.val().trim();
@@ -1891,9 +1891,7 @@ A estrutura da mensagem DEVE seguir estritamente o modelo abaixo. Não coloque l
 
               btn.innerText = "🤖 Executando Regressão...";
 
-// 3. CÁLCULO E INJEÇÃO AUTOMÁTICA DA VARIÁVEL "D" E DO VETOR HISTÓRICO "H"
               const pacotesComDadosInjetados = pacotesEventos.map(ev => {
-                  // --- Lógica original: Cálculo do Vetor D (Fim de semana) ---
                   let varD = 0; 
                   let diaTexto = "Não mapeado";
                   if (ev.dataAlerta) {
@@ -1904,18 +1902,16 @@ A estrutura da mensagem DEVE seguir estritamente o modelo abaixo. Não coloque l
                       diaTexto = dataObj.toLocaleDateString('pt-BR', { weekday: 'long' });
                   }
 
-// --- NOVA LÓGICA: Cálculo do Vetor Histórico (H) COM BUSCA INTELIGENTE ---
                   let historicoValido = [];
                   let memoriaErros = []; 
                   let tituloAlvo = ev.tituloOrigem || ev.movimentoAtrelado;
                   
-                  // Filtro que remove acentos, espaços, traços e põe tudo em minúsculo
+                  // FILTRO DE NOME INTELIGENTE
                   const limparNome = (str) => str ? str.normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]/gi, "").toLowerCase() : "";
                   const alvoLimpo = limparNome(tituloAlvo);
                   
                   if (alvoLimpo && alertasCalendarioGlobais) {
                       Object.values(alertasCalendarioGlobais).forEach(pastEv => {
-                          // Aqui o código compara as duas strings "limpas"
                           if (limparNome(pastEv.tituloOrigem) === alvoLimpo && pastEv.dataAlerta < ev.dataAlerta && pastEv.numeroManifestantes) {
                               
                               let textoManifestantes = pastEv.numeroManifestantes.toString();
@@ -1925,7 +1921,6 @@ A estrutura da mensagem DEVE seguir estritamente o modelo abaixo. Não coloque l
                               
                               if (!isNaN(num) && num < 500000) { 
                                   historicoValido.push({ data: pastEv.dataAlerta, publico: num });
-                                  
                                   if (pastEv.previsaoIA) {
                                       memoriaErros.push(`IA previu '${pastEv.previsaoIA}', mas o real foi ${num}`);
                                   }
@@ -1933,17 +1928,14 @@ A estrutura da mensagem DEVE seguir estritamente o modelo abaixo. Não coloque l
                           }
                       });
                   }
-                  }
                   
-                  // Ordena cronologicamente do mais antigo para o mais recente
                   historicoValido.sort((a, b) => new Date(a.data) - new Date(b.data));
                   
                   let H_ult = 0;
-                  let deltaH = 0; // Porcentagem de tendência
+                  let deltaH = 0; 
                   
                   if (historicoValido.length > 0) {
-                      H_ult = historicoValido[historicoValido.length - 1].publico; // Último público
-                      
+                      H_ult = historicoValido[historicoValido.length - 1].publico; 
                       if (historicoValido.length > 1) {
                           let penultimo = historicoValido[historicoValido.length - 2].publico;
                           if (penultimo > 0) {
@@ -1957,11 +1949,11 @@ A estrutura da mensagem DEVE seguir estritamente o modelo abaixo. Não coloque l
                       vetorLogistico_D: varD,
                       diaDaSemanaNome: diaTexto,
                       vetorHistorico_H_ult: H_ult,
-                      vetorHistorico_deltaH: deltaH + "%"
+                      vetorHistorico_deltaH: deltaH + "%",
+                      Memoria_do_Firebase: memoriaErros.length > 0 ? memoriaErros.slice(-3).join(" | ") : "Nenhum feedback anterior disponível."
                   };
               });
 
-              // 4. Monta o Prompt Injetando os Vetores Manuais + Automatizados
               const promptFinal = `${metodoCalculo}
 
               =====================================================================
@@ -1977,6 +1969,7 @@ A estrutura da mensagem DEVE seguir estritamente o modelo abaixo. Não coloque l
               - "vetorLogistico_D": 0 (dia útil/concorrência) ou 1 (fim de semana).
               - "vetorHistorico_H_ult": O público real do último evento registrado deste grupo. ESTA DEVE SER SUA ÂNCORA PRINCIPAL DE CÁLCULO. Se for 0, trate como primeiro evento.
               - "vetorHistorico_deltaH": A tendência média de crescimento/queda (%) histórica.
+              - "Memoria_do_Firebase": Contém os últimos acertos/erros da IA para você ajustar seu peso preditivo.
               =====================================================================
 
                         ATENÇÃO OPERACIONAL IMPORTANTÍSSIMA: Como você deve analisar uma lista com múltiplos eventos da semana abaixo, aplique as regras do seu método individualmente para cada evento e retorne a sua resposta estritamente estruturada como um ARRAY DE OBJETOS JSON [ { ... }, { ... } ], onde cada objeto possui obrigatoriamente as chaves "previsao_publico" e "relatorio_auditoria" conforme exigido pelo formato estrito de saída do método. Não quebre o JSON.
@@ -2047,7 +2040,7 @@ A estrutura da mensagem DEVE seguir estritamente o modelo abaixo. Não coloque l
 
           btn.innerText = backupText; btn.disabled = false;
       };
-          };
+  };
   /* =====================================================================
      SISTEMA DE SINCRONIZAÇÃO FORÇADA DE CACHE (ANTI-VERSÃO ANTIGA)
      ===================================================================== */
