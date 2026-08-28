@@ -583,6 +583,8 @@
       });
   }
 
+  
+
   function extrairTodosOsAlvos(lista, caminhoAtual = []) {
       if (!Array.isArray(lista)) lista = lista ? Object.values(lista) : [];
       lista.forEach(item => {
@@ -872,22 +874,47 @@ window.abrirModalCalendarioDireto = function() {
           return '<a href="' + url + '" target="_blank">' + url + '</a>';
       });
   }
+  
+  function extrairShortcodeInstagram(url) {
+      if (!url) return null;
+      const regex = /(?:instagram\.com\/(?:p|reel)\/)([\w-]+)/;
+      const match = url.match(regex);
+      return match ? match[1] : null;
+  }
 
  window.abrirModalDetalhes = function(keyId, tipoEntrada) {
       const nota = tipoEntrada === 'direto' ? alertasCalendarioGlobais[keyId] : agendaMenusGlobais[keyId];
       if (!nota) return;
-      
+
+        
       let dataBr = nota.dataAlerta ? nota.dataAlerta.split('-').reverse().join('/') : '--/--/----';
       let caminhoFoco = tipoEntrada === 'direto' ? (nota.movimentoAtrelado || "") : (nota.pathString || "");
       
       let textoBrutoLimpo = nota.textoBruto ? linkify(String(nota.textoBruto)) : "<span style='color: #555; font-style: italic;'>Nenhum registro bruto associado (Agendamento Manual Clássico).</span>";
       const textoProcessado = nota.texto ? linkify(String(nota.texto)) : "Sem descrição cadastrada.";
 
+   let blocoMetricas = "";
+if (nota.metricasInsta) {
+    blocoMetricas = `
+        <div style="margin-top: 10px; background: #1a0910; border: 1px solid #E1306C; padding: 10px; border-radius: 6px; display: flex; justify-content: space-between; align-items: center;">
+            <div>
+                <span style="color: #E1306C; font-weight: bold; font-size: 12px; display: block;">📸 Engajamento do Post (IG)</span>
+                <span style="font-size: 14px; font-weight: bold; color: #fff;">❤️ ${nota.metricasInsta.curtidas} curtidas &nbsp;|&nbsp; 💬 ${nota.metricasInsta.comentarios} comentários</span>
+            </div>
+            <span style="font-size: 10px; color: #888;">Checado às ${nota.metricasInsta.atualizadoEm}</span>
+        </div>
+    `;
+}
+   
    document.getElementById('detalhes-conteudo').innerHTML = `
           <p><strong>🎯 Movimento:</strong> ${nota.tituloOrigem || 'Evento Geral'}</p>
           <p><strong>📅 Data de Execução:</strong> ${dataBr} às ${nota.horaAlerta || '--:--'}</p>
           <p><strong>📍 Local de Concentração:</strong> ${nota.local || 'Não cadastrado'}</p>
           ${nota.linkPublicacao ? `<p><strong>🔗 Fonte / Publicação:</strong> <a href="${nota.linkPublicacao}" target="_blank" style="color: #00bcd4; text-decoration: underline;">Acessar Postagem Original</a></p>` : ''}
+          ${nota.linkPublicacao ? `
+    <p><strong>🔗 Fonte / Publicação:</strong> <a href="${nota.linkPublicacao}" target="_blank" style="color: #00bcd4; text-decoration: underline;">Acessar Postagem Original</a></p>
+    ${blocoMetricas}
+` : ''}
           ${nota.clima ? `<p><strong>🌤️ Condição do Tempo:</strong> <span style="color: #00bcd4; font-weight: bold;">${nota.clima}</span></p>` : ''}
           
           ${nota.previsaoIA ? `<p><strong>🤖 Previsão de Público (IA):</strong> <span style="color: #ea80fc; font-weight: bold; font-size: 15px;">${nota.previsaoIA}</span></p>` : ''}
@@ -929,6 +956,11 @@ function construirItemVisualEvento(nota, keyId, tipoEntrada) {
       div.style.cssText = `background: #111; border-left: 4px solid ${tipoEntrada === 'direto' ? 'var(--accent-yellow)' : 'var(--accent-orange)'}; padding: 12px; border-radius: 5px; font-size: 14px; line-height: 1.5; box-sizing: border-box; margin-bottom: 10px; text-align: left;`;
 
       let dataBr = nota.dataAlerta ? nota.dataAlerta.split('-').reverse().join('/') : '--/--/----';
+
+  let tagInsta = "";
+if (nota.metricasInsta) {
+    tagInsta = `<span style="font-size: 11px; background: #2a0815; color: #ff69b4; padding: 2px 6px; border-radius: 4px; border: 1px solid #E1306C; margin-left: 6px;">❤️ ${nota.metricasInsta.curtidas} | 💬 ${nota.metricasInsta.comentarios}</span>`;
+}
 
       div.innerHTML = `
           <div style="display: flex; justify-content: space-between; align-items: center; font-weight: bold; color: var(--accent-yellow); font-size: 15px;">
@@ -1305,6 +1337,49 @@ window.obterClimaOpenMeteo = async function(localTexto, dataIso) {
     }
 };
 
+  window.obterMetricasInstagram = async function(urlPost) {
+    const shortcode = extrairShortcodeInstagram(urlPost);
+    if (!shortcode) return null;
+
+    try {
+        // 1. Busca a chave do RapidAPI salva no Firebase
+        const snapChave = await get(ref(db, 'config/instagram_api_key'));
+        if (!snapChave.exists() || !snapChave.val().trim()) {
+            console.warn("Chave 'config/instagram_api_key' não configurada no Firebase.");
+            return null;
+        }
+        const apiKey = snapChave.val().trim();
+
+        // 2. Requisição para o serviço de extração de métricas (Exemplo via RapidAPI)
+        const response = await fetch(`https://instagram-scraper-2022.p.rapidapi.com/ig/post_info/?shortcode=${shortcode}`, {
+            method: 'GET',
+            headers: {
+                'x-rapidapi-key': apiKey,
+                'x-rapidapi-host': 'instagram-scraper-2022.p.rapidapi.com'
+            }
+        });
+
+        if (!response.ok) throw new Error(`Erro API Instagram: ${response.status}`);
+        const data = await response.json();
+
+        // 3. Extrai os dados relevantes do retorno
+        const curtidas = data.data?.like_count ?? data.likes ?? 0;
+        const comentarios = data.data?.comment_count ?? data.comments ?? 0;
+
+        return {
+            curtidas: curtidas.toLocaleString('pt-BR'),
+            comentarios: comentarios.toLocaleString('pt-BR'),
+            curtidasRaw: curtidas,
+            comentariosRaw: comentarios,
+            atualizadoEm: obterHoraBrasilia()
+        };
+    } catch (err) {
+        console.error("Falha ao capturar métricas do Instagram:", err);
+        return null;
+    }
+};
+  
+
 window.salvarNotaFirebase = async function() {
     // 🟢 CAPTURA O VALOR DIGITADO NO NOVO CAMPO TÍTULO:
     const tituloDigitado = document.getElementById('nota-titulo').value.trim();
@@ -1355,6 +1430,11 @@ window.salvarNotaFirebase = async function() {
             if (!tituloFinal || tituloFinal === "Evento Geral") {
                  tituloFinal = dadosExistentes.tituloOrigem || "Evento Geral";
             }
+          
+          let metricasInsta = null;
+    if (linkPublicacao) {
+        btnGravar.innerText = "📊 Buscando Métricas do Intagram...";
+        metricasInsta = await window.obterMetricasInstagram(linkPublicacao);
 
             set(notaRef, { 
                 texto, 
@@ -1362,6 +1442,7 @@ window.salvarNotaFirebase = async function() {
                 dataAlerta, 
                 horaAlerta, 
               linkPublicacao: linkPublicacao,
+              metricasInsta: metricasInsta || dadosExistentes.metricasInsta || null,
                 clima: dadosClimaticos || dadosExistentes.clima || "",
                 movimentoAtrelado: movimentoAtreladoOriginal,
                 movimentosAtrelados: movimentosAtrelados,     
