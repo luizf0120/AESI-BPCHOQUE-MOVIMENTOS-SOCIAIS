@@ -909,12 +909,13 @@ if (nota.metricasInsta) {
    document.getElementById('detalhes-conteudo').innerHTML = `
           <p><strong>🎯 Movimento:</strong> ${nota.tituloOrigem || 'Evento Geral'}</p>
           <p><strong>📅 Data de Execução:</strong> ${dataBr} às ${nota.horaAlerta || '--:--'}</p>
-          <p><strong>📍 Local de Concentração:</strong> ${nota.local || 'Não cadastrado'}</p>
-          ${nota.linkPublicacao ? `<p><strong>🔗 Fonte / Publicação:</strong> <a href="${nota.linkPublicacao}" target="_blank" style="color: #00bcd4; text-decoration: underline;">Acessar Postagem Original</a></p>` : ''}
+         <p><strong>📍 Local de Concentração:</strong> ${nota.local || 'Não cadastrado'}</p>
+          
           ${nota.linkPublicacao ? `
-    <p><strong>🔗 Fonte / Publicação:</strong> <a href="${nota.linkPublicacao}" target="_blank" style="color: #00bcd4; text-decoration: underline;">Acessar Postagem Original</a></p>
-    ${blocoMetricas}
-` : ''}
+              <p><strong>🔗 Fonte / Publicação:</strong> <a href="${nota.linkPublicacao}" target="_blank" style="color: #00bcd4; text-decoration: underline;">Acessar Postagem Original</a></p>
+              ${blocoMetricas}
+          ` : ''}
+          
           ${nota.clima ? `<p><strong>🌤️ Condição do Tempo:</strong> <span style="color: #00bcd4; font-weight: bold;">${nota.clima}</span></p>` : ''}
           
           ${nota.previsaoIA ? `<p><strong>🤖 Previsão de Público (IA):</strong> <span style="color: #ea80fc; font-weight: bold; font-size: 15px;">${nota.previsaoIA}</span></p>` : ''}
