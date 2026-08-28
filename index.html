@@ -1381,14 +1381,13 @@ window.obterClimaOpenMeteo = async function(localTexto, dataIso) {
   
 
 window.salvarNotaFirebase = async function() {
-    // 🟢 CAPTURA O VALOR DIGITADO NO NOVO CAMPO TÍTULO:
+    // Captura os valores do formulário
     const tituloDigitado = document.getElementById('nota-titulo').value.trim();
-    
     const texto = document.getElementById('nota-textarea').value.trim();
     const local = document.getElementById('nota-local').value.trim();
     const dataAlerta = document.getElementById('nota-data').value;
     const horaAlerta = document.getElementById('nota-hora').value;
-  const linkPublicacao = document.getElementById('nota-link-pub').value.trim();
+    const linkPublicacao = document.getElementById('nota-link-pub').value.trim();
     const safeKey = sanitizarId(alvoAtualNota);
     const user = auth.currentUser ? auth.currentUser.email : 'Desconhecido';
     
@@ -1400,13 +1399,9 @@ window.salvarNotaFirebase = async function() {
     inputsMov.forEach(inp => { if (inp.value.trim() !== "") movimentosAtrelados.push(inp.value.trim()); });
     
     let movimentoAtreladoOriginal = movimentosAtrelados.length > 0 ? movimentosAtrelados[0] : "";
-    
-    // 🟢 HIERARQUIA INTELIGENTE: Usa o campo digitado; se estiver vazio, usa a árvore; por fim, "Evento Geral"
     let tituloDefinido = tituloDigitado || (movimentoAtreladoOriginal ? movimentoAtreladoOriginal.split(' > ').pop() : (tituloAtualNota || "Evento Geral"));
 
-    // ... o restante da função continua exatamente igual, salvando tituloDefinido na chave tituloOrigem do Firebase
-
-    // Modificação tática: Busca meteorológica em tempo real no ato da gravação
+    // Busca clima em tempo real
     let dadosClimaticos = "";
     if (local && dataAlerta) {
         btnGravar.innerText = "🌤️ Mapeando Clima...";
@@ -1414,41 +1409,42 @@ window.salvarNotaFirebase = async function() {
         dadosClimaticos = await window.obterClimaOpenMeteo(local, dataAlerta);
     }
 
-   if (contextoAtual === 'direto') {
+    // Busca métricas do Instagram em tempo real
+    let metricasInsta = null;
+    if (linkPublicacao) {
+        btnGravar.innerText = "📊 Buscando Métricas do IG...";
+        btnGravar.disabled = true;
+        metricasInsta = await window.obterMetricasInstagram(linkPublicacao);
+    }
+
+    if (contextoAtual === 'direto') {
         const uniqueKey = alvoAtualNota || ("CAL_" + Date.now()); 
         const notaRef = ref(db, `alertas_calendario/${uniqueKey}`);
         
         if (texto === "" && local === "" && dataAlerta === "" && horaAlerta === "") {
             set(notaRef, null);
         } else {
-            // Resgata o nó antigo caso seja edição para não perder dados
             let dadosExistentes = {};
             try { const snap = await get(notaRef); if(snap.exists()) dadosExistentes = snap.val(); } catch(e){}
 
-            // 🟢 TRAVA DE SEGURANÇA NOVA AQUI:
             let tituloFinal = tituloDefinido;
             if (!tituloFinal || tituloFinal === "Evento Geral") {
                  tituloFinal = dadosExistentes.tituloOrigem || "Evento Geral";
             }
           
-          let metricasInsta = null;
-    if (linkPublicacao) {
-        btnGravar.innerText = "📊 Buscando Métricas do Intagram...";
-        metricasInsta = await window.obterMetricasInstagram(linkPublicacao);
-
             set(notaRef, { 
                 texto, 
                 local, 
                 dataAlerta, 
                 horaAlerta, 
-              linkPublicacao: linkPublicacao,
-              metricasInsta: metricasInsta || dadosExistentes.metricasInsta || null,
+                linkPublicacao,
+                metricasInsta: metricasInsta || dadosExistentes.metricasInsta || null,
                 clima: dadosClimaticos || dadosExistentes.clima || "",
                 movimentoAtrelado: movimentoAtreladoOriginal,
                 movimentosAtrelados: movimentosAtrelados,     
                 operador: user, 
                 time: obterHoraBrasilia(), 
-                tituloOrigem: tituloFinal, // <-- Puxando a variável segura
+                tituloOrigem: tituloFinal,
                 isDirectCalendar: true, 
                 keyId: uniqueKey,
                 numeroManifestantes: dadosExistentes.numeroManifestantes || null,
@@ -1467,7 +1463,6 @@ window.salvarNotaFirebase = async function() {
             let dadosExistentes = {};
             try { const snap = await get(notaRef); if(snap.exists()) dadosExistentes = snap.val(); } catch(e){}
 
-            // 🟢 TRAVA DE SEGURANÇA NOVA AQUI TAMBÉM:
             let tituloFinal = tituloDefinido;
             if (!tituloFinal || tituloFinal === "Evento Geral") {
                  tituloFinal = dadosExistentes.tituloOrigem || tituloAtualNota || "Evento Geral";
@@ -1478,11 +1473,12 @@ window.salvarNotaFirebase = async function() {
                 local, 
                 dataAlerta, 
                 horaAlerta,
-              linkPublicacao: linkPublicacao,
+                linkPublicacao,
+                metricasInsta: metricasInsta || dadosExistentes.metricasInsta || null,
                 clima: dadosClimaticos || dadosExistentes.clima || "",
                 operador: user, 
                 time: obterHoraBrasilia(), 
-                tituloOrigem: tituloFinal, // <-- Puxando a variável segura
+                tituloOrigem: tituloFinal, 
                 pathString: alvoAtualNota, 
                 numeroManifestantes: dadosExistentes.numeroManifestantes || null,
                 textoBruto: window.CURRENT_IA_TEXTO_BRUTO || dadosExistentes.textoBruto || "" 
@@ -1495,7 +1491,6 @@ window.salvarNotaFirebase = async function() {
     btnGravar.disabled = false;
     window.fecharModalNota();
 };
-
   function atualizarUiComVistos() {
     document.querySelectorAll('.link-card').forEach(el => {
         el.classList.remove('visto'); const stamp = el.querySelector('.stamp'); if(stamp) stamp.remove();
