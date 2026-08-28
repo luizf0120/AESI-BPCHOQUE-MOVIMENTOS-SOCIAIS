@@ -1329,16 +1329,22 @@ window.salvarNotaFirebase = async function() {
         dadosClimaticos = await window.obterClimaOpenMeteo(local, dataAlerta);
     }
 
-    if (contextoAtual === 'direto') {
+   if (contextoAtual === 'direto') {
         const uniqueKey = alvoAtualNota || ("CAL_" + Date.now()); 
         const notaRef = ref(db, `alertas_calendario/${uniqueKey}`);
         
         if (texto === "" && local === "" && dataAlerta === "" && horaAlerta === "") {
             set(notaRef, null);
         } else {
-            // Resgata o nó antigo caso seja edição para não perder dados de manifestantes legados
+            // Resgata o nó antigo caso seja edição para não perder dados
             let dadosExistentes = {};
             try { const snap = await get(notaRef); if(snap.exists()) dadosExistentes = snap.val(); } catch(e){}
+
+            // 🟢 TRAVA DE SEGURANÇA NOVA AQUI:
+            let tituloFinal = tituloDefinido;
+            if (!tituloFinal || tituloFinal === "Evento Geral") {
+                 tituloFinal = dadosExistentes.tituloOrigem || "Evento Geral";
+            }
 
             set(notaRef, { 
                 texto, 
@@ -1350,7 +1356,7 @@ window.salvarNotaFirebase = async function() {
                 movimentosAtrelados: movimentosAtrelados,     
                 operador: user, 
                 time: obterHoraBrasilia(), 
-                tituloOrigem: tituloDefinido,                  
+                tituloOrigem: tituloFinal, // <-- Puxando a variável segura
                 isDirectCalendar: true, 
                 keyId: uniqueKey,
                 numeroManifestantes: dadosExistentes.numeroManifestantes || null,
@@ -1369,6 +1375,12 @@ window.salvarNotaFirebase = async function() {
             let dadosExistentes = {};
             try { const snap = await get(notaRef); if(snap.exists()) dadosExistentes = snap.val(); } catch(e){}
 
+            // 🟢 TRAVA DE SEGURANÇA NOVA AQUI TAMBÉM:
+            let tituloFinal = tituloDefinido;
+            if (!tituloFinal || tituloFinal === "Evento Geral") {
+                 tituloFinal = dadosExistentes.tituloOrigem || tituloAtualNota || "Evento Geral";
+            }
+
             set(notaRef, { 
                 texto, 
                 local, 
@@ -1377,7 +1389,7 @@ window.salvarNotaFirebase = async function() {
                 clima: dadosClimaticos || dadosExistentes.clima || "",
                 operador: user, 
                 time: obterHoraBrasilia(), 
-                tituloOrigem: tituloAtualNota, 
+                tituloOrigem: tituloFinal, // <-- Puxando a variável segura
                 pathString: alvoAtualNota, 
                 numeroManifestantes: dadosExistentes.numeroManifestantes || null,
                 textoBruto: window.CURRENT_IA_TEXTO_BRUTO || dadosExistentes.textoBruto || "" 
