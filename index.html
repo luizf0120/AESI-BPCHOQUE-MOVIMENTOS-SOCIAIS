@@ -1364,9 +1364,20 @@ window.obterClimaOpenMeteo = async function(localTexto, dataIso) {
         const data = await response.json();
 
         // 3. Extração à prova de falhas com mapeamento flexível
-        const curtidas = data.data?.like_count ?? data.likes ?? data.edge_media_preview_like?.count ?? 0;
-        const comentarios = data.data?.comment_count ?? data.comments ?? data.edge_media_to_comment?.count ?? 0;
+      // Mapeamento abrangente para diferentes formatos de retorno da API
+        let curtidas = 0;
+        let comentarios = 0;
 
+        if (data.data && data.data.metrics) {
+            curtidas = data.data.metrics.likes ?? 0;
+            comentarios = data.data.metrics.comments ?? 0;
+        } else if (data.data) {
+            curtidas = data.data.like_count ?? data.data.edge_media_preview_like?.count ?? 0;
+            comentarios = data.data.comment_count ?? data.data.edge_media_to_comment?.count ?? 0;
+        } else {
+            curtidas = data.likes ?? data.like_count ?? 0;
+            comentarios = data.comments ?? data.comment_count ?? 0;
+        }
         return {
             curtidas: curtidas.toLocaleString('pt-BR'),
             comentarios: comentarios.toLocaleString('pt-BR'),
