@@ -480,6 +480,10 @@
             <label>📅 Dia do Evento:</label>
             <input type="date" id="nota-data">
         </div>
+      <div id="container-link-pub" style="margin-bottom: 15px;">
+        <label style="font-size: 11px; color: #888; display: block; margin-bottom: 4px;">🔗 Link da Publicação (Instagram):</label>
+        <input type="url" id="nota-link-pub" placeholder="Ex: https://instagram.com/p/..." style="width: 100%; background: #111; color: #fff; border: 1px solid #333; padding: 10px; border-radius: 6px; box-sizing: border-box; outline: none; font-size: 13px;">
+    </div>
         <div>
             <label>⏰ Hora do Evento:</label>
             <input type="time" id="nota-hora">
@@ -845,7 +849,7 @@ window.abrirModalCalendarioDireto = function() {
     
     document.getElementById('nota-textarea').value = ""; document.getElementById('nota-local').value = "";
     document.getElementById('nota-data').value = ""; document.getElementById('nota-hora').value = "";
-    
+    document.getElementById('nota-link-pub').value = "";
     // Inicializa a lista dinâmica com um único campo vazio limpo
     window.inicializarCamposMovimento([]);
 
@@ -883,6 +887,7 @@ window.abrirModalCalendarioDireto = function() {
           <p><strong>🎯 Movimento:</strong> ${nota.tituloOrigem || 'Evento Geral'}</p>
           <p><strong>📅 Data de Execução:</strong> ${dataBr} às ${nota.horaAlerta || '--:--'}</p>
           <p><strong>📍 Local de Concentração:</strong> ${nota.local || 'Não cadastrado'}</p>
+          ${nota.linkPublicacao ? `<p><strong>🔗 Fonte / Publicação:</strong> <a href="${nota.linkPublicacao}" target="_blank" style="color: #00bcd4; text-decoration: underline;">Acessar Postagem Original</a></p>` : ''}
           ${nota.clima ? `<p><strong>🌤️ Condição do Tempo:</strong> <span style="color: #00bcd4; font-weight: bold;">${nota.clima}</span></p>` : ''}
           
           ${nota.previsaoIA ? `<p><strong>🤖 Previsão de Público (IA):</strong> <span style="color: #ea80fc; font-weight: bold; font-size: 15px;">${nota.previsaoIA}</span></p>` : ''}
@@ -1150,6 +1155,7 @@ window.abrirModalTatico = function(e, idUnico, titulo, tipo) {
     } else if (tipo === 'agenda') {
         document.getElementById('nota-alvo-titulo').innerText = "Agenda de Evento: " + titulo;
         const nota = agendaMenusGlobais[safeKey] || {};
+      document.getElementById('nota-link-pub').value = nota.linkPublicacao || "";
         document.getElementById('nota-titulo').value = nota.tituloOrigem || titulo || ""; // 🟢 CARREGA TÍTULO
         document.getElementById('nota-textarea').value = nota.texto || "";
         document.getElementById('nota-local').value = nota.local || "";
@@ -1160,6 +1166,7 @@ window.abrirModalTatico = function(e, idUnico, titulo, tipo) {
     } else if (tipo === 'direto') {
         document.getElementById('nota-alvo-titulo').innerText = "Editar Evento";
         const nota = alertasCalendarioGlobais[idUnico] || {};
+      document.getElementById('nota-link-pub').value = nota.linkPublicacao || "";
         document.getElementById('nota-titulo').value = nota.tituloOrigem || ""; // 🟢 CARREGA TÍTULO
         document.getElementById('nota-textarea').value = nota.texto || "";
         document.getElementById('nota-local').value = nota.local || "";
@@ -1304,6 +1311,7 @@ window.salvarNotaFirebase = async function() {
     const local = document.getElementById('nota-local').value.trim();
     const dataAlerta = document.getElementById('nota-data').value;
     const horaAlerta = document.getElementById('nota-hora').value;
+  const linkPublicacao = document.getElementById('nota-link-pub').value.trim();
     const safeKey = sanitizarId(alvoAtualNota);
     const user = auth.currentUser ? auth.currentUser.email : 'Desconhecido';
     
@@ -1351,6 +1359,7 @@ window.salvarNotaFirebase = async function() {
                 local, 
                 dataAlerta, 
                 horaAlerta, 
+              linkPublicacao: linkPublicacao,
                 clima: dadosClimaticos || dadosExistentes.clima || "",
                 movimentoAtrelado: movimentoAtreladoOriginal,
                 movimentosAtrelados: movimentosAtrelados,     
@@ -1385,7 +1394,8 @@ window.salvarNotaFirebase = async function() {
                 texto, 
                 local, 
                 dataAlerta, 
-                horaAlerta, 
+                horaAlerta,
+              linkPublicacao: linkPublicacao,
                 clima: dadosClimaticos || dadosExistentes.clima || "",
                 operador: user, 
                 time: obterHoraBrasilia(), 
