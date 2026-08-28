@@ -1303,6 +1303,7 @@ window.obterClimaOpenMeteo = async function(localTexto, dataIso) {
         }
 
         const data = await response.json();
+      console.log("RETORNO EXATO DA API:", data);
 
         if (!data || !data.days || data.days.length === 0) {
             return "Sem registros climáticos para esta data.";
