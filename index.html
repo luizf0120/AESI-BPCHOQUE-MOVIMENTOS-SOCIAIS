@@ -1353,7 +1353,7 @@ window.obterClimaOpenMeteo = async function(localTexto, dataIso) {
         const apiKey = snapChave.val().trim();
 
         // 2. Requisição corrigida com o HOST exato do seu print (20224)
-        const response = await fetch(`https://instagram-scraper-20224.p.rapidapi.com/ig/locations/?location_id=213862033&next_media_ids=%5B%5D{shortcode}`, {
+        const response = await fetch(`https://instagram-scraper-20224.p.rapidapi.com/ig/locations/?location_id=213862033&next_media_ids=%5B%5D`, {
             method: 'GET',
             headers: {
                 'x-rapidapi-key': apiKey,
