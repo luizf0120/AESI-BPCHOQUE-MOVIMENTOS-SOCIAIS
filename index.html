@@ -1349,8 +1349,8 @@ window.obterMetricasInstagram = async function(urlPost) {
         
         const apiKey = snapChave.val().trim();
 
-        // 1. Remonta o link e codifica
-        const linkLimpo = `https://www.instagram.com/p/${shortcode}/`;
+        // 1. Remonta o link e codifica (Tiramos a barra / do final para não quebrar a API)
+        const linkLimpo = `https://www.instagram.com/p/${shortcode}`;
         const linkCodificado = encodeURIComponent(linkLimpo);
 
         // 2. Requisição para a API
@@ -1365,16 +1365,18 @@ window.obterMetricasInstagram = async function(urlPost) {
         const data = await response.json();
         console.log("RETORNO INSTAGRAM:", data);
 
-        // 3. ABERTURA EXATA DA GAVETA (Baseado no seu print: {success: true, data: {...}})
+        // 3. ABERTURA DA GAVETA "POST"
         let postData = data.data || data; 
         
-        // Proteção extra caso venha como Array dentro do data
-        if (Array.isArray(postData)) postData = postData[0];
+        // Se a API jogou tudo dentro de "post", nós entramos mais um nível:
+        if (postData && postData.post) {
+            postData = postData.post;
+        }
 
         let curtidas = 0; let comentarios = 0;
         
-        // Mapeamento extraindo os números
-        if (postData) {
+        // Mapeamento extraindo os números do objeto correto
+        if (postData && postData !== null) {
             curtidas = postData.like_count ?? postData.likes ?? postData.edge_media_preview_like?.count ?? 0;
             comentarios = postData.comment_count ?? postData.comments ?? postData.edge_media_to_comment?.count ?? 0;
         }
