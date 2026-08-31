@@ -1363,6 +1363,7 @@ window.obterClimaOpenMeteo = async function(localTexto, dataIso) {
 
         if (!response.ok) throw new Error(`Erro API Instagram: ${response.status}`);
         const data = await response.json();
+      console.log("RETORNO EXATO DA API:", data);
 
         // 3. Extração à prova de falhas com mapeamento flexível
       // Mapeamento abrangente para diferentes formatos de retorno da API
