@@ -1348,27 +1348,26 @@ window.obterMetricasInstagram = async function(urlPost) {
         
         const apiKey = snapChave.val().trim();
 
-        // 1. Pega o link exato que você colou e corta apenas o rastreio (?)
-        const linkLimpo = urlPost.split('?')[0]; 
+        // 1. Limpa o link de rastreios
+        const linkLimpo = urlPost.split('?')[0];
         const linkCodificado = encodeURIComponent(linkLimpo);
 
-        // 2. Requisição para a API
-        const response = await fetch(`https://instagram-post-details-scraper-api.p.rapidapi.com/v2/instagram-post-details/?urls=${linkCodificado}`, {
+        // 2. Requisição com a URL EXATA do seu print
+        const response = await fetch(`https://instagram-statistics-api.p.rapidapi.com/posts/one?postUrl=${linkCodificado}`, {
             method: 'GET',
             headers: {
                 'x-rapidapi-key': apiKey,
-                'x-rapidapi-host': 'instagram-post-details-scraper-api.p.rapidapi.com'
+                'x-rapidapi-host': 'instagram-statistics-api.p.rapidapi.com'
             }
         });
 
         const data = await response.json();
-        console.log("RETORNO INSTAGRAM:", data);
+        console.log("RETORNO INSTAGRAM NOVO:", data);
 
-        // 3. ABERTURA DA GAVETA "POST"
+        // 3. Abertura genérica
         let postData = data.data || data; 
-        if (postData && postData.post) {
-            postData = postData.post;
-        }
+        if (postData && postData.post) postData = postData.post;
+        if (postData && postData.media) postData = postData.media; 
 
         let curtidas = 0; let comentarios = 0;
         
