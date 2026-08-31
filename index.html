@@ -1339,51 +1339,52 @@ window.obterClimaOpenMeteo = async function(localTexto, dataIso) {
     }
 };
 
- window.obterMetricasInstagram = async function(urlPost) {
+window.obterMetricasInstagram = async function(urlPost) {
+    // Mantemos a extração só para validar se o link colado é válido
     const shortcode = extrairShortcodeInstagram(urlPost);
     if (!shortcode) return null;
 
     try {
-        // 1. Busca a chave do RapidAPI salva no Firebase
         const snapChave = await get(ref(db, 'config/instagram_api_key'));
-        if (!snapChave.exists() || !snapChave.val().trim()) {
-            console.warn("Chave 'config/instagram_api_key' não configurada no Firebase.");
-            return null;
-        }
+        if (!snapChave.exists() || !snapChave.val().trim()) return null;
+        
         const apiKey = snapChave.val().trim();
 
-        // 2. Requisição corrigida com o HOST exato do seu print (20224)
-        const response = await fetch(`https://instagram-scraper-20224.p.rapidapi.com/ig/locations/?location_id=213862033&next_media_ids=%5B%5D`, {
+        // 1. Remonta o link limpo e codifica para a API entender
+        const linkLimpo = `https://www.instagram.com/p/${shortcode}/`;
+        const linkCodificado = encodeURIComponent(linkLimpo);
+
+        // 2. Requisição para a sua API exata
+        const response = await fetch(`https://instagram-post-details-scraper-api.p.rapidapi.com/v2/instagram-post-details/?urls=${linkCodificado}`, {
             method: 'GET',
             headers: {
                 'x-rapidapi-key': apiKey,
-                'x-rapidapi-host': 'instagram-scraper-20224.p.rapidapi.com'
+                'x-rapidapi-host': 'instagram-post-details-scraper-api.p.rapidapi.com'
             }
         });
 
-        if (!response.ok) throw new Error(`Erro API Instagram: ${response.status}`);
         const data = await response.json();
-      console.log("RETORNO EXATO DA API:", data);
+        
+        // ESPIÃO: Deixei o espião aqui caso dê 0 curtidas, você pode me mandar a gaveta!
+        console.log("RETORNO INSTAGRAM:", data);
 
-        // 3. Extração à prova de falhas com mapeamento flexível
-      // Mapeamento abrangente para diferentes formatos de retorno da API
-        let curtidas = 0;
-        let comentarios = 0;
+        // 3. Como a API pede "urls" no plural, ela costuma devolver uma lista [0].
+        let postData = data;
+        if (Array.isArray(data) && data.length > 0) postData = data[0];
+        else if (data.data && Array.isArray(data.data)) postData = data.data[0];
 
-        if (data.data && data.data.metrics) {
-            curtidas = data.data.metrics.likes ?? 0;
-            comentarios = data.data.metrics.comments ?? 0;
-        } else if (data.data) {
-            curtidas = data.data.like_count ?? data.data.edge_media_preview_like?.count ?? 0;
-            comentarios = data.data.comment_count ?? data.data.edge_media_to_comment?.count ?? 0;
-        } else {
-            curtidas = data.likes ?? data.like_count ?? 0;
-            comentarios = data.comments ?? data.comment_count ?? 0;
+        let curtidas = 0; let comentarios = 0;
+        
+        // Mapeamento à prova de falhas
+        if (postData) {
+            curtidas = postData.like_count ?? postData.likes ?? postData.edge_media_preview_like?.count ?? 0;
+            comentarios = postData.comment_count ?? postData.comments ?? postData.edge_media_to_comment?.count ?? 0;
         }
+
         return {
             curtidas: curtidas.toLocaleString('pt-BR'),
             comentarios: comentarios.toLocaleString('pt-BR'),
-            curtidasRaw: curtidas,
+            curtidasRaw: curtidas, 
             comentariosRaw: comentarios,
             atualizadoEm: obterHoraBrasilia()
         };
