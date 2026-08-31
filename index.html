@@ -1340,7 +1340,6 @@ window.obterClimaOpenMeteo = async function(localTexto, dataIso) {
 };
 
 window.obterMetricasInstagram = async function(urlPost) {
-    // Mantemos a extração só para validar se o link colado é válido
     const shortcode = extrairShortcodeInstagram(urlPost);
     if (!shortcode) return null;
 
@@ -1350,11 +1349,11 @@ window.obterMetricasInstagram = async function(urlPost) {
         
         const apiKey = snapChave.val().trim();
 
-        // 1. Remonta o link limpo e codifica para a API entender
+        // 1. Remonta o link e codifica
         const linkLimpo = `https://www.instagram.com/p/${shortcode}/`;
         const linkCodificado = encodeURIComponent(linkLimpo);
 
-        // 2. Requisição para a sua API exata
+        // 2. Requisição para a API
         const response = await fetch(`https://instagram-post-details-scraper-api.p.rapidapi.com/v2/instagram-post-details/?urls=${linkCodificado}`, {
             method: 'GET',
             headers: {
@@ -1364,18 +1363,17 @@ window.obterMetricasInstagram = async function(urlPost) {
         });
 
         const data = await response.json();
-        
-        // ESPIÃO: Deixei o espião aqui caso dê 0 curtidas, você pode me mandar a gaveta!
         console.log("RETORNO INSTAGRAM:", data);
 
-        // 3. Como a API pede "urls" no plural, ela costuma devolver uma lista [0].
-        let postData = data;
-        if (Array.isArray(data) && data.length > 0) postData = data[0];
-        else if (data.data && Array.isArray(data.data)) postData = data.data[0];
+        // 3. ABERTURA EXATA DA GAVETA (Baseado no seu print: {success: true, data: {...}})
+        let postData = data.data || data; 
+        
+        // Proteção extra caso venha como Array dentro do data
+        if (Array.isArray(postData)) postData = postData[0];
 
         let curtidas = 0; let comentarios = 0;
         
-        // Mapeamento à prova de falhas
+        // Mapeamento extraindo os números
         if (postData) {
             curtidas = postData.like_count ?? postData.likes ?? postData.edge_media_preview_like?.count ?? 0;
             comentarios = postData.comment_count ?? postData.comments ?? postData.edge_media_to_comment?.count ?? 0;
