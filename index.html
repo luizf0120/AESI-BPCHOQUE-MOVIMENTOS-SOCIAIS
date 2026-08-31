@@ -1340,8 +1340,7 @@ window.obterClimaOpenMeteo = async function(localTexto, dataIso) {
 };
 
 window.obterMetricasInstagram = async function(urlPost) {
-    const shortcode = extrairShortcodeInstagram(urlPost);
-    if (!shortcode) return null;
+    if (!urlPost || !urlPost.includes('instagram.com')) return null;
 
     try {
         const snapChave = await get(ref(db, 'config/instagram_api_key'));
@@ -1349,8 +1348,8 @@ window.obterMetricasInstagram = async function(urlPost) {
         
         const apiKey = snapChave.val().trim();
 
-        // 1. Remonta o link e codifica (Tiramos a barra / do final para não quebrar a API)
-        const linkLimpo = `https://www.instagram.com/p/${shortcode}`;
+        // 1. Pega o link exato que você colou e corta apenas o rastreio (?)
+        const linkLimpo = urlPost.split('?')[0]; 
         const linkCodificado = encodeURIComponent(linkLimpo);
 
         // 2. Requisição para a API
@@ -1367,15 +1366,12 @@ window.obterMetricasInstagram = async function(urlPost) {
 
         // 3. ABERTURA DA GAVETA "POST"
         let postData = data.data || data; 
-        
-        // Se a API jogou tudo dentro de "post", nós entramos mais um nível:
         if (postData && postData.post) {
             postData = postData.post;
         }
 
         let curtidas = 0; let comentarios = 0;
         
-        // Mapeamento extraindo os números do objeto correto
         if (postData && postData !== null) {
             curtidas = postData.like_count ?? postData.likes ?? postData.edge_media_preview_like?.count ?? 0;
             comentarios = postData.comment_count ?? postData.comments ?? postData.edge_media_to_comment?.count ?? 0;
